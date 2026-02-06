@@ -229,7 +229,7 @@ export default function ChessPage() {
   }, [game, playerColor, fen]);
 
   useEffect(() => {
-    if (!isPlayerTurn && !game.game_over()) {
+    if (!isPlayerTurn && !game.isGameOver()) {
       const timer = setTimeout(() => {
         makeAIMove();
       }, 500);
@@ -257,7 +257,7 @@ export default function ChessPage() {
   }
 
   function makeAIMove() {
-    if (game.game_over()) return;
+    if (game.isGameOver()) return;
     const moves = game.moves({ verbose: true });
     if (moves.length === 0) return;
 
@@ -297,7 +297,7 @@ export default function ChessPage() {
   }
 
   function onDrop(sourceSquare: string, targetSquare: string) {
-    if (!isPlayerTurn || game.game_over()) return false;
+    if (!isPlayerTurn || game.isGameOver()) return false;
 
     const move = game.move({
       from: sourceSquare,
