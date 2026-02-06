@@ -10,7 +10,7 @@ const supabase = supabaseUrl && supabaseAnonKey
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { gameId: string } }
+  { params }: { params: Promise<{ gameId: string }> }
 ) {
   if (!supabase) {
     return NextResponse.json(
@@ -19,7 +19,7 @@ export async function POST(
     );
   }
 
-  const gameId = params.gameId;
+  const { gameId } = await params;
 
   try {
     const body = await req.json();

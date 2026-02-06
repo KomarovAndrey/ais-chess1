@@ -3,11 +3,11 @@ import { supabase } from "@/lib/supabaseClient";
 import PlayGame from "./play-game";
 
 interface PlayPageProps {
-  params: { gameId: string };
+  params: Promise<{ gameId: string }>;
 }
 
 export default async function PlayPage({ params }: PlayPageProps) {
-  const { gameId } = params;
+  const { gameId } = await params;
 
   const { data: game, error } = await supabase
     .from("games")
