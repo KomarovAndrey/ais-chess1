@@ -245,11 +245,11 @@ export default function ChessPage() {
   }
 
   function updateStatus() {
-    if (game.in_checkmate()) {
+    if (game.isCheckmate()) {
       setStatus(game.turn() === "w" ? "Шах и мат. Чёрные выиграли." : "Шах и мат. Белые выиграли.");
-    } else if (game.in_draw()) {
+    } else if (game.isDraw()) {
       setStatus("Ничья.");
-    } else if (game.in_check()) {
+    } else if (game.isCheck()) {
       setStatus("Шах! Будьте внимательны.");
     } else {
       setStatus(isPlayerTurn ? "Ваш ход" : "Ход компьютера");
