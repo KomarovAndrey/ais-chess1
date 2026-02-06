@@ -1,17 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
-
-function getSupabase() {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!supabaseUrl || !supabaseAnonKey) return null;
-  return createClient(supabaseUrl, supabaseAnonKey);
-}
+import { getSupabaseServer } from "@/lib/supabaseServer";
 
 type CreatorColor = "white" | "black" | "random";
 
 export async function POST(req: NextRequest) {
-  const supabase = getSupabase();
+  const supabase = getSupabaseServer();
   if (!supabase) {
     return NextResponse.json(
       { error: "Supabase is not configured. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in .env.local" },

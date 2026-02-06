@@ -1,17 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-const supabase = supabaseUrl && supabaseAnonKey
-  ? createClient(supabaseUrl, supabaseAnonKey)
-  : null;
+import { getSupabaseServer } from "@/lib/supabaseServer";
 
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ gameId: string }> }
 ) {
+  const supabase = getSupabaseServer();
   if (!supabase) {
     return NextResponse.json(
       { error: "Supabase is not configured" },
