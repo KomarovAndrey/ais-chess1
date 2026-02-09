@@ -1,10 +1,26 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Chess } from "chess.js";
 import { Chessboard } from "react-chessboard";
+import { Cpu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+
+const TIME_OPTIONS = [
+  { seconds: 180, label: "3 мин" },
+  { seconds: 300, label: "5 мин" },
+  { seconds: 600, label: "10 мин" },
+  { seconds: 900, label: "15 мин" },
+];
+
+const SIDE_OPTIONS: { id: "white" | "black" | "random"; label: string; icon: string }[] = [
+  { id: "black", label: "Чёрные", icon: "♚" },
+  { id: "random", label: "Случайный цвет", icon: "♔♚" },
+  { id: "white", label: "Белые", icon: "♔" },
+];
+
+const CPU_LEVELS = [1, 2, 3, 4, 5] as const;
 
 type DifficultyLevel = 1 | 2 | 3 | 4 | 5;
 type PlayerColor = "white" | "black";
@@ -33,7 +49,28 @@ function ChessPageContent() {
   const [whiteTimeMs, setWhiteTimeMs] = useState(initialTimeMs);
   const [blackTimeMs, setBlackTimeMs] = useState(initialTimeMs);
   const [gameOverByTime, setGameOverByTime] = useState(false);
+  const [showNewGameModal, setShowNewGameModal] = useState(false);
+  const [modalTime, setModalTime] = useState(300);
+  const [modalColor, setModalColor] = useState<"white" | "black" | "random">("random");
+  const [modalLevel, setModalLevel] = useState<DifficultyLevel>(3);
   const router = useRouter();
+
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    if (e.key === "Escape") setShowNewGameModal(false);
+  }, []);
+
+  useEffect(() => {
+    if (showNewGameModal) {
+      document.addEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = "";
+    };
+  }, [showNewGameModal, handleKeyDown]);
 
   useEffect(() => {
     if (initialized) return;
@@ -90,8 +127,14 @@ function ChessPageContent() {
     return () => clearInterval(interval);
   }, [whiteClockRuns, blackClockRuns, initialTimeMs, gameOverByTime]);
 
-  function goToNewGame() {
-    router.push("/?open=cpu");
+  function openNewGameModal() {
+    setShowNewGameModal(true);
+  }
+
+  function startNewGame() {
+    const color =
+      modalColor === "random" ? (Math.random() < 0.5 ? "white" : "black") : modalColor;
+    router.push(`/chess?color=${color}&level=${modalLevel}&time=${modalTime}`);
   }
 
   function updateStatus() {
@@ -235,13 +278,111 @@ function ChessPageContent() {
               variant="outline"
               size="sm"
               className="w-full"
-              onClick={goToNewGame}
+              onClick={openNewGameModal}
             >
               Новая партия
             </Button>
           </div>
         </aside>
       </div>
+
+      {showNewGameModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setShowNewGameModal(false);
+          }}
+        >
+          <div className="relative mx-4 w-full max-w-md overflow-hidden rounded-2xl bg-[#2b2b2b] text-white shadow-2xl">
+            <button
+              type="button"
+              onClick={() => setShowNewGameModal(false)}
+              className="absolute right-3 top-3 rounded-lg p-1.5 text-gray-400 transition hover:bg-white/10 hover:text-white"
+            >
+              <X className="h-5 w-5" />
+            </button>
+            <div className="px-6 pt-6 pb-2">
+              <h3 className="text-center text-xl font-semibold tracking-wide">
+                Новая партия
+              </h3>
+            </div>
+            <div className="px-6 pb-6 pt-2 space-y-6">
+              <div>
+                <p className="mb-3 text-center text-sm font-medium text-gray-300">
+                  Минут на партию
+                </p>
+                <div className="grid grid-cols-4 gap-2">
+                  {TIME_OPTIONS.map((opt) => (
+                    <button
+                      key={opt.seconds}
+                      type="button"
+                      onClick={() => setModalTime(opt.seconds)}
+                      className={`rounded-xl px-3 py-3 text-sm font-bold transition ${
+                        modalTime === opt.seconds
+                          ? "bg-green-600 text-white shadow-lg"
+                          : "bg-[#3a3a3a] text-gray-300 hover:bg-[#4a4a4a]"
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <p className="mb-3 text-center text-sm font-medium text-gray-300">
+                  Сторона
+                </p>
+                <div className="grid grid-cols-3 gap-2">
+                  {SIDE_OPTIONS.map((opt) => (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      onClick={() => setModalColor(opt.id)}
+                      className={`flex flex-col items-center gap-1.5 rounded-xl px-3 py-4 text-sm font-medium transition ${
+                        modalColor === opt.id
+                          ? "bg-green-600 text-white shadow-lg"
+                          : "bg-[#3a3a3a] text-gray-300 hover:bg-[#4a4a4a]"
+                      }`}
+                    >
+                      <span className="text-2xl leading-none">{opt.icon}</span>
+                      <span className="text-xs">{opt.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <p className="mb-3 text-center text-sm font-medium text-gray-300">
+                  Уровень сложности
+                </p>
+                <div className="grid grid-cols-5 gap-2">
+                  {CPU_LEVELS.map((level) => (
+                    <button
+                      key={level}
+                      type="button"
+                      onClick={() => setModalLevel(level)}
+                      className={`rounded-xl px-2 py-3 text-sm font-bold transition ${
+                        modalLevel === level
+                          ? "bg-green-600 text-white shadow-lg"
+                          : "bg-[#3a3a3a] text-gray-300 hover:bg-[#4a4a4a]"
+                      }`}
+                    >
+                      {level}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={startNewGame}
+                className="flex w-full items-center justify-center gap-3 rounded-xl bg-green-600 px-4 py-4 text-base font-semibold text-white shadow-md transition hover:bg-green-500"
+              >
+                <Cpu className="h-5 w-5 shrink-0" />
+                Сыграть с компьютером
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
