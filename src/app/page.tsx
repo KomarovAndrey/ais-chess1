@@ -46,13 +46,13 @@ export default function HomePage() {
       <div className="mx-auto flex max-w-5xl flex-col gap-10 px-4 py-10 md:py-16">
         <header className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="relative h-12 w-12 overflow-hidden rounded-full bg-slate-900">
+            <div className="relative h-20 w-20 overflow-hidden rounded-full bg-slate-900">
               <Image
                 src="/ais-emblem-color.png"
                 alt="Alabuga International School"
                 fill
                 style={{ objectFit: "contain" }}
-                sizes="48px"
+                sizes="80px"
                 priority
               />
             </div>
@@ -142,10 +142,10 @@ export default function HomePage() {
             </h2>
             <div className="flex w-full max-w-full flex-col items-center justify-center gap-8 md:flex-row">
               <div className="flex w-full min-w-0 max-w-full flex-col items-center space-y-3 md:max-w-[50%]">
-                <p className="w-full text-center text-sm font-medium text-slate-700">
+                <p className="w-full text-center text-base font-medium text-slate-700">
                   Цвет фигур
                 </p>
-                <div className="grid w-full max-w-full grid-cols-3 gap-3 text-sm">
+                <div className="grid w-full max-w-full grid-cols-3 gap-4 text-base">
                   {[
                     { id: "white", label: "Белый" },
                     { id: "black", label: "Черный" },
@@ -157,7 +157,7 @@ export default function HomePage() {
                       onClick={() =>
                         setColorChoice(opt.id as "white" | "black" | "random")
                       }
-                      className={`flex min-w-0 items-center justify-center rounded-2xl border px-4 py-3 font-medium transition ${
+                      className={`flex min-h-[60px] min-w-0 items-center justify-center overflow-visible rounded-2xl border px-5 py-4 font-medium leading-normal transition ${
                         colorChoice === opt.id
                           ? "border-blue-600 bg-blue-50 text-blue-700"
                           : "border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100"
@@ -170,10 +170,10 @@ export default function HomePage() {
               </div>
 
               <div className="flex w-full min-w-0 max-w-full flex-col items-center space-y-3 md:max-w-[50%]">
-                <p className="w-full text-center text-sm font-medium text-slate-700">
+                <p className="w-full text-center text-base font-medium text-slate-700">
                   Контроль времени (на игрока)
                 </p>
-                <div className="grid w-full max-w-full grid-cols-3 gap-3 text-sm">
+                <div className="grid w-full max-w-full grid-cols-3 gap-4 text-base">
                   {[
                     { seconds: 300, label: "5 минут" },
                     { seconds: 600, label: "10 минут" },
@@ -183,7 +183,7 @@ export default function HomePage() {
                       key={opt.seconds}
                       type="button"
                       onClick={() => setTimeControl(opt.seconds)}
-                      className={`flex min-w-0 items-center justify-center rounded-2xl border px-4 py-3 font-medium transition ${
+                      className={`flex min-h-[60px] min-w-0 items-center justify-center overflow-visible rounded-2xl border px-5 py-4 font-medium leading-normal transition ${
                         timeControl === opt.seconds
                           ? "border-orange-500 bg-orange-50 text-orange-700"
                           : "border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100"
