@@ -39,9 +39,15 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=...
 3. **Создайте таблицы в Supabase** (иначе будет ошибка «Could not find the table public.games»):
    - Откройте [Supabase Dashboard](https://supabase.com/dashboard) → ваш проект.
    - Слева выберите **SQL Editor** → **New query**.
-   - Скопируйте весь код из файла `supabase-schema-games.sql` в проекте и вставьте в редактор.
-   - Нажмите **Run** (или Ctrl+Enter).
-   - Должно выполниться без ошибок — появятся таблицы `games` и `game_players` и политики RLS. Схема подхватится автоматически.
+   - Выполните следующие SQL-скрипты по очереди (каждый в отдельном запросе):
+     1. `supabase-schema-profiles.sql` — таблица профилей пользователей
+     2. `supabase-migration-profiles-username.sql` — добавление username и функций
+     3. `supabase-migration-profiles-add-role.sql` — добавление ролей (student/teacher/admin)
+     4. `supabase-schema-games.sql` — таблицы для игр (games, game_players)
+     5. `supabase-migration-games-allow-anon.sql` — разрешить игру без регистрации
+     6. `supabase-schema-soft-skills-ratings.sql` — таблица для оценок Soft Skills
+   - Для каждого скрипта: скопируйте весь код из файла и вставьте в редактор, затем нажмите **Run** (или Ctrl+Enter).
+   - Должно выполниться без ошибок. Схема подхватится автоматически.
 
 4. Запустите dev-сервер:
 
