@@ -287,9 +287,8 @@ export default function PlayGame({ initialGame }: PlayGameProps) {
       }
     }
 
-    // If game still active, clocks continue, but we already updated times above
-    const optimisticMoveAt = new Date().toISOString();
-    lastMoveAtRef.current = optimisticMoveAt;
+    // Не трогаем lastMoveAtRef при своём ходе — только по событиям с сервера (Realtime/poll).
+    // Иначе у соперника сравнение серверного времени с нашим клиентским ломает синхронизацию.
 
     sendUpdate({
       fen: newFen,
@@ -306,7 +305,6 @@ export default function PlayGame({ initialGame }: PlayGameProps) {
       active_color: nextActive,
       white_time_left: currentWhite,
       black_time_left: currentBlack,
-      last_move_at: optimisticMoveAt,
       status
     }));
 
