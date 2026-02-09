@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { UserPlus, Cpu, X } from "lucide-react";
 
@@ -18,21 +17,30 @@ const SIDE_OPTIONS: { id: "black" | "random" | "white"; label: string; icon: str
   { id: "white", label: "Белые", icon: "♔" },
 ];
 
+const CPU_LEVELS = [1, 2, 3, 4, 5] as const;
+
 export default function HomePage() {
   const [showModal, setShowModal] = useState(false);
+  const [showCpuModal, setShowCpuModal] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [colorChoice, setColorChoice] = useState<"white" | "black" | "random">("random");
   const [timeControl, setTimeControl] = useState<number>(300);
+  const [cpuColorChoice, setCpuColorChoice] = useState<"white" | "black" | "random">("random");
+  const [cpuLevel, setCpuLevel] = useState<number>(3);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
-  // Close modal on Escape
+  const modalOpen = showModal || showCpuModal;
+
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
-    if (e.key === "Escape") setShowModal(false);
+    if (e.key === "Escape") {
+      setShowModal(false);
+      setShowCpuModal(false);
+    }
   }, []);
 
   useEffect(() => {
-    if (showModal) {
+    if (modalOpen) {
       document.addEventListener("keydown", handleKeyDown);
       document.body.style.overflow = "hidden";
     } else {
@@ -42,7 +50,7 @@ export default function HomePage() {
       document.removeEventListener("keydown", handleKeyDown);
       document.body.style.overflow = "";
     };
-  }, [showModal, handleKeyDown]);
+  }, [modalOpen, handleKeyDown]);
 
   async function handleCreateGame() {
     setError(null);
@@ -117,19 +125,23 @@ export default function HomePage() {
                 Бросить вызов другу
               </button>
 
-              <Link
-                href="/chess"
+              <button
+                type="button"
                 className="flex w-full items-center justify-center gap-3 rounded-xl border border-slate-600 bg-slate-700 px-4 py-3.5 text-center text-sm font-medium text-slate-100 shadow-sm transition hover:bg-slate-600"
+                onClick={() => {
+                  setError(null);
+                  setShowCpuModal(true);
+                }}
               >
                 <Cpu className="h-5 w-5 shrink-0 text-slate-300" />
                 Сыграть с компьютером
-              </Link>
+              </button>
             </div>
           </div>
         </section>
       </div>
 
-      {/* Modal — Параметры игры (Lichess-style) */}
+      {/* Modal — Бросить вызов другу */}
       {showModal && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
@@ -138,7 +150,6 @@ export default function HomePage() {
           }}
         >
           <div className="relative mx-4 w-full max-w-md overflow-hidden rounded-2xl bg-[#2b2b2b] text-white shadow-2xl">
-            {/* Close button */}
             <button
               type="button"
               onClick={() => setShowModal(false)}
@@ -146,16 +157,12 @@ export default function HomePage() {
             >
               <X className="h-5 w-5" />
             </button>
-
-            {/* Title */}
             <div className="px-6 pt-6 pb-2">
               <h3 className="text-center text-xl font-semibold tracking-wide">
                 Параметры игры
               </h3>
             </div>
-
             <div className="px-6 pb-6 pt-2 space-y-6">
-              {/* Time selection */}
               <div>
                 <p className="mb-3 text-center text-sm font-medium text-gray-300">
                   Минут на партию
@@ -177,8 +184,6 @@ export default function HomePage() {
                   ))}
                 </div>
               </div>
-
-              {/* Side selection */}
               <div>
                 <p className="mb-3 text-center text-sm font-medium text-gray-300">
                   Сторона
@@ -201,8 +206,6 @@ export default function HomePage() {
                   ))}
                 </div>
               </div>
-
-              {/* Create game button */}
               <button
                 type="button"
                 disabled={isCreating}
@@ -212,10 +215,113 @@ export default function HomePage() {
                 <UserPlus className="h-5 w-5 shrink-0" />
                 {isCreating ? "Создаётся…" : "Бросить вызов другу"}
               </button>
-
               {error && (
                 <p className="text-center text-sm text-red-400">{error}</p>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal — Сыграть с компьютером */}
+      {showCpuModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setShowCpuModal(false);
+          }}
+        >
+          <div className="relative mx-4 w-full max-w-md overflow-hidden rounded-2xl bg-[#2b2b2b] text-white shadow-2xl">
+            <button
+              type="button"
+              onClick={() => setShowCpuModal(false)}
+              className="absolute right-3 top-3 rounded-lg p-1.5 text-gray-400 transition hover:bg-white/10 hover:text-white"
+            >
+              <X className="h-5 w-5" />
+            </button>
+            <div className="px-6 pt-6 pb-2">
+              <h3 className="text-center text-xl font-semibold tracking-wide">
+                Игра с компьютером
+              </h3>
+            </div>
+            <div className="px-6 pb-6 pt-2 space-y-6">
+              <div>
+                <p className="mb-3 text-center text-sm font-medium text-gray-300">
+                  Минут на партию
+                </p>
+                <div className="grid grid-cols-4 gap-2">
+                  {TIME_OPTIONS.map((opt) => (
+                    <button
+                      key={opt.seconds}
+                      type="button"
+                      onClick={() => setTimeControl(opt.seconds)}
+                      className={`rounded-xl px-3 py-3 text-sm font-bold transition ${
+                        timeControl === opt.seconds
+                          ? "bg-green-600 text-white shadow-lg"
+                          : "bg-[#3a3a3a] text-gray-300 hover:bg-[#4a4a4a]"
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <p className="mb-3 text-center text-sm font-medium text-gray-300">
+                  Сторона
+                </p>
+                <div className="grid grid-cols-3 gap-2">
+                  {SIDE_OPTIONS.map((opt) => (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      onClick={() => setCpuColorChoice(opt.id)}
+                      className={`flex flex-col items-center gap-1.5 rounded-xl px-3 py-4 text-sm font-medium transition ${
+                        cpuColorChoice === opt.id
+                          ? "bg-green-600 text-white shadow-lg"
+                          : "bg-[#3a3a3a] text-gray-300 hover:bg-[#4a4a4a]"
+                      }`}
+                    >
+                      <span className="text-2xl leading-none">{opt.icon}</span>
+                      <span className="text-xs">{opt.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <p className="mb-3 text-center text-sm font-medium text-gray-300">
+                  Уровень сложности
+                </p>
+                <div className="grid grid-cols-5 gap-2">
+                  {CPU_LEVELS.map((level) => (
+                    <button
+                      key={level}
+                      type="button"
+                      onClick={() => setCpuLevel(level)}
+                      className={`rounded-xl px-2 py-3 text-sm font-bold transition ${
+                        cpuLevel === level
+                          ? "bg-green-600 text-white shadow-lg"
+                          : "bg-[#3a3a3a] text-gray-300 hover:bg-[#4a4a4a]"
+                      }`}
+                    >
+                      {level}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  const color = cpuColorChoice === "random"
+                    ? (Math.random() < 0.5 ? "white" : "black")
+                    : cpuColorChoice;
+                  router.push(`/chess?color=${color}&level=${cpuLevel}`);
+                }}
+                className="flex w-full items-center justify-center gap-3 rounded-xl bg-green-600 px-4 py-4 text-base font-semibold text-white shadow-md transition hover:bg-green-500"
+              >
+                <Cpu className="h-5 w-5 shrink-0" />
+                Сыграть с компьютером
+              </button>
             </div>
           </div>
         </div>

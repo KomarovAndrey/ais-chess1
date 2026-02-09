@@ -1,20 +1,41 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { Chess } from "chess.js";
 import { Chessboard } from "react-chessboard";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-type Difficulty = "easy" | "medium" | "hard";
+type DifficultyLevel = 1 | 2 | 3 | 4 | 5;
 type PlayerColor = "white" | "black";
 
-export default function ChessPage() {
+function ChessPageContent() {
+  const searchParams = useSearchParams();
+  const colorParam = searchParams.get("color");
+  const levelParam = searchParams.get("level");
+
+  const initialColor: PlayerColor =
+    colorParam === "black" ? "black" : colorParam === "white" ? "white" : "white";
+  const initialLevel: DifficultyLevel =
+    levelParam && [1, 2, 3, 4, 5].includes(Number(levelParam))
+      ? (Number(levelParam) as DifficultyLevel)
+      : 3;
+
   const [game] = useState(() => new Chess());
   const [fen, setFen] = useState(game.fen());
-  const [playerColor, setPlayerColor] = useState<PlayerColor>("white");
-  const [difficulty, setDifficulty] = useState<Difficulty>("easy");
+  const [playerColor, setPlayerColor] = useState<PlayerColor>(initialColor);
+  const [difficulty, setDifficulty] = useState<DifficultyLevel>(initialLevel);
   const [status, setStatus] = useState<string>("Ваш ход");
+  const [initialized, setInitialized] = useState(false);
+
+  useEffect(() => {
+    if (initialized) return;
+    setPlayerColor(initialColor);
+    setDifficulty(initialLevel);
+    setStatus(initialColor === "white" ? "Ваш ход" : "Ход компьютера");
+    setInitialized(true);
+  }, [initialColor, initialLevel, initialized]);
 
   const isPlayerTurn = useMemo(() => {
     const turn = game.turn();
@@ -49,6 +70,11 @@ export default function ChessPage() {
     }
   }
 
+  const pieceValues: Record<string, number> = useMemo(
+    () => ({ p: 1, n: 3, b: 3, r: 5, q: 9, k: 100 }),
+    []
+  );
+
   function makeAIMove() {
     if (game.isGameOver()) return;
     const moves = game.moves({ verbose: true });
@@ -56,31 +82,37 @@ export default function ChessPage() {
 
     let chosenMove = moves[0];
 
-    if (difficulty === "easy") {
+    if (difficulty === 1) {
       chosenMove = moves[Math.floor(Math.random() * moves.length)];
-    } else if (difficulty === "medium") {
-      // предпочитаем взятия
+    } else if (difficulty === 2) {
       const captures = moves.filter((m) => m.captured);
       chosenMove =
         captures[Math.floor(Math.random() * captures.length)] ??
         moves[Math.floor(Math.random() * moves.length)];
-    } else if (difficulty === "hard") {
-      // очень простой "оценщик": считаем ценность взятой фигуры
-      const values: Record<string, number> = {
-        p: 1,
-        n: 3,
-        b: 3,
-        r: 5,
-        q: 9,
-        k: 100
-      };
+    } else if (difficulty === 3) {
+      const captures = moves.filter((m) => m.captured);
+      chosenMove =
+        captures[Math.floor(Math.random() * captures.length)] ??
+        moves[Math.floor(Math.random() * moves.length)];
+    } else if (difficulty === 4 || difficulty === 5) {
       let bestScore = -Infinity;
+      const candidates: typeof moves = [];
       for (const m of moves) {
-        const score = m.captured ? values[m.captured.toLowerCase()] ?? 0 : 0;
+        const score = m.captured ? pieceValues[m.captured.toLowerCase()] ?? 0 : 0;
         if (score > bestScore) {
           bestScore = score;
-          chosenMove = m;
+          candidates.length = 0;
+          candidates.push(m);
+        } else if (score === bestScore && score > 0) {
+          candidates.push(m);
         }
+      }
+      if (difficulty === 5 && candidates.length > 0) {
+        chosenMove = candidates[Math.floor(Math.random() * candidates.length)];
+      } else if (candidates.length > 0) {
+        chosenMove = candidates[0];
+      } else {
+        chosenMove = moves[Math.floor(Math.random() * moves.length)];
       }
     }
 
@@ -174,24 +206,20 @@ export default function ChessPage() {
             <h2 className="mb-3 text-sm font-semibold text-slate-900">
               Уровень сложности
             </h2>
-            <div className="grid grid-cols-3 gap-2 text-xs">
-              {[
-                { id: "easy", label: "Лёгкий" },
-                { id: "medium", label: "Средний" },
-                { id: "hard", label: "Сложный" }
-              ].map((opt) => (
+            <div className="grid grid-cols-5 gap-2 text-xs">
+              {([1, 2, 3, 4, 5] as const).map((level) => (
                 <button
-                  key={opt.id}
+                  key={level}
                   type="button"
-                  onClick={() => setDifficulty(opt.id as Difficulty)}
+                  onClick={() => setDifficulty(level)}
                   className={cn(
-                    "rounded-2xl border px-3 py-2 font-medium transition",
-                    difficulty === opt.id
+                    "rounded-2xl border px-2 py-2 font-medium transition",
+                    difficulty === level
                       ? "border-blue-600 bg-blue-50 text-blue-700"
                       : "border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100"
                   )}
                 >
-                  {opt.label}
+                  {level}
                 </button>
               ))}
             </div>
@@ -230,6 +258,18 @@ export default function ChessPage() {
         </aside>
       </div>
     </main>
+  );
+}
+
+export default function ChessPage() {
+  return (
+    <Suspense fallback={
+      <main className="flex min-h-screen items-center justify-center bg-gradient-to-b from-blue-50 via-white to-orange-50">
+        <p className="text-slate-600">Загрузка...</p>
+      </main>
+    }>
+      <ChessPageContent />
+    </Suspense>
   );
 }
 
