@@ -32,7 +32,9 @@
 Чтобы ходы соперника отображались без обновления страницы, включите Realtime для таблицы `games`:
 
 1. В Supabase Dashboard: **Database** → **Replication** → публикация **supabase_realtime** → включите таблицу **games**.
-2. Либо один раз в SQL Editor выполните: `alter publication supabase_realtime add table public.games;`
+2. Либо в SQL Editor выполните скрипт `supabase-realtime-add-games.sql` (безопасно повторять) или одну команду: `alter publication supabase_realtime add table public.games;`
+
+Если при выполнении команды появляется ошибка *"relation \"games\" is already member of publication \"supabase_realtime\""* — это нормально, Realtime для таблицы уже включён.
 
 Если Realtime не включён, приложение всё равно обновляет доску каждые ~1,5 с (polling), пока вы ждёте ход соперника.
 

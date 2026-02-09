@@ -4,7 +4,8 @@
 --
 -- For live updates without page refresh: add table to Realtime publication.
 -- In Dashboard: Database → Replication → supabase_realtime → add table "games".
--- Or run: alter publication supabase_realtime add table public.games;
+-- Or run supabase-realtime-add-games.sql (idempotent). Or: alter publication supabase_realtime add table public.games;
+-- (If you get "already member of publication", Realtime is already enabled.)
 
 create table if not exists public.games (
   id uuid primary key default gen_random_uuid(),
