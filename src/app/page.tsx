@@ -32,6 +32,13 @@ export default function HomePage() {
 
   const modalOpen = showModal || showCpuModal;
 
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("open") === "cpu") setShowCpuModal(true);
+    }
+  }, []);
+
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     if (e.key === "Escape") {
       setShowModal(false);

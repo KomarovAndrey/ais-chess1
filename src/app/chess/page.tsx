@@ -1,11 +1,10 @@
 "use client";
 
 import { Suspense, useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Chess } from "chess.js";
 import { Chessboard } from "react-chessboard";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 
 type DifficultyLevel = 1 | 2 | 3 | 4 | 5;
 type PlayerColor = "white" | "black";
@@ -34,6 +33,7 @@ function ChessPageContent() {
   const [whiteTimeMs, setWhiteTimeMs] = useState(initialTimeMs);
   const [blackTimeMs, setBlackTimeMs] = useState(initialTimeMs);
   const [gameOverByTime, setGameOverByTime] = useState(false);
+  const router = useRouter();
 
   useEffect(() => {
     if (initialized) return;
@@ -50,9 +50,8 @@ function ChessPageContent() {
     return (turn === "w" && playerColor === "white") || (turn === "b" && playerColor === "black");
   }, [game, playerColor, fen]);
 
-  const halfMoves = game.history().length;
-  const whiteClockRuns = game.turn() === "w" && halfMoves >= 2;
-  const blackClockRuns = game.turn() === "b" && halfMoves >= 3;
+  const whiteClockRuns = game.turn() === "w";
+  const blackClockRuns = game.turn() === "b";
 
   useEffect(() => {
     if (!isPlayerTurn && !game.isGameOver() && !gameOverByTime) {
@@ -91,14 +90,8 @@ function ChessPageContent() {
     return () => clearInterval(interval);
   }, [whiteClockRuns, blackClockRuns, initialTimeMs, gameOverByTime]);
 
-  function resetGame(color: PlayerColor) {
-    game.reset();
-    setPlayerColor(color);
-    setFen(game.fen());
-    setWhiteTimeMs(initialTimeMs);
-    setBlackTimeMs(initialTimeMs);
-    setGameOverByTime(false);
-    setStatus(color === "white" ? "Ваш ход" : "Ход компьютера");
+  function goToNewGame() {
+    router.push("/?open=cpu");
   }
 
   function updateStatus() {
@@ -238,70 +231,11 @@ function ChessPageContent() {
 
         <aside className="w-full max-w-md space-y-4 md:w-80">
           <div className="rounded-3xl border border-slate-200 bg-white/90 p-4 shadow-md">
-            <h2 className="mb-3 text-sm font-semibold text-slate-900">
-              Цвет фигур
-            </h2>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => resetGame("white")}
-                className={cn(
-                  "rounded-2xl border px-3 py-2 text-sm font-medium transition",
-                  playerColor === "white"
-                    ? "border-orange-500 bg-orange-50 text-orange-700"
-                    : "border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100"
-                )}
-              >
-                Белый
-              </button>
-              <button
-                type="button"
-                onClick={() => resetGame("black")}
-                className={cn(
-                  "rounded-2xl border px-3 py-2 text-sm font-medium transition",
-                  playerColor === "black"
-                    ? "border-blue-600 bg-blue-50 text-blue-700"
-                    : "border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100"
-                )}
-              >
-                Чёрный
-              </button>
-            </div>
-          </div>
-
-          <div className="rounded-3xl border border-slate-200 bg-white/90 p-4 shadow-md">
-            <h2 className="mb-3 text-sm font-semibold text-slate-900">
-              Уровень сложности
-            </h2>
-            <div className="grid grid-cols-5 gap-2 text-xs">
-              {([1, 2, 3, 4, 5] as const).map((level) => (
-                <button
-                  key={level}
-                  type="button"
-                  onClick={() => setDifficulty(level)}
-                  className={cn(
-                    "rounded-2xl border px-2 py-2 font-medium transition",
-                    difficulty === level
-                      ? "border-blue-600 bg-blue-50 text-blue-700"
-                      : "border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100"
-                  )}
-                >
-                  {level}
-                </button>
-              ))}
-            </div>
-            <p className="mt-2 text-[11px] text-slate-500">
-              Сейчас ИИ простой: чем выше уровень, тем больше он ценит выгодные
-              взятия. В будущем можно улучшить логику и добавить таймер.
-            </p>
-          </div>
-
-          <div className="rounded-3xl border border-slate-200 bg-white/90 p-4 shadow-md">
             <Button
               variant="outline"
               size="sm"
               className="w-full"
-              onClick={() => resetGame(playerColor)}
+              onClick={goToNewGame}
             >
               Новая партия
             </Button>
