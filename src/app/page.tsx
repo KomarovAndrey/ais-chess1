@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowRight } from "lucide-react";
@@ -21,15 +21,29 @@ const CARLSEN_GAMES_PGN = [
 ];
 
 function parseCarlsenGames(): string[][] {
-  return CARLSEN_GAMES_PGN.map((pgn) => {
-    const g = new Chess();
-    g.loadPgn(pgn);
-    return g.history();
-  }).filter((moves) => moves.length > 0);
+  const result: string[][] = [];
+  for (const pgn of CARLSEN_GAMES_PGN) {
+    try {
+      const g = new Chess();
+      g.loadPgn(pgn);
+      result.push(g.history());
+    } catch {
+      // skip invalid PGN
+    }
+  }
+  return result;
 }
 
 export default function HomePage() {
-  const gamesMoves = useMemo(() => parseCarlsenGames(), []);
+  const [gamesMoves, setGamesMoves] = useState<string[][]>([]);
+
+  useEffect(() => {
+    try {
+      setGamesMoves(parseCarlsenGames());
+    } catch {
+      setGamesMoves([]);
+    }
+  }, []);
   const [game] = useState(() => new Chess());
   const [fen, setFen] = useState(game.fen());
   const [gameIndex, setGameIndex] = useState(0);
