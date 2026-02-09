@@ -91,7 +91,14 @@ export default function RegisterPage() {
         },
       });
       if (signUpError) {
-        setError(signUpError.message);
+        const msg = signUpError.message.toLowerCase();
+        if (msg.includes("rate limit") || msg.includes("rate_limit")) {
+          setError(
+            "Слишком много попыток регистрации. Лимит писем от Supabase: подождите около часа или настройте лимиты в Supabase Dashboard → Authentication → Rate Limits."
+          );
+        } else {
+          setError(signUpError.message);
+        }
         return;
       }
       setSuccess(true);
