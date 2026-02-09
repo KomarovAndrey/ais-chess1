@@ -40,38 +40,43 @@ create table if not exists public.game_players (
   unique (game_id, side)
 );
 
--- Optional: very open RLS for prototype (no auth).
--- For production, tighten these policies.
+-- RLS: auth.uid()-based policies. Requires Supabase Auth.
 alter table public.games enable row level security;
 alter table public.game_players enable row level security;
 
-do $$
-begin
-  if not exists (
-    select 1 from pg_policies
-    where schemaname = 'public'
-      and tablename = 'games'
-      and policyname = 'games_public_rw'
-  ) then
-    create policy games_public_rw
-      on public.games
-      for all
-      using (true)
-      with check (true);
-  end if;
+drop policy if exists games_public_rw on public.games;
+drop policy if exists game_players_public_rw on public.game_players;
 
-  if not exists (
-    select 1 from pg_policies
-    where schemaname = 'public'
-      and tablename = 'game_players'
-      and policyname = 'game_players_public_rw'
-  ) then
-    create policy game_players_public_rw
-      on public.game_players
-      for all
-      using (true)
-      with check (true);
-  end if;
-end
-$$;
+create policy games_select_for_players
+  on public.games for select
+  using (
+    exists (
+      select 1 from public.game_players
+      where game_id = games.id and player_id = auth.uid()::text
+    )
+    or (games.status = 'waiting')
+  );
+
+create policy games_insert_authenticated
+  on public.games for insert
+  to authenticated
+  with check (true);
+
+create policy games_update_for_players
+  on public.games for update
+  using (
+    exists (
+      select 1 from public.game_players
+      where game_id = games.id and player_id = auth.uid()::text
+    )
+  );
+
+create policy game_players_select_own
+  on public.game_players for select
+  using (player_id = auth.uid()::text);
+
+create policy game_players_insert_own
+  on public.game_players for insert
+  to authenticated
+  with check (player_id = auth.uid()::text);
 

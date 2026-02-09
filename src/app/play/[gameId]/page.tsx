@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { getSupabaseServer } from "@/lib/supabaseServer";
+import { createClient } from "@/lib/supabase/server";
 import PlayGame from "./play-game";
 
 interface PlayPageProps {
@@ -9,7 +9,7 @@ interface PlayPageProps {
 export default async function PlayPage({ params }: PlayPageProps) {
   const { gameId } = await params;
 
-  const supabase = getSupabaseServer();
+  const supabase = await createClient();
   if (!supabase) {
     notFound();
   }

@@ -1,40 +1,31 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSupabaseServer } from "@/lib/supabaseServer";
-
-type CreatorColor = "white" | "black" | "random";
+import { getSupabaseAndUser } from "@/lib/apiAuth";
+import { checkRateLimit } from "@/lib/rateLimit";
+import { createGameSchema } from "@/lib/validations/games";
 
 export async function POST(req: NextRequest) {
-  const supabase = getSupabaseServer();
-  if (!supabase) {
+  const auth = await getSupabaseAndUser();
+  if ("response" in auth) return auth.response;
+  const { supabase, user } = auth;
+
+  if (!checkRateLimit(user.id)) {
     return NextResponse.json(
-      { error: "Supabase is not configured. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in .env.local" },
-      { status: 500 }
+      { error: "Too many requests" },
+      { status: 429 }
     );
   }
 
   try {
     const body = await req.json();
-    const {
-      creatorColor,
-      timeControlSeconds,
-      playerId
-    }: {
-      creatorColor: CreatorColor;
-      timeControlSeconds: number;
-      playerId: string;
-    } = body;
-
-    if (!playerId || !timeControlSeconds || !creatorColor) {
-      return NextResponse.json(
-        { error: "Missing required fields" },
-        { status: 400 }
-      );
+    const parsed = createGameSchema.safeParse(body);
+    if (!parsed.success) {
+      const first = parsed.error.flatten().fieldErrors;
+      const message = Object.values(first).flat().join(" ") || "Validation failed";
+      return NextResponse.json({ error: message }, { status: 400 });
     }
 
-    const normalizedColor: CreatorColor =
-      creatorColor === "white" || creatorColor === "black"
-        ? creatorColor
-        : "random";
+    const { creatorColor, timeControlSeconds } = parsed.data;
+    const playerId = user.id;
 
     const whiteInitial = timeControlSeconds * 1000;
     const blackInitial = timeControlSeconds * 1000;
@@ -44,7 +35,7 @@ export async function POST(req: NextRequest) {
       .insert({
         status: "waiting",
         fen: "startpos",
-        creator_color: normalizedColor,
+        creator_color: creatorColor,
         time_control_seconds: timeControlSeconds,
         active_color: "w",
         white_time_left: whiteInitial,
@@ -56,25 +47,15 @@ export async function POST(req: NextRequest) {
 
     if (gameError || !game) {
       console.error("Error creating game:", gameError);
-      const message = gameError?.message ?? "Failed to create game";
-      const msg = (gameError?.message ?? "").toLowerCase();
-      const hint =
-        gameError?.code === "PGRST301" ||
-        gameError?.code === "42P01" ||
-        msg.includes("relation") ||
-        msg.includes("schema cache")
-          ? " Create tables: Supabase Dashboard → SQL Editor → run supabase-schema-games.sql"
-          : "";
       return NextResponse.json(
-        { error: message + hint },
+        { error: "Failed to create game" },
         { status: 500 }
       );
     }
 
-    // Determine creator side
     let side: "white" | "black" | null = null;
-    if (normalizedColor === "white") side = "white";
-    else if (normalizedColor === "black") side = "black";
+    if (creatorColor === "white") side = "white";
+    else if (creatorColor === "black") side = "black";
 
     let playerRecord = null;
 
@@ -85,7 +66,7 @@ export async function POST(req: NextRequest) {
           game_id: game.id,
           side,
           player_id: playerId
-        } as any)
+        })
         .select("*")
         .single();
 
@@ -112,4 +93,3 @@ export async function POST(req: NextRequest) {
     );
   }
 }
-

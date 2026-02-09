@@ -1,31 +1,31 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSupabaseServer } from "@/lib/supabaseServer";
+import { getSupabaseAndUser } from "@/lib/apiAuth";
+import { checkRateLimit } from "@/lib/rateLimit";
+import { joinGameSchema } from "@/lib/validations/games";
 
 export async function POST(req: NextRequest) {
-  const supabase = getSupabaseServer();
-  if (!supabase) {
+  const auth = await getSupabaseAndUser();
+  if ("response" in auth) return auth.response;
+  const { supabase, user } = auth;
+
+  if (!checkRateLimit(user.id)) {
     return NextResponse.json(
-      { error: "Supabase is not configured" },
-      { status: 500 }
+      { error: "Too many requests" },
+      { status: 429 }
     );
   }
 
   try {
     const body = await req.json();
-    const {
-      gameId,
-      playerId
-    }: {
-      gameId: string;
-      playerId: string;
-    } = body;
-
-    if (!gameId || !playerId) {
-      return NextResponse.json(
-        { error: "Missing gameId or playerId" },
-        { status: 400 }
-      );
+    const parsed = joinGameSchema.safeParse(body);
+    if (!parsed.success) {
+      const first = parsed.error.flatten().fieldErrors;
+      const message = Object.values(first).flat().join(" ") || "Validation failed";
+      return NextResponse.json({ error: message }, { status: 400 });
     }
+
+    const { gameId } = parsed.data;
+    const playerId = user.id;
 
     const { data: game, error: gameError } = await supabase
       .from("games")
@@ -40,7 +40,13 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Load existing players
+    if (game.status !== "waiting") {
+      return NextResponse.json(
+        { error: "Game is not accepting joins" },
+        { status: 400 }
+      );
+    }
+
     const { data: players, error: playersError } = await supabase
       .from("game_players")
       .select("*")
@@ -54,20 +60,16 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // If player already joined, just return their record
-    const existing = players?.find((p: any) => p.player_id === playerId);
+    const existing = players?.find((p: { player_id: string }) => p.player_id === playerId);
     if (existing) {
       return NextResponse.json(
-        {
-          game,
-          player: existing
-        },
+        { game, player: existing },
         { status: 200 }
       );
     }
 
-    const hasWhite = players?.some((p: any) => p.side === "white");
-    const hasBlack = players?.some((p: any) => p.side === "black");
+    const hasWhite = players?.some((p: { side: string }) => p.side === "white");
+    const hasBlack = players?.some((p: { side: string }) => p.side === "black");
 
     if (hasWhite && hasBlack) {
       return NextResponse.json(
@@ -77,9 +79,7 @@ export async function POST(req: NextRequest) {
     }
 
     let side: "white" | "black";
-
     if (!hasWhite && !hasBlack) {
-      // First joiner, follow creator_color or random
       if (game.creator_color === "white") side = "white";
       else if (game.creator_color === "black") side = "black";
       else side = Math.random() < 0.5 ? "white" : "black";
@@ -95,7 +95,7 @@ export async function POST(req: NextRequest) {
         game_id: gameId,
         side,
         player_id: playerId
-      } as any)
+      })
       .select("*")
       .single();
 
@@ -107,7 +107,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // If now two players, mark game active and started_at
     const totalPlayers = (players?.length ?? 0) + 1;
     if (totalPlayers >= 2 && game.status === "waiting") {
       await supabase
@@ -141,4 +140,3 @@ export async function POST(req: NextRequest) {
     );
   }
 }
-
