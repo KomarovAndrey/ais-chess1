@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Search, User, LogOut } from "lucide-react";
+import { Search, User as UserIcon, LogOut } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import type { User } from "@supabase/supabase-js";
 
@@ -174,7 +174,7 @@ export default function AppNav() {
                 className="flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-100"
                 role="menuitem"
               >
-                <User className="h-4 w-4" />
+                <UserIcon className="h-4 w-4" />
                 Мой профиль
               </Link>
               <button
