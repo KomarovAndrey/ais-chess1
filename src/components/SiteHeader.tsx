@@ -17,9 +17,9 @@ export default function SiteHeader() {
           </Link>
           <Link
             href="/soft-skills"
-            className="flex items-center rounded-lg px-3 py-1.5 text-sm font-medium text-slate-700 transition hover:bg-slate-100 hover:text-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+            className="flex items-center rounded-lg px-3 py-1.5 font-semibold text-slate-900 transition hover:bg-slate-100 hover:text-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
           >
-            Soft Skills
+            <span className="text-lg font-bold tracking-tight">Soft Skills</span>
           </Link>
         </div>
         <AppNav />
