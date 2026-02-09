@@ -1,0 +1,118 @@
+import { NextRequest, NextResponse } from "next/server";
+import { getSupabaseAndUser } from "@/lib/apiAuth";
+
+export async function GET(
+  req: NextRequest,
+  { params }: { params: Promise<{ username: string }> }
+) {
+  const auth = await getSupabaseAndUser();
+  if ("response" in auth) return auth.response;
+  const { supabase, user } = auth;
+
+  const { username: routeUsername } = await params;
+  const username = decodeURIComponent(routeUsername).trim().toLowerCase();
+  if (!username) {
+    return NextResponse.json({ error: "Username required" }, { status: 400 });
+  }
+
+  const { data: profile, error: profileError } = await supabase
+    .from("profiles")
+    .select("id, username, display_name, bio, updated_at")
+    .ilike("username", username)
+    .maybeSingle();
+
+  if (profileError) {
+    console.error("Profile fetch error:", profileError);
+    return NextResponse.json({ error: "Failed to load profile" }, { status: 500 });
+  }
+  if (!profile) {
+    return NextResponse.json({ error: "Profile not found" }, { status: 404 });
+  }
+
+  const userId = profile.id;
+
+  const { data: players } = await supabase
+    .from("game_players")
+    .select("game_id, side")
+    .eq("player_id", userId);
+
+  const gameIds = (players ?? []).map((p) => p.game_id);
+  if (gameIds.length === 0) {
+    return NextResponse.json({
+      profile: {
+        id: profile.id,
+        username: profile.username,
+        display_name: profile.display_name ?? profile.username,
+        bio: profile.bio ?? "",
+        updated_at: profile.updated_at,
+      },
+      stats: { total: 0, wins: 0, losses: 0, draws: 0 },
+      recent_games: [],
+    });
+  }
+
+  const { data: games, error: gamesError } = await supabase
+    .from("games")
+    .select("id, status, winner, created_at, started_at")
+    .in("id", gameIds)
+    .order("created_at", { ascending: false })
+    .limit(20);
+
+  if (gamesError) {
+    console.error("Games fetch error:", gamesError);
+    return NextResponse.json({
+      profile: {
+        id: profile.id,
+        username: profile.username,
+        display_name: profile.display_name ?? profile.username,
+        bio: profile.bio ?? "",
+        updated_at: profile.updated_at,
+      },
+      stats: { total: 0, wins: 0, losses: 0, draws: 0 },
+      recent_games: [],
+    });
+  }
+
+  const playerByGame = new Map((players ?? []).map((p) => [p.game_id, p.side]));
+  let wins = 0;
+  let losses = 0;
+  let draws = 0;
+  const finishedGames = (games ?? []).filter((g) => g.status === "finished");
+
+  for (const g of finishedGames) {
+    const side = playerByGame.get(g.id);
+    if (!side) continue;
+    if (g.winner === "draw") draws++;
+    else if (g.winner === side) wins++;
+    else losses++;
+  }
+
+  const recent_games = (games ?? []).map((g) => {
+    const side = playerByGame.get(g.id);
+    return {
+      id: g.id,
+      side,
+      winner: g.winner,
+      status: g.status,
+      created_at: g.created_at,
+      started_at: g.started_at,
+    };
+  });
+
+  return NextResponse.json({
+    profile: {
+      id: profile.id,
+      username: profile.username,
+      display_name: profile.display_name ?? profile.username,
+      bio: profile.bio ?? "",
+      updated_at: profile.updated_at,
+    },
+    stats: {
+      total: finishedGames.length,
+      wins,
+      losses,
+      draws,
+    },
+    recent_games,
+  });
+}

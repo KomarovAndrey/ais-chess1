@@ -1,14 +1,16 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useState, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { UserPlus } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { Button } from "@/components/ui/button";
 
+const LOGIN_REGEX = /^[a-zA-Z0-9_]{3,30}$/;
+
 type FieldErrors = {
-  username?: string;
+  login?: string;
   email?: string;
   password?: string;
   confirmPassword?: string;
@@ -17,20 +19,39 @@ type FieldErrors = {
 
 export default function RegisterPage() {
   const router = useRouter();
-  const [username, setUsername] = useState("");
+  const [login, setLogin] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [acceptTerms, setAcceptTerms] = useState(false);
   const [acceptPrivacy, setAcceptPrivacy] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [checkingLogin, setCheckingLogin] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
 
+  const checkLoginAvailable = useCallback(async (value: string): Promise<boolean> => {
+    const trimmed = value.trim();
+    if (!LOGIN_REGEX.test(trimmed)) return false;
+    setCheckingLogin(true);
+    try {
+      const res = await fetch(`/api/players/check?username=${encodeURIComponent(trimmed)}`);
+      const data = await res.json();
+      return data.available === true;
+    } catch {
+      return false;
+    } finally {
+      setCheckingLogin(false);
+    }
+  }, []);
+
   const validate = (): boolean => {
     const err: FieldErrors = {};
-    if (!username.trim()) err.username = "Введите имя пользователя";
+    const trimmedLogin = login.trim();
+    if (!trimmedLogin) err.login = "Введите логин";
+    else if (trimmedLogin.length < 3 || trimmedLogin.length > 30) err.login = "Длина логина от 3 до 30 символов";
+    else if (!/^[a-zA-Z0-9_]+$/.test(trimmedLogin)) err.login = "Только латиница, цифры и подчёркивание";
     if (!email.trim()) err.email = "Введите адрес электронной почты";
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) err.email = "Введите корректный email";
     if (!password) err.password = "Придумайте пароль";
@@ -49,13 +70,20 @@ export default function RegisterPage() {
     setFieldErrors({});
     if (!validate()) return;
 
+    const trimmedLogin = login.trim();
+    const available = await checkLoginAvailable(trimmedLogin);
+    if (!available) {
+      setFieldErrors((prev) => ({ ...prev, login: "Этот логин уже занят" }));
+      return;
+    }
+
     setLoading(true);
     try {
       const { data, error: signUpError } = await supabase.auth.signUp({
         email: email.trim(),
         password,
         options: {
-          data: { username: username.trim() }
+          data: { username: trimmedLogin }
         }
       });
       if (signUpError) {
@@ -108,26 +136,37 @@ export default function RegisterPage() {
 
         <form onSubmit={handleSubmit} className="space-y-4" noValidate>
           <div className="space-y-1.5">
-            <label htmlFor="username" className="text-sm font-medium text-slate-700">
-              Имя пользователя <span className="text-red-500">*</span>
+            <label htmlFor="login" className="text-sm font-medium text-slate-700">
+              Логин <span className="text-red-500">*</span>
             </label>
             <input
-              id="username"
+              id="login"
               type="text"
               autoComplete="username"
-              value={username}
-              onChange={(e) => { setUsername(e.target.value); setFieldErrors((e) => ({ ...e, username: undefined })); }}
+              value={login}
+              onChange={(e) => {
+                setLogin(e.target.value);
+                setFieldErrors((prev) => ({ ...prev, login: undefined }));
+              }}
+              onBlur={async () => {
+                const trimmed = login.trim();
+                if (trimmed.length >= 3 && /^[a-zA-Z0-9_]+$/.test(trimmed) && trimmed.length <= 30) {
+                  const available = await checkLoginAvailable(trimmed);
+                  if (!available) setFieldErrors((prev) => ({ ...prev, login: "Этот логин уже занят" }));
+                }
+              }}
               className={`w-full rounded-xl border bg-slate-50 px-3 py-2 text-sm outline-none ring-offset-2 focus:ring-2 ${
-                fieldErrors.username ? "border-red-300 focus:border-red-500 focus:ring-red-500" : "border-slate-200 focus:border-blue-500 focus:ring-blue-500"
+                fieldErrors.login ? "border-red-300 focus:border-red-500 focus:ring-red-500" : "border-slate-200 focus:border-blue-500 focus:ring-blue-500"
               }`}
-              placeholder="Как к вам обращаться"
+              placeholder="Латиница, цифры, подчёркивание, 3–30 символов"
               aria-required
-              aria-invalid={!!fieldErrors.username}
-              aria-describedby={fieldErrors.username ? "username-error" : undefined}
+              aria-invalid={!!fieldErrors.login}
+              aria-describedby={fieldErrors.login ? "login-error" : undefined}
             />
-            {fieldErrors.username && (
-              <p id="username-error" className="text-xs text-red-600" role="alert">{fieldErrors.username}</p>
+            {fieldErrors.login && (
+              <p id="login-error" className="text-xs text-red-600" role="alert">{fieldErrors.login}</p>
             )}
+            {checkingLogin && <p className="text-xs text-slate-500">Проверка доступности...</p>}
           </div>
 
           <div className="space-y-1.5">

@@ -8,7 +8,7 @@ export async function GET() {
 
   const { data, error } = await supabase
     .from("profiles")
-    .select("display_name, bio, updated_at")
+    .select("username, display_name, bio, updated_at")
     .eq("id", auth.user.id)
     .single();
 
@@ -18,6 +18,7 @@ export async function GET() {
   }
 
   return NextResponse.json({
+    username: data?.username ?? null,
     display_name: data?.display_name ?? "",
     bio: data?.bio ?? "",
     updated_at: data?.updated_at ?? null
@@ -29,7 +30,9 @@ export async function PATCH(req: NextRequest) {
   if ("response" in auth) return auth.response;
   const { supabase, user } = auth;
 
-  let body: { display_name?: string; bio?: string };
+  const USERNAME_REGEX = /^[a-zA-Z0-9_]{3,30}$/;
+
+  let body: { display_name?: string; bio?: string; username?: string };
   try {
     body = await req.json();
   } catch {
@@ -38,11 +41,27 @@ export async function PATCH(req: NextRequest) {
 
   const { data: existing } = await supabase
     .from("profiles")
-    .select("display_name, bio")
+    .select("username, display_name, bio")
     .eq("id", user.id)
     .single();
 
+  let newUsername: string | null = existing?.username ?? null;
+  if (typeof body.username === "string") {
+    const trimmed = body.username.trim().toLowerCase();
+    if (!trimmed) newUsername = null;
+    else if (!USERNAME_REGEX.test(trimmed)) {
+      return NextResponse.json({ error: "Логин: только латиница, цифры и подчёркивание, 3–30 символов" }, { status: 400 });
+    } else {
+      const { data: taken } = await supabase.from("profiles").select("id").ilike("username", trimmed).limit(1).maybeSingle();
+      if (taken && taken.id !== user.id) {
+        return NextResponse.json({ error: "Этот логин уже занят" }, { status: 400 });
+      }
+      newUsername = trimmed;
+    }
+  }
+
   const merged = {
+    username: newUsername,
     display_name: typeof body.display_name === "string" ? body.display_name.slice(0, 100) : (existing?.display_name ?? ""),
     bio: typeof body.bio === "string" ? body.bio.slice(0, 2000) : (existing?.bio ?? ""),
     updated_at: new Date().toISOString()
@@ -54,7 +73,7 @@ export async function PATCH(req: NextRequest) {
       { id: user.id, ...merged },
       { onConflict: "id", ignoreDuplicates: false }
     )
-    .select("display_name, bio, updated_at")
+    .select("username, display_name, bio, updated_at")
     .single();
 
   if (error) {
@@ -63,6 +82,7 @@ export async function PATCH(req: NextRequest) {
   }
 
   return NextResponse.json({
+    username: data?.username ?? null,
     display_name: data?.display_name ?? "",
     bio: data?.bio ?? "",
     updated_at: data?.updated_at ?? null
