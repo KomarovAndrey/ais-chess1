@@ -14,6 +14,7 @@ function ChessPageContent() {
   const searchParams = useSearchParams();
   const colorParam = searchParams.get("color");
   const levelParam = searchParams.get("level");
+  const timeParam = searchParams.get("time");
 
   const initialColor: PlayerColor =
     colorParam === "black" ? "black" : colorParam === "white" ? "white" : "white";
@@ -21,6 +22,8 @@ function ChessPageContent() {
     levelParam && [1, 2, 3, 4, 5].includes(Number(levelParam))
       ? (Number(levelParam) as DifficultyLevel)
       : 3;
+  const timePerSideSeconds = timeParam && Number(timeParam) > 0 ? Number(timeParam) : 0;
+  const initialTimeMs = timePerSideSeconds * 1000;
 
   const [game] = useState(() => new Chess());
   const [fen, setFen] = useState(game.fen());
@@ -28,33 +31,73 @@ function ChessPageContent() {
   const [difficulty, setDifficulty] = useState<DifficultyLevel>(initialLevel);
   const [status, setStatus] = useState<string>("Ваш ход");
   const [initialized, setInitialized] = useState(false);
+  const [whiteTimeMs, setWhiteTimeMs] = useState(initialTimeMs);
+  const [blackTimeMs, setBlackTimeMs] = useState(initialTimeMs);
+  const [gameOverByTime, setGameOverByTime] = useState(false);
 
   useEffect(() => {
     if (initialized) return;
     setPlayerColor(initialColor);
     setDifficulty(initialLevel);
+    setWhiteTimeMs(initialTimeMs);
+    setBlackTimeMs(initialTimeMs);
     setStatus(initialColor === "white" ? "Ваш ход" : "Ход компьютера");
     setInitialized(true);
-  }, [initialColor, initialLevel, initialized]);
+  }, [initialColor, initialLevel, initialized, initialTimeMs]);
 
   const isPlayerTurn = useMemo(() => {
     const turn = game.turn();
     return (turn === "w" && playerColor === "white") || (turn === "b" && playerColor === "black");
   }, [game, playerColor, fen]);
 
+  const halfMoves = game.history().length;
+  const whiteClockRuns = game.turn() === "w" && halfMoves >= 2;
+  const blackClockRuns = game.turn() === "b" && halfMoves >= 3;
+
   useEffect(() => {
-    if (!isPlayerTurn && !game.isGameOver()) {
+    if (!isPlayerTurn && !game.isGameOver() && !gameOverByTime) {
       const timer = setTimeout(() => {
         makeAIMove();
       }, 500);
       return () => clearTimeout(timer);
     }
-  }, [isPlayerTurn, fen]);
+  }, [isPlayerTurn, fen, gameOverByTime]);
+
+  useEffect(() => {
+    if (initialTimeMs <= 0 || game.isGameOver() || gameOverByTime) return;
+    const interval = setInterval(() => {
+      if (whiteClockRuns) {
+        setWhiteTimeMs((w) => {
+          if (w <= 0) return w;
+          const next = w - 100;
+          if (next <= 0) {
+            setGameOverByTime(true);
+            setStatus("Время белых вышло. Победили чёрные.");
+          }
+          return next;
+        });
+      } else if (blackClockRuns) {
+        setBlackTimeMs((b) => {
+          if (b <= 0) return b;
+          const next = b - 100;
+          if (next <= 0) {
+            setGameOverByTime(true);
+            setStatus("Время чёрных вышло. Победили белые.");
+          }
+          return next;
+        });
+      }
+    }, 100);
+    return () => clearInterval(interval);
+  }, [whiteClockRuns, blackClockRuns, initialTimeMs, gameOverByTime]);
 
   function resetGame(color: PlayerColor) {
     game.reset();
     setPlayerColor(color);
     setFen(game.fen());
+    setWhiteTimeMs(initialTimeMs);
+    setBlackTimeMs(initialTimeMs);
+    setGameOverByTime(false);
     setStatus(color === "white" ? "Ваш ход" : "Ход компьютера");
   }
 
@@ -76,7 +119,8 @@ function ChessPageContent() {
   );
 
   function makeAIMove() {
-    if (game.isGameOver()) return;
+    if (game.isGameOver() || gameOverByTime) return;
+    if (initialTimeMs > 0 && (whiteTimeMs <= 0 || blackTimeMs <= 0)) return;
     const moves = game.moves({ verbose: true });
     if (moves.length === 0) return;
 
@@ -121,8 +165,17 @@ function ChessPageContent() {
     updateStatus();
   }
 
+  function formatMs(ms: number) {
+    if (ms < 0) ms = 0;
+    const totalSeconds = Math.floor(ms / 1000);
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+  }
+
   function onDrop(sourceSquare: string, targetSquare: string) {
-    if (!isPlayerTurn || game.isGameOver()) return false;
+    if (!isPlayerTurn || game.isGameOver() || gameOverByTime) return false;
+    if (initialTimeMs > 0 && (whiteTimeMs <= 0 || blackTimeMs <= 0)) return false;
 
     const move = game.move({
       from: sourceSquare,
@@ -150,6 +203,13 @@ function ChessPageContent() {
             </span>
           </div>
 
+          {initialTimeMs > 0 && (
+            <div className="mb-3 flex items-center justify-between rounded-2xl bg-slate-900 px-4 py-2 text-sm font-mono text-white">
+              <span>Чёрные</span>
+              <span className="text-lg">{formatMs(blackTimeMs)}</span>
+            </div>
+          )}
+
           <div className="aspect-square max-h-[480px] w-full max-w-[480px] mx-auto overflow-hidden rounded-2xl border border-slate-200 bg-slate-100">
             <Chessboard
               position={fen}
@@ -163,6 +223,13 @@ function ChessPageContent() {
               }}
             />
           </div>
+
+          {initialTimeMs > 0 && (
+            <div className="mt-3 flex items-center justify-between rounded-2xl bg-slate-900 px-4 py-2 text-sm font-mono text-white">
+              <span>Белые</span>
+              <span className="text-lg">{formatMs(whiteTimeMs)}</span>
+            </div>
+          )}
 
           <div className="mt-4 rounded-2xl bg-slate-50 px-4 py-3 text-sm text-slate-700">
             {status}
@@ -185,7 +252,7 @@ function ChessPageContent() {
                     : "border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100"
                 )}
               >
-                Белыми (первый ход)
+                Белый
               </button>
               <button
                 type="button"
@@ -197,7 +264,7 @@ function ChessPageContent() {
                     : "border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100"
                 )}
               >
-                Чёрными
+                Чёрный
               </button>
             </div>
           </div>
@@ -230,30 +297,14 @@ function ChessPageContent() {
           </div>
 
           <div className="rounded-3xl border border-slate-200 bg-white/90 p-4 shadow-md">
-            <h2 className="mb-3 text-sm font-semibold text-slate-900">
-              Партия
-            </h2>
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                className="flex-1"
-                onClick={() => resetGame(playerColor)}
-              >
-                Новая партия
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => window.location.assign("/")}
-              >
-                На главную
-              </Button>
-            </div>
-            <p className="mt-2 text-[11px] text-slate-500">
-              Для учебных партий в школе можно играть с одного экрана, меняя
-              цвет и сложность.
-            </p>
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full"
+              onClick={() => resetGame(playerColor)}
+            >
+              Новая партия
+            </Button>
           </div>
         </aside>
       </div>

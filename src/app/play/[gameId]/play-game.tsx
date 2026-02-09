@@ -173,7 +173,7 @@ export default function PlayGame({ initialGame }: PlayGameProps) {
     return () => clearInterval(interval);
   }, [player, gameId, gameRow.status, isMyTurn, game]);
 
-  // Local ticking of clocks
+  // Local ticking of clocks: white runs only after black's first move, black only after white's second move
   useEffect(() => {
     if (gameRow.status !== "active" || !gameRow.last_move_at) return;
 
@@ -182,16 +182,27 @@ export default function PlayGame({ initialGame }: PlayGameProps) {
     const interval = setInterval(() => {
       const now = Date.now();
       const elapsed = now - lastMoveAt;
+      const halfMoves = (() => {
+        try {
+          const c = new Chess();
+          if (gameRow.fen && gameRow.fen !== "startpos") c.load(gameRow.fen);
+          return c.history().length;
+        } catch {
+          return 0;
+        }
+      })();
+      const whiteClockRuns = gameRow.active_color === "w" && halfMoves >= 2;
+      const blackClockRuns = gameRow.active_color === "b" && halfMoves >= 3;
 
-      if (gameRow.active_color === "w") {
+      if (whiteClockRuns) {
         setWhiteTime(gameRow.white_time_left - elapsed);
-      } else {
+      } else if (blackClockRuns) {
         setBlackTime(gameRow.black_time_left - elapsed);
       }
     }, 250);
 
     return () => clearInterval(interval);
-  }, [gameRow.status, gameRow.last_move_at, gameRow.active_color, gameRow.white_time_left, gameRow.black_time_left]);
+  }, [gameRow.status, gameRow.last_move_at, gameRow.active_color, gameRow.white_time_left, gameRow.black_time_left, gameRow.fen]);
 
   const boardOrientation: "white" | "black" = player?.side ?? "white";
 
@@ -221,16 +232,20 @@ export default function PlayGame({ initialGame }: PlayGameProps) {
   function onDrop(sourceSquare: string, targetSquare: string) {
     if (!canMove) return false;
 
-    // Calculate effective remaining times before making move
+    // Calculate effective remaining times: only subtract if that side's clock was running
     const now = Date.now();
     let currentWhite = whiteTime;
     let currentBlack = blackTime;
+    const halfMovesBeforeMove = game.history().length;
+    const whiteClockWasRunning = gameRow.active_color === "w" && halfMovesBeforeMove >= 2;
+    const blackClockWasRunning = gameRow.active_color === "b" && halfMovesBeforeMove >= 3;
 
     if (gameRow.status === "active" && gameRow.last_move_at) {
       const elapsed = now - new Date(gameRow.last_move_at).getTime();
-      if (gameRow.active_color === "w") {
+      if (whiteClockWasRunning) {
         currentWhite = currentWhite - elapsed;
-      } else {
+      }
+      if (blackClockWasRunning) {
         currentBlack = currentBlack - elapsed;
       }
     }

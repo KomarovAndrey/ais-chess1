@@ -315,7 +315,7 @@ export default function HomePage() {
                   const color = cpuColorChoice === "random"
                     ? (Math.random() < 0.5 ? "white" : "black")
                     : cpuColorChoice;
-                  router.push(`/chess?color=${color}&level=${cpuLevel}`);
+                  router.push(`/chess?color=${color}&level=${cpuLevel}&time=${timeControl}`);
                 }}
                 className="flex w-full items-center justify-center gap-3 rounded-xl bg-green-600 px-4 py-4 text-base font-semibold text-white shadow-md transition hover:bg-green-500"
               >
