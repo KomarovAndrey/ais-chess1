@@ -259,7 +259,7 @@ export default function PlayGame({ initialGame }: PlayGameProps) {
     return data as { game: GameRow };
   }
 
-  function onDrop(sourceSquare: string, targetSquare: string) {
+  const onDrop = async (sourceSquare: string, targetSquare: string): Promise<boolean> => {
     if (!canMove) return false;
 
     // Чья очередь хода — у того и вычитаем время
@@ -339,7 +339,7 @@ export default function PlayGame({ initialGame }: PlayGameProps) {
       setError(e instanceof Error ? e.message : "Ход не принят");
       return false;
     }
-  }
+  };
 
   const statusText = (() => {
     if (!player) return "Подключаемся к партии...";
