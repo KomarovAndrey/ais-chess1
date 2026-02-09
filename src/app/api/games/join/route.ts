@@ -1,19 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSupabaseAndUser } from "@/lib/apiAuth";
+import { getSupabaseOptionalUser } from "@/lib/apiAuth";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { joinGameSchema } from "@/lib/validations/games";
 
+const UUID_REGEX =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 export async function POST(req: NextRequest) {
-  const auth = await getSupabaseAndUser();
+  const auth = await getSupabaseOptionalUser();
   if ("response" in auth) return auth.response;
   const { supabase, user } = auth;
-
-  if (!checkRateLimit(user.id)) {
-    return NextResponse.json(
-      { error: "Too many requests" },
-      { status: 429 }
-    );
-  }
 
   try {
     const body = await req.json();
@@ -24,8 +20,21 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: message }, { status: 400 });
     }
 
-    const { gameId } = parsed.data;
-    const playerId = user.id;
+    const { gameId, playerId: bodyPlayerId } = parsed.data;
+    const playerId = user?.id ?? bodyPlayerId;
+    if (!playerId || (user === null && (!bodyPlayerId || !UUID_REGEX.test(bodyPlayerId)))) {
+      return NextResponse.json(
+        { error: "Для игры без входа укажите playerId (UUID) в теле запроса." },
+        { status: 400 }
+      );
+    }
+
+    if (!checkRateLimit(playerId)) {
+      return NextResponse.json(
+        { error: "Too many requests" },
+        { status: 429 }
+      );
+    }
 
     const { data: game, error: gameError } = await supabase
       .from("games")

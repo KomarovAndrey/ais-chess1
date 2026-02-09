@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Chess } from "chess.js";
-import { getSupabaseAndUser } from "@/lib/apiAuth";
+import { getSupabaseOptionalUser } from "@/lib/apiAuth";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { moveBodySchema } from "@/lib/validations/games";
 
@@ -41,24 +41,33 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ gameId: string }> }
 ) {
-  const auth = await getSupabaseAndUser();
+  const auth = await getSupabaseOptionalUser();
   if ("response" in auth) return auth.response;
   const { supabase, user } = auth;
 
-  if (!checkRateLimit(user.id)) {
-    return NextResponse.json(
-      { error: "Too many requests" },
-      { status: 429 }
-    );
-  }
+  try {
+    const body = await req.json();
+    const bodyPlayerId = (body as { playerId?: string }).playerId;
+    const playerId = user?.id ?? bodyPlayerId;
+    if (!playerId || (user === null && !bodyPlayerId)) {
+      return NextResponse.json(
+        { error: "Для игры без входа укажите playerId в теле запроса." },
+        { status: 400 }
+      );
+    }
+
+    if (!checkRateLimit(playerId)) {
+      return NextResponse.json(
+        { error: "Too many requests" },
+        { status: 429 }
+      );
+    }
 
   const { gameId } = await params;
   if (!UUID_REGEX.test(gameId)) {
     return NextResponse.json({ error: "Invalid game id" }, { status: 400 });
   }
 
-  try {
-    const body = await req.json();
     const parsed = moveBodySchema.safeParse(body);
     if (!parsed.success) {
       const first = parsed.error.flatten().fieldErrors;
@@ -86,7 +95,7 @@ export async function POST(
       .select("player_id")
       .eq("game_id", gameId);
 
-    const isPlayer = players?.some((p: { player_id: string }) => p.player_id === user.id);
+    const isPlayer = players?.some((p: { player_id: string }) => p.player_id === playerId);
     if (!isPlayer) {
       return NextResponse.json(
         { error: "You are not a player in this game" },

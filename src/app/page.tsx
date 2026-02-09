@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Users, UserPlus, Cpu, Clock } from "lucide-react";
 import { Chessboard } from "react-chessboard";
 import { Chess } from "chess.js";
 
@@ -59,7 +59,7 @@ export default function HomePage() {
   const [status, setStatus] = useState("Партии Магнуса Карлсена");
   const [isCreating, setIsCreating] = useState(false);
   const [colorChoice, setColorChoice] = useState<"white" | "black" | "random">("random");
-  const [timeControl, setTimeControl] = useState<number>(600);
+  const [timeControl, setTimeControl] = useState<number>(300);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
@@ -133,130 +133,157 @@ export default function HomePage() {
               </div>
             </div>
 
-            <div className="grid max-w-lg grid-cols-2 gap-3 text-xs text-slate-600 sm:text-sm">
-              <Link
-                href="/chess"
-                className="card space-y-1 cursor-pointer transition hover:shadow-md hover:border-slate-300 hover:bg-slate-50/80"
-              >
-                <p className="font-semibold text-slate-900">
-                  Игра против компьютера
-                </p>
-                <p>Выбирай уровень сложности и цвет фигур.</p>
-              </Link>
-            </div>
           </div>
 
           <div
             id="new-game-panel"
-            className="mt-6 flex min-h-[320px] min-w-0 max-w-2xl flex-col items-center justify-center overflow-hidden rounded-3xl border border-slate-200 bg-white/90 p-8 shadow-md"
+            className="mt-6 flex min-w-0 max-w-2xl flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white/90 p-6 shadow-md md:p-8"
           >
-            <h2 className="mb-6 w-full text-center text-lg font-semibold text-slate-900">
-              Быстрая онлайн-партия по ссылке
+            <h2 className="mb-2 w-full text-center text-lg font-semibold text-slate-900">
+              Онлайн-партия
             </h2>
-            <div className="flex w-full max-w-full flex-col items-center justify-center gap-8 md:flex-row">
-              <div className="flex w-full min-w-0 max-w-full flex-col items-center space-y-3 md:max-w-[50%]">
-                <p className="w-full text-center text-base font-medium text-slate-700">
-                  Цвет фигур
-                </p>
-                <div className="grid w-full max-w-full grid-cols-3 gap-4 text-base">
-                  {[
-                    { id: "white", label: "Белый" },
-                    { id: "black", label: "Черный" },
-                    { id: "random", label: "Случайный" }
-                  ].map((opt) => (
-                    <button
-                      key={opt.id}
-                      type="button"
-                      onClick={() =>
-                        setColorChoice(opt.id as "white" | "black" | "random")
-                      }
-                      className={`flex min-h-[60px] min-w-0 items-center justify-center overflow-visible rounded-2xl border px-5 py-4 font-medium leading-normal transition ${
-                        colorChoice === opt.id
-                          ? "border-blue-600 bg-blue-50 text-blue-700"
-                          : "border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100"
-                      }`}
-                    >
-                      {opt.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
+            <p className="mb-6 text-center text-sm text-slate-500">
+              Стандартные правила. Регистрация не нужна — можно играть по ссылке.
+            </p>
 
-              <div className="flex w-full min-w-0 max-w-full flex-col items-center space-y-3 md:max-w-[50%]">
-                <p className="w-full text-center text-base font-medium text-slate-700">
-                  Контроль времени (на игрока)
-                </p>
-                <div className="grid w-full max-w-full grid-cols-3 gap-4 text-base">
-                  {[
-                    { seconds: 300, label: "5 минут" },
-                    { seconds: 600, label: "10 минут" },
-                    { seconds: 900, label: "15 минут" }
-                  ].map((opt) => (
-                    <button
-                      key={opt.seconds}
-                      type="button"
-                      onClick={() => setTimeControl(opt.seconds)}
-                      className={`flex min-h-[60px] min-w-0 items-center justify-center overflow-visible rounded-2xl border px-5 py-4 font-medium leading-normal transition ${
-                        timeControl === opt.seconds
-                          ? "border-orange-500 bg-orange-50 text-orange-700"
-                          : "border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100"
-                      }`}
-                    >
-                      {opt.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
+            <p className="mb-2 text-sm font-medium text-slate-700">
+              Время на партию (каждому игроку)
+            </p>
+            <div className="mb-6 grid grid-cols-3 gap-3">
+              {[
+                { seconds: 180, label: "3 минуты" },
+                { seconds: 300, label: "5 минут" },
+                { seconds: 600, label: "10 минут" }
+              ].map((opt) => (
+                <button
+                  key={opt.seconds}
+                  type="button"
+                  onClick={() => setTimeControl(opt.seconds)}
+                  className={`flex min-h-[52px] items-center justify-center gap-2 rounded-xl border px-4 py-3 text-sm font-medium transition ${
+                    timeControl === opt.seconds
+                      ? "border-slate-500 bg-slate-700 text-white shadow-inner"
+                      : "border-slate-200 bg-slate-100 text-slate-700 hover:bg-slate-200"
+                  }`}
+                >
+                  <Clock className="h-4 w-4 shrink-0" />
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+
+            <p className="mb-2 text-sm font-medium text-slate-700">Цвет фигур</p>
+            <div className="mb-6 flex gap-3">
+              {[
+                { id: "white", label: "Белые" },
+                { id: "black", label: "Чёрные" },
+                { id: "random", label: "Случайно" }
+              ].map((opt) => (
+                <button
+                  key={opt.id}
+                  type="button"
+                  onClick={() =>
+                    setColorChoice(opt.id as "white" | "black" | "random")
+                  }
+                  className={`flex flex-1 min-h-[44px] items-center justify-center rounded-xl border text-sm font-medium transition ${
+                    colorChoice === opt.id
+                      ? "border-slate-500 bg-slate-700 text-white"
+                      : "border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100"
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="flex flex-col gap-3">
+              <button
+                type="button"
+                disabled={isCreating}
+                className="flex w-full items-center gap-3 rounded-xl border border-slate-600 bg-slate-700 px-4 py-3.5 text-left text-sm font-medium text-slate-100 shadow-sm transition hover:bg-slate-600 disabled:opacity-60"
+                onClick={async () => {
+                  setError(null);
+                  setIsCreating(true);
+                  const existingId = window.localStorage.getItem("ais_chess_player_id");
+                  let playerId = existingId || crypto.randomUUID();
+                  if (!existingId) window.localStorage.setItem("ais_chess_player_id", playerId);
+                  try {
+                    const res = await fetch("/api/games", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        creatorColor: colorChoice,
+                        timeControlSeconds: timeControl,
+                        playerId
+                      })
+                    });
+                    if (!res.ok) {
+                      const data = await res.json().catch(() => ({}));
+                      throw new Error(data.error || "Не удалось создать партию");
+                    }
+                    const data = await res.json();
+                    router.push(data.url);
+                  } catch (e: unknown) {
+                    setError(e instanceof Error ? e.message : "Произошла ошибка");
+                  } finally {
+                    setIsCreating(false);
+                  }
+                }}
+              >
+                <Users className="h-5 w-5 shrink-0 text-slate-300" />
+                Создать запрос на игру
+              </button>
+
+              <button
+                type="button"
+                disabled={isCreating}
+                className="flex w-full items-center gap-3 rounded-xl border border-slate-600 bg-slate-700 px-4 py-3.5 text-left text-sm font-medium text-slate-100 shadow-sm transition hover:bg-slate-600 disabled:opacity-60"
+                onClick={async () => {
+                  setError(null);
+                  setIsCreating(true);
+                  const existingId = window.localStorage.getItem("ais_chess_player_id");
+                  let playerId = existingId || crypto.randomUUID();
+                  if (!existingId) window.localStorage.setItem("ais_chess_player_id", playerId);
+                  try {
+                    const res = await fetch("/api/games", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        creatorColor: colorChoice,
+                        timeControlSeconds: timeControl,
+                        playerId
+                      })
+                    });
+                    if (!res.ok) {
+                      const data = await res.json().catch(() => ({}));
+                      throw new Error(data.error || "Не удалось создать партию");
+                    }
+                    const data = await res.json();
+                    const url = typeof window !== "undefined" ? `${window.location.origin}/play/${data.gameId}` : "";
+                    await navigator.clipboard.writeText(url);
+                    router.push(`/play/${data.gameId}`);
+                  } catch (e: unknown) {
+                    setError(e instanceof Error ? e.message : "Произошла ошибка");
+                  } finally {
+                    setIsCreating(false);
+                  }
+                }}
+              >
+                <UserPlus className="h-5 w-5 shrink-0 text-slate-300" />
+                Бросить вызов другу
+              </button>
+
+              <Link
+                href="/chess"
+                className="flex w-full items-center gap-3 rounded-xl border border-slate-600 bg-slate-700 px-4 py-3.5 text-left text-sm font-medium text-slate-100 shadow-sm transition hover:bg-slate-600"
+              >
+                <Cpu className="h-5 w-5 shrink-0 text-slate-300" />
+                Сыграть с компьютером
+              </Link>
             </div>
 
             {error && (
-              <p className="mt-2 w-full text-center text-sm text-red-600">
-                {error}
-              </p>
+              <p className="mt-4 w-full text-center text-sm text-red-600">{error}</p>
             )}
-
-            <button
-              type="button"
-              disabled={isCreating}
-              className="mt-6 flex w-full max-w-full items-center justify-center rounded-full bg-blue-600 px-6 py-3 text-base font-semibold text-white shadow-md hover:bg-blue-700 hover:shadow-lg transition disabled:opacity-60"
-              onClick={async () => {
-                try {
-                  setError(null);
-                  setIsCreating(true);
-
-                  const existingId = window.localStorage.getItem("ais_chess_player_id");
-                  let playerId = existingId;
-                  if (!playerId) {
-                    playerId = crypto.randomUUID();
-                    window.localStorage.setItem("ais_chess_player_id", playerId);
-                  }
-
-                  const res = await fetch("/api/games", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                      creatorColor: colorChoice,
-                      timeControlSeconds: timeControl,
-                      playerId
-                    })
-                  });
-
-                  if (!res.ok) {
-                    const data = await res.json().catch(() => ({}));
-                    throw new Error(data.error || "Не удалось создать партию");
-                  }
-
-                  const data = await res.json();
-                  router.push(data.url);
-                } catch (e: any) {
-                  setError(e.message ?? "Произошла ошибка");
-                } finally {
-                  setIsCreating(false);
-                }
-              }}
-            >
-              {isCreating ? "Создаём партию..." : "Создать ссылку и начать"}
-            </button>
           </div>
 
           <div className="card flex flex-col items-center gap-4 rounded-3xl bg-white/90 p-6 shadow-lg">

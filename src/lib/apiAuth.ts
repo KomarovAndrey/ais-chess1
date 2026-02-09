@@ -40,3 +40,39 @@ export async function getSupabaseAndUser(): Promise<AuthResult> {
 
   return { supabase, user };
 }
+
+export type OptionalAuthResult =
+  | { supabase: SupabaseClient; user: User }
+  | { supabase: SupabaseClient; user: null };
+
+/**
+ * Get Supabase server client; user may be null (guest).
+ * Use for routes that allow play without registration.
+ */
+export async function getSupabaseOptionalUser(): Promise<
+  OptionalAuthResult | { response: NextResponse }
+> {
+  const supabase = await createClient();
+  if (!supabase) {
+    return {
+      response: NextResponse.json(
+        {
+          error:
+            "Supabase is not configured. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in .env.local"
+        },
+        { status: 500 }
+      )
+    };
+  }
+
+  const {
+    data: { user },
+    error: authError
+  } = await supabase.auth.getUser();
+
+  if (authError) {
+    return { supabase, user: null };
+  }
+
+  return { supabase, user: user ?? null };
+}

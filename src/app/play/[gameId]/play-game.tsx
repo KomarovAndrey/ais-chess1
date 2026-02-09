@@ -210,10 +210,11 @@ export default function PlayGame({ initialGame }: PlayGameProps) {
     status: GameStatus;
     winner?: "white" | "black" | "draw" | null;
   }) {
+    const body = playerId ? { ...opts, playerId } : opts;
     await fetch(`/api/games/${gameId}/move`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(opts)
+      body: JSON.stringify(body)
     });
   }
 
