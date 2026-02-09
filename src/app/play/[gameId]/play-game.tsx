@@ -41,6 +41,17 @@ function formatMs(ms: number) {
   return `${minutes}:${seconds.toString().padStart(2, "0")}`;
 }
 
+/** Число полуходов по FEN (для сравнения «кто впереди»). -1 если FEN невалидный. */
+function pliesFromFen(fen: string | null | undefined): number {
+  if (!fen || fen === "startpos") return 0;
+  try {
+    const c = new Chess(fen);
+    return c.history().length;
+  } catch {
+    return -1;
+  }
+}
+
 export default function PlayGame({ initialGame }: PlayGameProps) {
   const params = useParams<{ gameId: string }>();
   const gameId = params.gameId;
@@ -135,7 +146,11 @@ export default function PlayGame({ initialGame }: PlayGameProps) {
           const newGame = payload.new as GameRow;
           const incomingAt = newGame.last_move_at ? new Date(newGame.last_move_at).getTime() : 0;
           const seenAt = lastMoveAtRef.current ? new Date(lastMoveAtRef.current).getTime() : 0;
-          if (incomingAt > 0 && seenAt > 0 && incomingAt <= seenAt) return;
+          const incomingPlies = pliesFromFen(newGame.fen);
+          const currentPlies = game.history().length;
+          const isAheadByPlies = incomingPlies >= 0 && incomingPlies > currentPlies;
+          const isStaleByTime = incomingAt > 0 && seenAt > 0 && incomingAt <= seenAt;
+          if (isStaleByTime && !isAheadByPlies) return;
           lastMoveAtRef.current = newGame.last_move_at;
           setGameRow(newGame);
           setWhiteTime(newGame.white_time_left);
@@ -170,7 +185,11 @@ export default function PlayGame({ initialGame }: PlayGameProps) {
       const newGame = data as GameRow;
       const incomingAt = newGame.last_move_at ? new Date(newGame.last_move_at).getTime() : 0;
       const seenAt = lastMoveAtRef.current ? new Date(lastMoveAtRef.current).getTime() : 0;
-      if (incomingAt > 0 && seenAt > 0 && incomingAt <= seenAt) return;
+      const incomingPlies = pliesFromFen(newGame.fen);
+      const currentPlies = game.history().length;
+      const isAheadByPlies = incomingPlies >= 0 && incomingPlies > currentPlies;
+      const isStaleByTime = incomingAt > 0 && seenAt > 0 && incomingAt <= seenAt;
+      if (isStaleByTime && !isAheadByPlies) return;
       lastMoveAtRef.current = newGame.last_move_at;
       setGameRow(newGame);
       setWhiteTime(newGame.white_time_left);
@@ -180,6 +199,7 @@ export default function PlayGame({ initialGame }: PlayGameProps) {
       }
     };
 
+    poll();
     const interval = setInterval(poll, 1500);
     return () => clearInterval(interval);
   }, [player, gameId, gameRow.status, isMyTurn, game]);
