@@ -31,9 +31,10 @@ export async function GET(
 
   const userId = profile.id;
 
+  // Получить все игры пользователя
   const { data: players } = await supabase
     .from("game_players")
-    .select("game_id, side")
+    .select("game_id, side, player_id")
     .eq("player_id", userId);
 
   const gameIds = (players ?? []).map((p) => p.game_id);
@@ -51,12 +52,13 @@ export async function GET(
     });
   }
 
+  // Получить все игры
   const { data: games, error: gamesError } = await supabase
     .from("games")
     .select("id, status, winner, created_at, started_at")
     .in("id", gameIds)
     .order("created_at", { ascending: false })
-    .limit(20);
+    .limit(50); // Увеличиваем лимит, чтобы потом отфильтровать
 
   if (gamesError) {
     console.error("Games fetch error:", gamesError);
@@ -73,11 +75,36 @@ export async function GET(
     });
   }
 
+  // Получить всех игроков для этих игр
+  const { data: allPlayers } = await supabase
+    .from("game_players")
+    .select("game_id, side, player_id")
+    .in("game_id", gameIds);
+
+  // Получить список всех зарегистрированных пользователей (их ID из profiles)
+  const { data: registeredUserIds } = await supabase
+    .from("profiles")
+    .select("id");
+
+  const registeredIdsSet = new Set((registeredUserIds ?? []).map((p) => p.id));
+
+  // Фильтровать игры: оставить только те, где оба игрока зарегистрированы
+  const validGames = (games ?? []).filter((game) => {
+    const gamePlayers = (allPlayers ?? []).filter((p) => p.game_id === game.id);
+    // Должно быть ровно 2 игрока (белые и чёрные)
+    if (gamePlayers.length !== 2) return false;
+    // Оба игрока должны быть зарегистрированы
+    return gamePlayers.every((p) => registeredIdsSet.has(p.player_id));
+  });
+
+  // Ограничить до 20 последних
+  const filteredGames = validGames.slice(0, 20);
+
   const playerByGame = new Map((players ?? []).map((p) => [p.game_id, p.side]));
   let wins = 0;
   let losses = 0;
   let draws = 0;
-  const finishedGames = (games ?? []).filter((g) => g.status === "finished");
+  const finishedGames = filteredGames.filter((g) => g.status === "finished");
 
   for (const g of finishedGames) {
     const side = playerByGame.get(g.id);
@@ -87,7 +114,7 @@ export async function GET(
     else losses++;
   }
 
-  const recent_games = (games ?? []).map((g) => {
+  const recent_games = filteredGames.map((g) => {
     const side = playerByGame.get(g.id);
     return {
       id: g.id,
