@@ -37,6 +37,25 @@ function computeStatusAndWinner(
   }
 }
 
+/** Compute clock for the side that just moved (elapsed since last_move_at). */
+function computeClocksAfterMove(
+  currentWhite: number,
+  currentBlack: number,
+  lastMoveAt: string | null,
+  sideThatJustMoved: "w" | "b"
+): { whiteTimeLeft: number; blackTimeLeft: number } {
+  let white = currentWhite;
+  let black = currentBlack;
+  const now = Date.now();
+  const elapsed = lastMoveAt ? Math.max(0, now - new Date(lastMoveAt).getTime()) : 0;
+  if (sideThatJustMoved === "w") {
+    white = Math.max(0, currentWhite - elapsed);
+  } else {
+    black = Math.max(0, currentBlack - elapsed);
+  }
+  return { whiteTimeLeft: white, blackTimeLeft: black };
+}
+
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ gameId: string }> }
@@ -75,18 +94,25 @@ export async function POST(
       return NextResponse.json({ error: message }, { status: 400 });
     }
 
-    const { fen, activeColor, whiteTimeLeft, blackTimeLeft } = parsed.data;
+    const isUci = "uci" in parsed.data && typeof parsed.data.uci === "string";
 
-    const { data: game, error: gameError } = await supabase
+    const { data: currentGame, error: gameError } = await supabase
       .from("games")
-      .select("id, status")
+      .select("id, status, fen, active_color, white_time_left, black_time_left, last_move_at")
       .eq("id", gameId)
       .single();
 
-    if (gameError || !game) {
+    if (gameError || !currentGame) {
       return NextResponse.json(
         { error: "Game not found" },
         { status: 404 }
+      );
+    }
+
+    if (currentGame.status !== "active") {
+      return NextResponse.json(
+        { error: "Game is not in progress" },
+        { status: 400 }
       );
     }
 
@@ -103,16 +129,116 @@ export async function POST(
       );
     }
 
-    const { status, winner } = computeStatusAndWinner(
-      fen,
-      activeColor,
-      whiteTimeLeft,
-      blackTimeLeft
-    );
+    const currentFen =
+      currentGame.fen === "startpos" || !currentGame.fen
+        ? "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+        : currentGame.fen;
+    const currentActive = (currentGame.active_color ?? "w") as "w" | "b";
+    const currentWhite = currentGame.white_time_left ?? 0;
+    const currentBlack = currentGame.black_time_left ?? 0;
+    const lastMoveAt = currentGame.last_move_at ?? null;
+
+    let newFen: string;
+    let nextActive: "w" | "b";
+    let whiteTimeLeft: number;
+    let blackTimeLeft: number;
+
+    if (isUci) {
+      const uci = (parsed.data as { uci: string }).uci;
+      let chess: Chess;
+      try {
+        chess = new Chess(currentFen);
+      } catch {
+        return NextResponse.json({ error: "Invalid game position" }, { status: 400 });
+      }
+      const move = chess.move(uci, { strict: false });
+      if (!move) {
+        return NextResponse.json({ error: "Недопустимый ход" }, { status: 400 });
+      }
+      newFen = chess.fen();
+      nextActive = chess.turn() as "w" | "b";
+      const { whiteTimeLeft: w, blackTimeLeft: b } = computeClocksAfterMove(
+        currentWhite,
+        currentBlack,
+        lastMoveAt,
+        currentActive
+      );
+      whiteTimeLeft = w;
+      blackTimeLeft = b;
+    } else {
+      const legacy = parsed.data as {
+        fen: string;
+        activeColor: "w" | "b";
+        whiteTimeLeft: number;
+        blackTimeLeft: number;
+        status?: "waiting" | "active" | "finished";
+        winner?: "white" | "black" | "draw" | null;
+      };
+      if (
+        legacy.status === "finished" &&
+        legacy.winner &&
+        legacy.fen === currentFen
+      ) {
+        newFen = currentFen;
+        nextActive = currentActive;
+        const { whiteTimeLeft: w, blackTimeLeft: b } = computeClocksAfterMove(
+          currentWhite,
+          currentBlack,
+          lastMoveAt,
+          currentActive
+        );
+        whiteTimeLeft = w;
+        blackTimeLeft = b;
+      } else {
+        let chess: Chess;
+        try {
+          chess = new Chess(currentFen);
+        } catch {
+          return NextResponse.json({ error: "Invalid game position" }, { status: 400 });
+        }
+        const legalMoves = chess.moves({ verbose: true });
+        let found = false;
+        for (const m of legalMoves) {
+          chess.move(m);
+          if (chess.fen() === legacy.fen) {
+            found = true;
+            break;
+          }
+          chess.undo();
+        }
+        if (!found) {
+          return NextResponse.json(
+            { error: "Недопустимый ход или позиция не совпадает с текущей" },
+            { status: 400 }
+          );
+        }
+        newFen = chess.fen();
+        nextActive = chess.turn() as "w" | "b";
+        const { whiteTimeLeft: w, blackTimeLeft: b } = computeClocksAfterMove(
+          currentWhite,
+          currentBlack,
+          lastMoveAt,
+          currentActive
+        );
+        whiteTimeLeft = w;
+        blackTimeLeft = b;
+      }
+    }
+
+    let status: "waiting" | "active" | "finished";
+    let winner: "white" | "black" | "draw" | null;
+    if (!isUci && (parsed.data as { status?: string; winner?: string | null }).status === "finished" && (parsed.data as { winner?: string | null }).winner) {
+      status = "finished";
+      winner = (parsed.data as { winner: "white" | "black" | "draw" }).winner;
+    } else {
+      const computed = computeStatusAndWinner(newFen, nextActive, whiteTimeLeft, blackTimeLeft);
+      status = computed.status;
+      winner = computed.winner;
+    }
 
     const payload = {
-      fen,
-      active_color: activeColor,
+      fen: newFen,
+      active_color: nextActive,
       white_time_left: whiteTimeLeft,
       black_time_left: blackTimeLeft,
       last_move_at: new Date().toISOString(),

@@ -233,20 +233,30 @@ export default function PlayGame({ initialGame }: PlayGameProps) {
     whiteTime > 0 &&
     blackTime > 0;
 
-  async function sendUpdate(opts: {
-    fen: string;
-    activeColor: "w" | "b";
-    whiteTimeLeft: number;
-    blackTimeLeft: number;
-    status: GameStatus;
-    winner?: "white" | "black" | "draw" | null;
-  }) {
+  /** Send move (UCI) or legacy payload (e.g. time's up). Returns server game state on 200; throws on error. */
+  async function sendUpdate(
+    opts:
+      | { uci: string }
+      | {
+          fen: string;
+          activeColor: "w" | "b";
+          whiteTimeLeft: number;
+          blackTimeLeft: number;
+          status: GameStatus;
+          winner?: "white" | "black" | "draw" | null;
+        }
+  ): Promise<{ game: GameRow }> {
     const body = playerId ? { ...opts, playerId } : opts;
-    await fetch(`/api/games/${gameId}/move`, {
+    const res = await fetch(`/api/games/${gameId}/move`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body)
     });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error((data as { error?: string }).error || "Ход не принят");
+    }
+    return data as { game: GameRow };
   }
 
   function onDrop(sourceSquare: string, targetSquare: string) {
@@ -267,17 +277,25 @@ export default function PlayGame({ initialGame }: PlayGameProps) {
     }
 
     if (currentWhite <= 0 || currentBlack <= 0) {
-      // Time is up before move
       const loser = currentWhite <= 0 ? "white" : "black";
       const winner = loser === "white" ? "black" : "white";
-      sendUpdate({
-        fen: gameRow.fen,
-        activeColor: gameRow.active_color,
-        whiteTimeLeft: Math.max(currentWhite, 0),
-        blackTimeLeft: Math.max(currentBlack, 0),
-        status: "finished",
-        winner
-      });
+      try {
+        const data = await sendUpdate({
+          fen: gameRow.fen,
+          activeColor: gameRow.active_color,
+          whiteTimeLeft: Math.max(currentWhite, 0),
+          blackTimeLeft: Math.max(currentBlack, 0),
+          status: "finished",
+          winner
+        });
+        setGameRow(data.game);
+        setWhiteTime(data.game.white_time_left);
+        setBlackTime(data.game.black_time_left);
+        lastMoveAtRef.current = data.game.last_move_at;
+        if (data.game.fen && data.game.fen !== "startpos") game.load(data.game.fen);
+      } catch (e: unknown) {
+        setError(e instanceof Error ? e.message : "Ход не принят");
+      }
       return false;
     }
 
@@ -289,49 +307,38 @@ export default function PlayGame({ initialGame }: PlayGameProps) {
 
     if (move === null) return false;
 
-    const newFen = game.fen();
-
-    // After move, switch active color
-    const nextActive: "w" | "b" = game.turn();
-
-    // Check for game end by rules
-    let status: GameStatus = "active";
-    let winner: "white" | "black" | "draw" | null = null;
-
-    if (game.isGameOver()) {
-      status = "finished";
-      if (game.isCheckmate()) {
-        winner = game.turn() === "w" ? "black" : "white";
-      } else {
-        winner = "draw";
-      }
-    }
-
-    // Не трогаем lastMoveAtRef при своём ходе — только по событиям с сервера (Realtime/poll).
-    // Иначе у соперника сравнение серверного времени с нашим клиентским ломает синхронизацию.
-
-    sendUpdate({
-      fen: newFen,
-      activeColor: nextActive,
-      whiteTimeLeft: currentWhite,
-      blackTimeLeft: currentBlack,
-      status,
-      winner
-    });
+    const prevGameRow = gameRow;
+    const prevWhite = whiteTime;
+    const prevBlack = blackTime;
 
     setGameRow((prev) => ({
       ...prev,
-      fen: newFen,
-      active_color: nextActive,
+      fen: game.fen(),
+      active_color: game.turn() as "w" | "b",
       white_time_left: currentWhite,
       black_time_left: currentBlack,
-      status
+      status: game.isGameOver() ? "finished" : "active"
     }));
-
     setWhiteTime(currentWhite);
     setBlackTime(currentBlack);
 
-    return true;
+    try {
+      const data = await sendUpdate({ uci: move.lan });
+      lastMoveAtRef.current = data.game.last_move_at;
+      setGameRow(data.game);
+      setWhiteTime(data.game.white_time_left);
+      setBlackTime(data.game.black_time_left);
+      if (data.game.fen) game.load(data.game.fen);
+      setError(null);
+      return true;
+    } catch (e: unknown) {
+      game.undo();
+      setGameRow(prevGameRow);
+      setWhiteTime(prevWhite);
+      setBlackTime(prevBlack);
+      setError(e instanceof Error ? e.message : "Ход не принят");
+      return false;
+    }
   }
 
   const statusText = (() => {
