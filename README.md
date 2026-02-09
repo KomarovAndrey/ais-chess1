@@ -27,12 +27,14 @@
 npm install
 ```
 
-2. Создайте `.env.local` в корне:
+2. **Настройте ключи Supabase в `.env.local`** — без них авторизация (вход, регистрация, профиль) работать не будет. Создайте в корне проекта файл `.env.local` и укажите:
 
 ```bash
 NEXT_PUBLIC_SUPABASE_URL=...
 NEXT_PUBLIC_SUPABASE_ANON_KEY=...
 ```
+
+Значения возьмите в [Supabase Dashboard](https://supabase.com/dashboard) → ваш проект → **Settings** → **API** (Project URL и anon public key). Можно скопировать `.env.example` в `.env.local` и подставить свои ключи.
 
 3. **Создайте таблицы в Supabase** (иначе будет ошибка «Could not find the table public.games»):
    - Откройте [Supabase Dashboard](https://supabase.com/dashboard) → ваш проект.
