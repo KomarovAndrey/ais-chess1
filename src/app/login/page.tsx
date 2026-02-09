@@ -2,17 +2,19 @@
 
 import { FormEvent, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { LogIn } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { Button } from "@/components/ui/button";
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const resetSuccess = searchParams.get("reset") === "ok";
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -63,9 +65,14 @@ export default function LoginPage() {
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-sm font-medium text-slate-700">
-              Пароль
-            </label>
+            <div className="flex items-center justify-between">
+              <label className="text-sm font-medium text-slate-700">
+                Пароль
+              </label>
+              <Link href="/forgot-password" className="text-xs font-medium text-blue-700 hover:underline">
+                Забыли пароль?
+              </Link>
+            </div>
             <input
               type="password"
               required
@@ -75,6 +82,12 @@ export default function LoginPage() {
               placeholder="Минимум 6 символов"
             />
           </div>
+
+          {resetSuccess && (
+            <div className="rounded-xl bg-green-50 px-3 py-2 text-xs text-green-700" role="status">
+              Пароль успешно изменён. Войдите с новым паролем.
+            </div>
+          )}
 
           {error && (
             <div className="rounded-xl bg-red-50 px-3 py-2 text-xs text-red-600">
