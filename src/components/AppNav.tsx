@@ -131,7 +131,7 @@ export default function AppNav() {
               {searchResults.map((hit) => (
                 <li key={hit.id} role="option">
                   <Link
-                    href={hit.username ? `/@/${encodeURIComponent(hit.username)}` : "/profile"}
+                    href={hit.username ? `/user/${encodeURIComponent(hit.username)}` : "/profile"}
                     onClick={() => { setSearchOpen(false); setSearchQuery(""); }}
                     className="block px-3 py-2 text-sm text-slate-700 hover:bg-slate-100"
                   >

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { User, Trophy, Swords, ArrowLeft } from "lucide-react";
+import { Trophy, Swords, ArrowLeft } from "lucide-react";
 
 type ProfileInfo = {
   id: string;
