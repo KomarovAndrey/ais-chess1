@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Users, UserPlus, Cpu, Clock } from "lucide-react";
+import { UserPlus, Cpu, Clock } from "lucide-react";
 
 export default function HomePage() {
   const [isCreating, setIsCreating] = useState(false);
@@ -37,12 +37,9 @@ export default function HomePage() {
             id="new-game-panel"
             className="mt-6 flex min-w-0 max-w-2xl flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white/90 p-6 shadow-md md:p-8"
           >
-            <h2 className="mb-2 w-full text-center text-lg font-semibold text-slate-900">
+            <h2 className="mb-6 w-full text-center text-lg font-semibold text-slate-900">
               Онлайн-партия
             </h2>
-            <p className="mb-6 text-center text-sm text-slate-500">
-              Стандартные правила. Регистрация не нужна — можно играть по ссылке.
-            </p>
 
             <p className="mb-2 text-sm font-medium text-slate-700">
               Время на партию (каждому игроку)
@@ -94,43 +91,6 @@ export default function HomePage() {
             </div>
 
             <div className="flex flex-col gap-3">
-              <button
-                type="button"
-                disabled={isCreating}
-                className="flex w-full items-center gap-3 rounded-xl border border-slate-600 bg-slate-700 px-4 py-3.5 text-left text-sm font-medium text-slate-100 shadow-sm transition hover:bg-slate-600 disabled:opacity-60"
-                onClick={async () => {
-                  setError(null);
-                  setIsCreating(true);
-                  const existingId = window.localStorage.getItem("ais_chess_player_id");
-                  let playerId = existingId || crypto.randomUUID();
-                  if (!existingId) window.localStorage.setItem("ais_chess_player_id", playerId);
-                  try {
-                    const res = await fetch("/api/games", {
-                      method: "POST",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({
-                        creatorColor: colorChoice,
-                        timeControlSeconds: timeControl,
-                        playerId
-                      })
-                    });
-                    if (!res.ok) {
-                      const data = await res.json().catch(() => ({}));
-                      throw new Error(data.error || "Не удалось создать партию");
-                    }
-                    const data = await res.json();
-                    router.push(data.url);
-                  } catch (e: unknown) {
-                    setError(e instanceof Error ? e.message : "Произошла ошибка");
-                  } finally {
-                    setIsCreating(false);
-                  }
-                }}
-              >
-                <Users className="h-5 w-5 shrink-0 text-slate-300" />
-                Создать запрос на игру
-              </button>
-
               <button
                 type="button"
                 disabled={isCreating}

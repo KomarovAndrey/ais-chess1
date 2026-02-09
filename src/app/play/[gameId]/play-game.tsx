@@ -414,16 +414,6 @@ export default function PlayGame({ initialGame }: PlayGameProps) {
               <li>Следите за временем: у каждого есть свой лимит.</li>
             </ol>
           </div>
-
-          <div className="rounded-3xl border border-slate-200 bg-white/90 p-4 shadow-md text-xs text-slate-600">
-            <p>
-              Валидация ходов и правила реализованы через библиотеку{" "}
-              <code className="rounded bg-slate-100 px-1 py-0.5 text-[11px]">
-                chess.js
-              </code>
-              . Ходы синхронизируются через Supabase Realtime.
-            </p>
-          </div>
         </aside>
       </div>
     </main>
