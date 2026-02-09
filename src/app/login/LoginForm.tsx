@@ -31,7 +31,8 @@ export default function LoginForm({ resetSuccess = false }: LoginFormProps) {
         setError(signInError.message);
         return;
       }
-      router.push("/chess");
+      router.push("/");
+      router.refresh();
     } catch (err) {
       setError("Не удалось выполнить вход. Попробуйте ещё раз.");
     } finally {

@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { ArrowRight } from "lucide-react";
 import { Chessboard } from "react-chessboard";
 import { Chess } from "chess.js";
+import AppNav from "@/components/AppNav";
 
 // Партии Магнуса Карлсена (PGN), по очереди прокручиваются на главной
 const CARLSEN_GAMES_PGN = [
@@ -104,14 +105,7 @@ export default function HomePage() {
             </div>
           </div>
 
-          <nav className="hidden gap-4 text-sm font-medium text-slate-600 md:flex">
-            <Link href="/login" className="hover:text-blue-700">
-              Войти
-            </Link>
-            <Link href="/register" className="hover:text-blue-700">
-              Регистрация
-            </Link>
-          </nav>
+          <AppNav />
         </header>
 
         <section className="grid gap-10 md:grid-cols-[1.4fr_1fr] md:items-center">
