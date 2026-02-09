@@ -44,12 +44,9 @@ export default function LoginForm({ resetSuccess = false }: LoginFormProps) {
     <main className="flex min-h-screen items-center justify-center bg-gradient-to-br from-blue-50 via-white to-orange-50 px-4">
       <div className="w-full max-w-md rounded-3xl border border-slate-200 bg-white/90 p-8 shadow-lg backdrop-blur">
         <div className="mb-6 text-center">
-          <h1 className="mb-1 text-2xl font-bold text-slate-900">
+          <h1 className="text-2xl font-bold text-slate-900">
             Вход в AIS Chess
           </h1>
-          <p className="text-sm text-slate-500">
-            Введите школьную почту и пароль, чтобы начать игру.
-          </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -118,14 +115,6 @@ export default function LoginForm({ resetSuccess = false }: LoginFormProps) {
           >
             Зарегистрироваться
           </Link>
-        </div>
-
-        <div className="mt-6 text-center text-[11px] text-slate-400">
-          Для работы авторизации нужно настроить ключи Supabase в{" "}
-          <code className="rounded bg-slate-100 px-1 py-0.5">
-            .env.local
-          </code>
-          .
         </div>
       </div>
     </main>
