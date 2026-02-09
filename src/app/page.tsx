@@ -20,28 +20,36 @@ const CARLSEN_GAMES_PGN = [
 1. d4 Nf6 2. c4 g6 3. Nc3 Bg7 4. e4 d6 5. Nf3 O-O 6. Be2 e5 7. O-O Nc6 8. d5 Ne7 9. Nd2 a5 10. Rb1 Nd7 11. b3 f5 12. exf5 gxf5 13. f4 Ne8 14. Nf3 Nf6 15. Bd2 exf4 16. Bxf4 Ng6 17. Be3 f4 18. Bf2 Ng4 19. Bd4 Rf7 20. Qc2 Nf8 21. Rae1 Bd7 22. Re6 Bxe6 23. dxe6 Rf6 24. exd7 Qxd7 25. Bxg7 Kxg7 26. Ne5 Nxe5 27. Bxa8 Nc6 28. Bf3 Ne5 29. Qe4 Nxf3+ 30. Qxf3 Rf8 31. Qe4 1-0`,
 ];
 
+// Запасная партия, если PGN не разберутся
+const FALLBACK_GAME = [
+  "e4", "e5", "Nf3", "Nc6", "Bb5", "a6", "Ba4", "Nf6", "O-O", "Be7", "Re1", "b5",
+];
+
 function parseCarlsenGames(): string[][] {
   const result: string[][] = [];
   for (const pgn of CARLSEN_GAMES_PGN) {
     try {
       const g = new Chess();
       g.loadPgn(pgn);
-      result.push(g.history());
+      const history = g.history();
+      if (history.length > 0) result.push(history);
     } catch {
       // skip invalid PGN
     }
   }
+  if (result.length === 0) result.push(FALLBACK_GAME);
   return result;
 }
 
 export default function HomePage() {
-  const [gamesMoves, setGamesMoves] = useState<string[][]>([]);
+  const [gamesMoves, setGamesMoves] = useState<string[][]>(() => [FALLBACK_GAME]);
 
   useEffect(() => {
     try {
-      setGamesMoves(parseCarlsenGames());
+      const parsed = parseCarlsenGames();
+      if (parsed.length > 0) setGamesMoves(parsed);
     } catch {
-      setGamesMoves([]);
+      // уже есть FALLBACK_GAME в state
     }
   }, []);
   const [game] = useState(() => new Chess());
@@ -74,10 +82,8 @@ export default function HomePage() {
     const timer = setTimeout(() => {
       const san = currentMoves[moveIndex];
       const move = game.move(san);
-      if (move) {
-        setFen(game.fen());
-        setMoveIndex((j) => j + 1);
-      }
+      setFen(game.fen());
+      setMoveIndex((j) => j + 1);
     }, 700);
 
     return () => clearTimeout(timer);
