@@ -288,27 +288,27 @@ function ChessPageContent() {
 
       {showNewGameModal && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm"
           onClick={(e) => {
             if (e.target === e.currentTarget) setShowNewGameModal(false);
           }}
         >
-          <div className="relative mx-4 w-full max-w-md overflow-hidden rounded-2xl bg-[#2b2b2b] text-white shadow-2xl">
+          <div className="relative mx-4 w-full max-w-md overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
             <button
               type="button"
               onClick={() => setShowNewGameModal(false)}
-              className="absolute right-3 top-3 rounded-lg p-1.5 text-gray-400 transition hover:bg-white/10 hover:text-white"
+              className="absolute right-3 top-3 rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
             >
               <X className="h-5 w-5" />
             </button>
             <div className="px-6 pt-6 pb-2">
-              <h3 className="text-center text-xl font-semibold tracking-wide">
+              <h3 className="text-center text-xl font-semibold tracking-wide text-slate-900">
                 Новая партия
               </h3>
             </div>
             <div className="px-6 pb-6 pt-2 space-y-6">
               <div>
-                <p className="mb-3 text-center text-sm font-medium text-gray-300">
+                <p className="mb-3 text-center text-sm font-medium text-slate-600">
                   Минут на партию
                 </p>
                 <div className="grid grid-cols-4 gap-2">
@@ -317,10 +317,10 @@ function ChessPageContent() {
                       key={opt.seconds}
                       type="button"
                       onClick={() => setModalTime(opt.seconds)}
-                      className={`rounded-xl px-3 py-3 text-sm font-bold transition ${
+                      className={`rounded-xl border px-3 py-3 text-sm font-bold transition ${
                         modalTime === opt.seconds
-                          ? "bg-green-600 text-white shadow-lg"
-                          : "bg-[#3a3a3a] text-gray-300 hover:bg-[#4a4a4a]"
+                          ? "border-2 border-blue-600 bg-blue-600 text-white shadow-md"
+                          : "border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100"
                       }`}
                     >
                       {opt.label}
@@ -329,7 +329,7 @@ function ChessPageContent() {
                 </div>
               </div>
               <div>
-                <p className="mb-3 text-center text-sm font-medium text-gray-300">
+                <p className="mb-3 text-center text-sm font-medium text-slate-600">
                   Сторона
                 </p>
                 <div className="grid grid-cols-3 gap-2">
@@ -338,10 +338,10 @@ function ChessPageContent() {
                       key={opt.id}
                       type="button"
                       onClick={() => setModalColor(opt.id)}
-                      className={`flex flex-col items-center gap-1.5 rounded-xl px-3 py-4 text-sm font-medium transition ${
+                      className={`flex flex-col items-center gap-1.5 rounded-xl border px-3 py-4 text-sm font-medium transition ${
                         modalColor === opt.id
-                          ? "bg-green-600 text-white shadow-lg"
-                          : "bg-[#3a3a3a] text-gray-300 hover:bg-[#4a4a4a]"
+                          ? "border-2 border-blue-600 bg-blue-600 text-white shadow-md"
+                          : "border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100"
                       }`}
                     >
                       <span className="text-2xl leading-none">{opt.icon}</span>
@@ -351,7 +351,7 @@ function ChessPageContent() {
                 </div>
               </div>
               <div>
-                <p className="mb-3 text-center text-sm font-medium text-gray-300">
+                <p className="mb-3 text-center text-sm font-medium text-slate-600">
                   Уровень сложности
                 </p>
                 <div className="grid grid-cols-5 gap-2">
@@ -360,10 +360,10 @@ function ChessPageContent() {
                       key={level}
                       type="button"
                       onClick={() => setModalLevel(level)}
-                      className={`rounded-xl px-2 py-3 text-sm font-bold transition ${
+                      className={`rounded-xl border px-2 py-3 text-sm font-bold transition ${
                         modalLevel === level
-                          ? "bg-green-600 text-white shadow-lg"
-                          : "bg-[#3a3a3a] text-gray-300 hover:bg-[#4a4a4a]"
+                          ? "border-2 border-blue-600 bg-blue-600 text-white shadow-md"
+                          : "border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100"
                       }`}
                     >
                       {level}
@@ -374,7 +374,7 @@ function ChessPageContent() {
               <button
                 type="button"
                 onClick={startNewGame}
-                className="flex w-full items-center justify-center gap-3 rounded-xl bg-green-600 px-4 py-4 text-base font-semibold text-white shadow-md transition hover:bg-green-500"
+                className="flex w-full items-center justify-center gap-3 rounded-xl bg-orange-500 px-4 py-4 text-base font-semibold text-white shadow-md transition hover:bg-orange-600"
               >
                 <Cpu className="h-5 w-5 shrink-0" />
                 Сыграть с компьютером
