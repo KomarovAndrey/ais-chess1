@@ -1,14 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 
-/**
- * Страница, на которую Supabase перенаправляет после перехода по ссылке из письма (подтверждение email).
- * Обрабатывает и ?code= (PKCE), и #access_token=... (hash).
- */
-export default function AuthCallbackPage() {
+function AuthCallbackContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [status, setStatus] = useState<"loading" | "ok" | "error">("loading");
@@ -71,5 +67,23 @@ export default function AuthCallbackPage() {
         )}
       </div>
     </main>
+  );
+}
+
+/**
+ * Страница, на которую Supabase перенаправляет после перехода по ссылке из письма (подтверждение email).
+ * Обрабатывает и ?code= (PKCE), и #access_token=... (hash).
+ */
+export default function AuthCallbackPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="flex min-h-screen items-center justify-center bg-gradient-to-br from-blue-50 via-white to-orange-50">
+          <p className="text-slate-600">Подтверждение аккаунта...</p>
+        </main>
+      }
+    >
+      <AuthCallbackContent />
+    </Suspense>
   );
 }
