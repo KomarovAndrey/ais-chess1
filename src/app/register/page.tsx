@@ -83,8 +83,12 @@ export default function RegisterPage() {
         email: email.trim(),
         password,
         options: {
-          data: { username: trimmedLogin }
-        }
+          data: { username: trimmedLogin },
+          emailRedirectTo:
+            typeof window !== "undefined"
+              ? `${window.location.origin}/auth/callback`
+              : undefined,
+        },
       });
       if (signUpError) {
         setError(signUpError.message);

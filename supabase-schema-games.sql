@@ -84,6 +84,20 @@ create policy game_players_insert_own
   to authenticated
   with check (player_id = auth.uid()::text);
 
+-- Чтение участников партий для публичных профилей (список игр по игроку)
+drop policy if exists game_players_select_authenticated on public.game_players;
+create policy game_players_select_authenticated
+  on public.game_players for select
+  to authenticated
+  using (true);
+
+-- Чтение завершённых партий для отображения в профиле (статистика, последние игры)
+drop policy if exists games_select_finished on public.games;
+create policy games_select_finished
+  on public.games for select
+  to authenticated
+  using (status = 'finished');
+
 -- Optional: enable Realtime so both players see moves without refresh.
 -- In Supabase Dashboard: Database → Replication → supabase_realtime → add table "games".
 --
