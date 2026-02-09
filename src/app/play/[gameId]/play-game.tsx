@@ -120,7 +120,7 @@ export default function PlayGame({ initialGame }: PlayGameProps) {
     };
   }, [playerId, gameId, game]);
 
-  // Subscribe to realtime updates
+  // Subscribe to realtime updates (Supabase Realtime)
   useEffect(() => {
     const channel = supabase
       .channel(`game:${gameId}`)
@@ -143,6 +143,35 @@ export default function PlayGame({ initialGame }: PlayGameProps) {
       supabase.removeChannel(channel);
     };
   }, [gameId, game]);
+
+  // Polling fallback: refresh game state when waiting for opponent or for game to start
+  // (board updates without page reload if Realtime is not enabled for table)
+  useEffect(() => {
+    const waitingForUpdate =
+      player &&
+      (gameRow.status === "waiting" || (gameRow.status === "active" && !isMyTurn));
+    if (!waitingForUpdate) return;
+
+    const poll = async () => {
+      const { data, error } = await supabase
+        .from("games")
+        .select("*")
+        .eq("id", gameId)
+        .single();
+
+      if (error || !data) return;
+      const newGame = data as GameRow;
+      setGameRow(newGame);
+      setWhiteTime(newGame.white_time_left);
+      setBlackTime(newGame.black_time_left);
+      if (newGame.fen) {
+        game.load(newGame.fen);
+      }
+    };
+
+    const interval = setInterval(poll, 1500);
+    return () => clearInterval(interval);
+  }, [player, gameId, gameRow.status, isMyTurn, game]);
 
   // Local ticking of clocks
   useEffect(() => {

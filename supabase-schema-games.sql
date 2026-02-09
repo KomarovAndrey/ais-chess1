@@ -1,6 +1,10 @@
 -- Schema for online games (AIS Chess)
 -- Run this in Supabase: Dashboard → SQL Editor → New query → paste all → Run.
 -- Fixes: "Could not find the table 'public.games' in the schema cache"
+--
+-- For live updates without page refresh: add table to Realtime publication.
+-- In Dashboard: Database → Replication → supabase_realtime → add table "games".
+-- Or run: alter publication supabase_realtime add table public.games;
 
 create table if not exists public.games (
   id uuid primary key default gen_random_uuid(),
@@ -80,3 +84,19 @@ create policy game_players_insert_own
   to authenticated
   with check (player_id = auth.uid()::text);
 
+-- Optional: enable Realtime so both players see moves without refresh.
+-- In Supabase Dashboard: Database → Replication → supabase_realtime → add table "games".
+--
+-- Or in SQL Editor run (once):
+--   alter publication supabase_realtime add table public.games;
+--
+-- To run again without error if already added, use:
+--   do $$
+--   begin
+--     if not exists (
+--       select 1 from pg_publication_tables
+--       where pubname = 'supabase_realtime' and tablename = 'games'
+--     ) then
+--       alter publication supabase_realtime add table public.games;
+--     end if;
+--   end $$;
