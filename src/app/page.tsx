@@ -107,7 +107,7 @@ export default function HomePage() {
             <div className="flex flex-col gap-3">
               <button
                 type="button"
-                className="flex w-full items-center gap-3 rounded-xl border border-slate-600 bg-slate-700 px-4 py-3.5 text-left text-sm font-medium text-slate-100 shadow-sm transition hover:bg-slate-600"
+                className="flex w-full items-center justify-center gap-3 rounded-xl border border-slate-600 bg-slate-700 px-4 py-3.5 text-center text-sm font-medium text-slate-100 shadow-sm transition hover:bg-slate-600"
                 onClick={() => {
                   setError(null);
                   setShowModal(true);
@@ -119,7 +119,7 @@ export default function HomePage() {
 
               <Link
                 href="/chess"
-                className="flex w-full items-center gap-3 rounded-xl border border-slate-600 bg-slate-700 px-4 py-3.5 text-left text-sm font-medium text-slate-100 shadow-sm transition hover:bg-slate-600"
+                className="flex w-full items-center justify-center gap-3 rounded-xl border border-slate-600 bg-slate-700 px-4 py-3.5 text-center text-sm font-medium text-slate-100 shadow-sm transition hover:bg-slate-600"
               >
                 <Cpu className="h-5 w-5 shrink-0 text-slate-300" />
                 Сыграть с компьютером
