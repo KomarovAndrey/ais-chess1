@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowRight, Users, UserPlus, Cpu, Clock } from "lucide-react";
+import { Users, UserPlus, Cpu, Clock } from "lucide-react";
 
 export default function HomePage() {
   const [isCreating, setIsCreating] = useState(false);
@@ -30,31 +30,6 @@ export default function HomePage() {
               дружеских партий. Ничего лишнего — только шахматная доска,
               соперник и твой план.
             </p>
-
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-              <button
-                type="button"
-                className="btn-primary text-lg inline-flex items-center justify-center rounded-full px-6 py-3 font-semibold shadow-md hover:shadow-lg transition disabled:opacity-60"
-                disabled={isCreating}
-                onClick={() => {
-                  const el = document.getElementById("new-game-panel");
-                  el?.scrollIntoView({ behavior: "smooth", block: "center" });
-                }}
-              >
-                Начать онлайн-партию
-                <ArrowRight className="ml-2 h-5 w-5" />
-              </button>
-              <div className="text-xs text-slate-500 sm:text-sm">
-                Или{" "}
-                <Link
-                  href="/login"
-                  className="font-semibold text-blue-700 underline-offset-4 hover:underline"
-                >
-                  войди в аккаунт
-                </Link>{" "}
-                и продолжи с сохранёнными партиями (в будущем).
-              </div>
-            </div>
 
           </div>
 
