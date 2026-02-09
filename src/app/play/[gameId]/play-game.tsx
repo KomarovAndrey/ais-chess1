@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { Chess } from "chess.js";
 import { Chessboard } from "react-chessboard";
@@ -55,6 +55,9 @@ export default function PlayGame({ initialGame }: PlayGameProps) {
   const [whiteTime, setWhiteTime] = useState(initialGame.white_time_left);
   const [blackTime, setBlackTime] = useState(initialGame.black_time_left);
 
+  // Игнорировать устаревшие Realtime/poll, чтобы ход не откатывался
+  const lastMoveAtRef = useRef<string | null>(initialGame.last_move_at ?? null);
+
   const isMyTurn = useMemo(() => {
     if (!player) return false;
     const active = gameRow.active_color;
@@ -94,6 +97,7 @@ export default function PlayGame({ initialGame }: PlayGameProps) {
 
         const data = await res.json();
         if (!cancelled) {
+          lastMoveAtRef.current = data.game.last_move_at ?? null;
           setGameRow(data.game);
           setPlayer(data.player);
           setWhiteTime(data.game.white_time_left);
@@ -120,7 +124,7 @@ export default function PlayGame({ initialGame }: PlayGameProps) {
     };
   }, [playerId, gameId, game]);
 
-  // Subscribe to realtime updates (Supabase Realtime)
+  // Subscribe to realtime updates (Supabase Realtime). Игнорируем устаревшие события.
   useEffect(() => {
     const channel = supabase
       .channel(`game:${gameId}`)
@@ -129,6 +133,10 @@ export default function PlayGame({ initialGame }: PlayGameProps) {
         { event: "UPDATE", schema: "public", table: "games", filter: `id=eq.${gameId}` },
         (payload) => {
           const newGame = payload.new as GameRow;
+          const incomingAt = newGame.last_move_at ? new Date(newGame.last_move_at).getTime() : 0;
+          const seenAt = lastMoveAtRef.current ? new Date(lastMoveAtRef.current).getTime() : 0;
+          if (incomingAt > 0 && seenAt > 0 && incomingAt <= seenAt) return;
+          lastMoveAtRef.current = newGame.last_move_at;
           setGameRow(newGame);
           setWhiteTime(newGame.white_time_left);
           setBlackTime(newGame.black_time_left);
@@ -144,8 +152,7 @@ export default function PlayGame({ initialGame }: PlayGameProps) {
     };
   }, [gameId, game]);
 
-  // Polling fallback: refresh game state when waiting for opponent or for game to start
-  // (board updates without page reload if Realtime is not enabled for table)
+  // Polling fallback: только когда ждём соперника. Не применять устаревшее состояние.
   useEffect(() => {
     const waitingForUpdate =
       player &&
@@ -161,6 +168,10 @@ export default function PlayGame({ initialGame }: PlayGameProps) {
 
       if (error || !data) return;
       const newGame = data as GameRow;
+      const incomingAt = newGame.last_move_at ? new Date(newGame.last_move_at).getTime() : 0;
+      const seenAt = lastMoveAtRef.current ? new Date(lastMoveAtRef.current).getTime() : 0;
+      if (incomingAt > 0 && seenAt > 0 && incomingAt <= seenAt) return;
+      lastMoveAtRef.current = newGame.last_move_at;
       setGameRow(newGame);
       setWhiteTime(newGame.white_time_left);
       setBlackTime(newGame.black_time_left);
@@ -277,6 +288,9 @@ export default function PlayGame({ initialGame }: PlayGameProps) {
     }
 
     // If game still active, clocks continue, but we already updated times above
+    const optimisticMoveAt = new Date().toISOString();
+    lastMoveAtRef.current = optimisticMoveAt;
+
     sendUpdate({
       fen: newFen,
       activeColor: nextActive,
@@ -292,6 +306,7 @@ export default function PlayGame({ initialGame }: PlayGameProps) {
       active_color: nextActive,
       white_time_left: currentWhite,
       black_time_left: currentBlack,
+      last_move_at: optimisticMoveAt,
       status
     }));
 
