@@ -266,6 +266,13 @@ export default function PlayGame({ initialGame }: PlayGameProps) {
   }, [gameRow.status, gameRow.last_move_at, gameRow.active_color, gameRow.white_time_left, gameRow.black_time_left]);
 
   const boardOrientation: "white" | "black" = player?.side ?? "white";
+  const topSide: "white" | "black" = boardOrientation === "white" ? "black" : "white";
+  const bottomSide: "white" | "black" = boardOrientation;
+
+  const topInfo = topSide === "white" ? whitePlayerInfo : blackPlayerInfo;
+  const bottomInfo = bottomSide === "white" ? whitePlayerInfo : blackPlayerInfo;
+  const topTime = topSide === "white" ? whiteTime : blackTime;
+  const bottomTime = bottomSide === "white" ? whiteTime : blackTime;
 
   const canMove =
     player &&
@@ -449,15 +456,15 @@ export default function PlayGame({ initialGame }: PlayGameProps) {
           <div className="space-y-3">
             <div className="flex items-center justify-between rounded-2xl bg-slate-900 px-4 py-2 text-sm font-mono text-white">
               <span>
-                Чёрные
-                {blackPlayerInfo.username != null ? (
-                  <> · {blackPlayerInfo.username} ({blackPlayerInfo.rating ?? 1500})</>
+                {topSide === "white" ? "Белые" : "Чёрные"}
+                {topInfo.username != null ? (
+                  <> · {topInfo.username} ({topInfo.rating ?? 1500})</>
                 ) : (
                   <> · Гость</>
                 )}
               </span>
               <span className="text-lg">
-                {formatMs(blackTime)}
+                {formatMs(topTime)}
               </span>
             </div>
 
@@ -477,15 +484,15 @@ export default function PlayGame({ initialGame }: PlayGameProps) {
 
             <div className="flex items-center justify-between rounded-2xl bg-slate-900 px-4 py-2 text-sm font-mono text-white">
               <span>
-                Белые
-                {whitePlayerInfo.username != null ? (
-                  <> · {whitePlayerInfo.username} ({whitePlayerInfo.rating ?? 1500})</>
+                {bottomSide === "white" ? "Белые" : "Чёрные"}
+                {bottomInfo.username != null ? (
+                  <> · {bottomInfo.username} ({bottomInfo.rating ?? 1500})</>
                 ) : (
                   <> · Гость</>
                 )}
               </span>
               <span className="text-lg">
-                {formatMs(whiteTime)}
+                {formatMs(bottomTime)}
               </span>
             </div>
           </div>

@@ -15,32 +15,39 @@ type ChallengeRow = {
   game_id: string | null;
 };
 
-/** GET: входящие вызовы на партию (pending) */
-export async function GET() {
+/** GET: вызовы на партию (pending). scope=incoming|outgoing (по умолчанию incoming) */
+export async function GET(req: NextRequest) {
   const auth = await getSupabaseAndUser();
   if ("response" in auth) return auth.response;
   const { supabase } = auth;
   const me = auth.user.id;
 
-  const { data: rows, error } = await supabase
+  const scope = req.nextUrl.searchParams.get("scope") ?? "incoming";
+  const isOutgoing = scope === "outgoing";
+
+  const baseQuery = supabase
     .from("game_challenges")
     .select("id, from_user_id, to_user_id, status, creator_color, time_control_seconds, created_at, game_id")
-    .eq("to_user_id", me)
     .eq("status", "pending")
     .order("created_at", { ascending: false });
+
+  const { data: rows, error } = isOutgoing
+    ? await baseQuery.eq("from_user_id", me)
+    : await baseQuery.eq("to_user_id", me);
 
   if (error) {
     console.error("Challenges load error:", error);
     return NextResponse.json({ error: "Failed to load challenges" }, { status: 500 });
   }
 
-  const fromIds = Array.from(new Set((rows ?? []).map((r: ChallengeRow) => r.from_user_id)));
+  const otherIds = Array.from(
+    new Set(
+      (rows ?? []).map((r: ChallengeRow) => (isOutgoing ? r.to_user_id : r.from_user_id))
+    )
+  );
   const { data: profiles } =
-    fromIds.length > 0
-      ? await supabase
-          .from("profiles")
-          .select("id, username, display_name, rating")
-          .in("id", fromIds)
+    otherIds.length > 0
+      ? await supabase.from("profiles").select("id, username, display_name, rating").in("id", otherIds)
       : { data: [] as any[] };
 
   const byId = new Map(
@@ -56,6 +63,17 @@ export async function GET() {
       ]
     )
   );
+
+  if (isOutgoing) {
+    const outgoing = (rows ?? []).map((r: ChallengeRow) => ({
+      id: r.id,
+      to_user: byId.get(r.to_user_id) ?? { id: r.to_user_id, username: null, display_name: "Игрок", rating: 1500 },
+      creator_color: r.creator_color,
+      time_control_seconds: r.time_control_seconds,
+      created_at: r.created_at
+    }));
+    return NextResponse.json({ outgoing });
+  }
 
   const incoming = (rows ?? []).map((r: ChallengeRow) => ({
     id: r.id,
@@ -116,13 +134,30 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Можно вызывать на партию только друзей" }, { status: 403 });
   }
 
-  const { error: insertErr } = await supabase.from("game_challenges").insert({
-    from_user_id: me,
-    to_user_id: toUserId,
-    status: "pending",
-    creator_color: creatorColor,
-    time_control_seconds: timeControlSeconds
-  });
+  // Если уже есть pending-вызов — вернём его id (чтобы можно было показать "Отменить вызов")
+  const { data: existing } = await supabase
+    .from("game_challenges")
+    .select("id")
+    .eq("from_user_id", me)
+    .eq("to_user_id", toUserId)
+    .eq("status", "pending")
+    .maybeSingle();
+
+  if (existing?.id) {
+    return NextResponse.json({ ok: true, challengeId: existing.id, alreadyPending: true }, { status: 200 });
+  }
+
+  const { data: inserted, error: insertErr } = await supabase
+    .from("game_challenges")
+    .insert({
+      from_user_id: me,
+      to_user_id: toUserId,
+      status: "pending",
+      creator_color: creatorColor,
+      time_control_seconds: timeControlSeconds
+    })
+    .select("id")
+    .single();
 
   if (insertErr) {
     // Частый кейс: уже есть pending (partial unique index)
@@ -134,6 +169,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: message }, { status: 400 });
   }
 
-  return NextResponse.json({ ok: true }, { status: 201 });
+  return NextResponse.json({ ok: true, challengeId: inserted?.id }, { status: 201 });
 }
 

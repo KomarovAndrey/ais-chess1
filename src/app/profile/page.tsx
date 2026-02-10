@@ -44,6 +44,7 @@ export default function ProfilePage() {
   const [friendsMessage, setFriendsMessage] = useState<{ type: "ok" | "error"; text: string } | null>(null);
   const [friendsLoading, setFriendsLoading] = useState(false);
   const [challengingId, setChallengingId] = useState<string | null>(null);
+  const [outgoingChallengeByFriendId, setOutgoingChallengeByFriendId] = useState<Record<string, string>>({});
   const [removeConfirm, setRemoveConfirm] = useState<{ open: boolean; friend: FriendEntry | null }>({
     open: false,
     friend: null
@@ -96,8 +97,31 @@ export default function ProfilePage() {
     }
   }
 
+  async function loadOutgoingChallenges() {
+    try {
+      const res = await fetch("/api/challenges?scope=outgoing");
+      if (!res.ok) return;
+      const data = await res.json().catch(() => ({}));
+      const outgoing = Array.isArray((data as any)?.outgoing) ? (data as any).outgoing : [];
+      const map: Record<string, string> = {};
+      for (const c of outgoing) {
+        const toId = c?.to_user?.id;
+        const id = c?.id;
+        if (typeof toId === "string" && typeof id === "string") {
+          map[toId] = id;
+        }
+      }
+      setOutgoingChallengeByFriendId(map);
+    } catch {
+      // ignore
+    }
+  }
+
   useEffect(() => {
-    if (activeSection === "friends") loadFriends();
+    if (activeSection === "friends") {
+      loadFriends();
+      loadOutgoingChallenges();
+    }
   }, [activeSection]);
 
   async function handleAddFriend(e: React.FormEvent) {
@@ -149,7 +173,27 @@ export default function ProfilePage() {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error ?? "Не удалось отправить вызов");
+      if (typeof data?.challengeId === "string") {
+        setOutgoingChallengeByFriendId((prev) => ({ ...prev, [_friendId]: data.challengeId }));
+      } else {
+        loadOutgoingChallenges();
+      }
       setFriendsMessage({ type: "ok", text: "Вызов отправлен. Ожидайте принятия." });
+    } finally {
+      setChallengingId(null);
+    }
+  }
+
+  async function cancelChallenge(friendId: string, challengeId: string) {
+    setChallengingId(friendId);
+    try {
+      await fetch(`/api/challenges/${challengeId}/cancel`, { method: "POST" });
+      setOutgoingChallengeByFriendId((prev) => {
+        const next = { ...prev };
+        delete next[friendId];
+        return next;
+      });
+      setFriendsMessage({ type: "ok", text: "Вызов отменён." });
     } finally {
       setChallengingId(null);
     }
@@ -452,14 +496,25 @@ export default function ProfilePage() {
                       {f.display_name || f.username || "Игрок"} {f.username && `(@${f.username})`} · {f.rating}
                     </Link>
                     <div className="flex gap-2">
-                      <button
-                        type="button"
-                        onClick={() => challengeToGame(f.id)}
-                        disabled={challengingId !== null}
-                        className="rounded-lg bg-amber-500 px-2 py-1 text-xs font-medium text-white hover:bg-amber-600 disabled:opacity-50"
-                      >
-                        {challengingId === f.id ? "Создание…" : "Вызвать на партию"}
-                      </button>
+                      {outgoingChallengeByFriendId[f.id] ? (
+                        <button
+                          type="button"
+                          onClick={() => cancelChallenge(f.id, outgoingChallengeByFriendId[f.id])}
+                          disabled={challengingId !== null}
+                          className="rounded-lg bg-slate-700 px-2 py-1 text-xs font-medium text-white hover:bg-slate-800 disabled:opacity-50"
+                        >
+                          {challengingId === f.id ? "Отмена…" : "Отменить вызов"}
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => challengeToGame(f.id)}
+                          disabled={challengingId !== null}
+                          className="rounded-lg bg-amber-500 px-2 py-1 text-xs font-medium text-white hover:bg-amber-600 disabled:opacity-50"
+                        >
+                          {challengingId === f.id ? "Отправка…" : "Вызвать на партию"}
+                        </button>
+                      )}
                       <button
                         type="button"
                         onClick={() => setRemoveConfirm({ open: true, friend: f })}

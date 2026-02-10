@@ -244,11 +244,15 @@ export default function AppNav() {
                           <button
                             type="button"
                             onClick={async () => {
+                              // оптимистично убираем уведомление сразу
+                              setIncomingChallenges((prev) => prev.filter((x) => x.id !== c.id));
                               const res = await fetch(`/api/challenges/${c.id}/accept`, { method: "POST" });
                               const data = await res.json().catch(() => ({}));
                               if (res.ok && data?.gameId) {
                                 setNotifOpen(false);
                                 router.push(`/play/${data.gameId}`);
+                              } else {
+                                loadIncomingChallenges();
                               }
                             }}
                             className="flex h-8 w-8 items-center justify-center rounded-lg bg-green-600 text-white hover:bg-green-700"
@@ -260,6 +264,8 @@ export default function AppNav() {
                           <button
                             type="button"
                             onClick={async () => {
+                              // оптимистично убираем уведомление сразу
+                              setIncomingChallenges((prev) => prev.filter((x) => x.id !== c.id));
                               await fetch(`/api/challenges/${c.id}/decline`, { method: "POST" }).catch(() => {});
                               loadIncomingChallenges();
                             }}
