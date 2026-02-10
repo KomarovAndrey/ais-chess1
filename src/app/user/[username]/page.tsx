@@ -12,6 +12,7 @@ type ProfileInfo = {
   id: string;
   username: string | null;
   display_name: string;
+  bio?: string;
   updated_at: string | null;
   rating: number;
   rating_bullet: number;
@@ -188,11 +189,12 @@ export default function PublicProfilePage() {
             <h1 className="text-xl font-bold text-slate-900 truncate">
               {profile.display_name || profile.username || "Игрок"}
             </h1>
-            {profile.username && (
-              <p className="text-sm text-slate-500 mt-0.5">
-                @{profile.username} <span className="text-amber-600 font-semibold">({profile.rating ?? 1500})</span>
-              </p>
-            )}
+            <div className="mt-1">
+              <span className="text-sm font-semibold text-slate-700">Логин: </span>
+              <span className="text-sm font-mono text-blue-700">
+                {profile.username ? `@${profile.username}` : "—"}
+              </span>
+            </div>
           </div>
           {currentUserId && currentUserId !== profile.id && profile.username && (
             <div className="shrink-0">
@@ -401,6 +403,15 @@ export default function PublicProfilePage() {
         </div>
 
         <RatingChart points={history[ratingType]} />
+
+        {profile.bio?.trim() && (
+          <div className="mt-6 rounded-3xl border border-slate-200 bg-white/90 p-6 shadow-lg backdrop-blur md:p-8">
+            <h2 className="mb-4 text-lg font-semibold text-slate-900">Информация о себе</h2>
+            <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4">
+              <p className="text-slate-700 whitespace-pre-wrap">{profile.bio.trim()}</p>
+            </div>
+          </div>
+        )}
       </div>
     </main>
   );

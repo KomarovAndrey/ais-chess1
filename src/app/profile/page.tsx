@@ -35,7 +35,7 @@ export default function ProfilePage() {
   const [bio, setBio] = useState("");
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: "ok" | "error"; text: string } | null>(null);
-  const [activeSection, setActiveSection] = useState<"ratings" | "edit" | "friends">("ratings");
+  const [activeSection, setActiveSection] = useState<"ratings" | "friends" | "about" | "edit">("ratings");
 
   const [ratingType, setRatingType] = useState<"bullet" | "blitz" | "rapid">("blitz");
   const [history, setHistory] = useState<{ bullet: RatingPoint[]; blitz: RatingPoint[]; rapid: RatingPoint[] }>({
@@ -273,25 +273,47 @@ export default function ProfilePage() {
           На главную
         </Link>
 
-        <div className="mb-6 flex items-center gap-4 rounded-2xl border border-slate-200 bg-white/90 p-4 shadow-md backdrop-blur md:p-6">
-          <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-blue-100 text-xl font-semibold text-blue-700">
-            {initials}
-          </div>
-          <div className="min-w-0 flex-1">
-            <h1 className="text-xl font-bold text-slate-900 truncate">
-              {profile?.display_name?.trim() || profile?.username || user.email?.split("@")[0] || "Профиль"}
-            </h1>
-            {profile?.username && (
-              <p className="text-sm text-slate-500 mt-0.5">
-                @{profile.username} <span className="text-amber-600 font-semibold">({profile?.rating ?? 1500})</span>
-              </p>
+        <div className="mb-6 rounded-2xl border border-slate-200 bg-white/90 p-4 shadow-md backdrop-blur md:p-6">
+          <div className="flex flex-wrap items-start gap-4">
+            <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-blue-100 text-xl font-semibold text-blue-700">
+              {initials}
+            </div>
+            <div className="min-w-0 flex-1">
+              <h1 className="text-xl font-bold text-slate-900 truncate">
+                {profile?.display_name?.trim() || profile?.username || user.email?.split("@")[0] || "Профиль"}
+              </h1>
+              <div className="mt-2">
+                <span className="text-sm font-semibold text-slate-700">Логин: </span>
+                <span className="text-sm font-mono text-blue-700">
+                  {profile?.username ? `@${profile.username}` : "—"}
+                </span>
+                {profile?.username && (
+                  <p className="text-xs text-slate-500 mt-0.5">По этому логину вас находят в поиске друзей</p>
+                )}
+              </div>
+              <p className="text-xs text-slate-400 mt-1">{user.email}</p>
+            </div>
+            {profile && (
+              <div className="flex shrink-0 gap-3 rounded-xl bg-slate-50 px-4 py-2">
+                <div className="text-center">
+                  <div className="text-xs font-medium text-slate-500">Bullet</div>
+                  <div className="text-lg font-bold text-amber-600">{profile.rating_bullet ?? 1500}</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-xs font-medium text-slate-500">Blitz</div>
+                  <div className="text-lg font-bold text-amber-600">{profile.rating_blitz ?? 1500}</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-xs font-medium text-slate-500">Rapid</div>
+                  <div className="text-lg font-bold text-amber-600">{profile.rating_rapid ?? 1500}</div>
+                </div>
+              </div>
             )}
-            <p className="text-xs text-slate-400 mt-0.5">{user.email}</p>
           </div>
         </div>
 
         <div className="flex gap-2 border-b border-slate-200 mb-4 flex-wrap">
-          {(["ratings", "friends", "edit"] as const).map((s) => (
+          {(["ratings", "friends", "about", "edit"] as const).map((s) => (
             <button
               key={s}
               type="button"
@@ -304,6 +326,7 @@ export default function ProfilePage() {
             >
               {s === "ratings" && "Рейтинг"}
               {s === "friends" && "Друзья"}
+              {s === "about" && "О себе"}
               {s === "edit" && "Профиль"}
             </button>
           ))}
@@ -348,6 +371,24 @@ export default function ProfilePage() {
           </div>
         )}
 
+        {activeSection === "about" && (
+          <div className="rounded-3xl border border-slate-200 bg-white/90 p-6 shadow-lg backdrop-blur md:p-8">
+            <h2 className="mb-4 text-lg font-semibold text-slate-900">Информация о себе</h2>
+            <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4 min-h-[120px]">
+              {profile?.bio?.trim() ? (
+                <p className="text-slate-700 whitespace-pre-wrap">{profile.bio.trim()}</p>
+              ) : (
+                <p className="text-slate-500 italic">
+                  Пока ничего не указано. Заполните во вкладке «Профиль».
+                </p>
+              )}
+            </div>
+            <p className="mt-3 text-sm text-slate-500">
+              Редактировать текст можно во вкладке <button type="button" onClick={() => setActiveSection("edit")} className="text-blue-600 hover:underline font-medium">Профиль</button>.
+            </p>
+          </div>
+        )}
+
         {activeSection === "edit" && (
           <div className="rounded-3xl border border-slate-200 bg-white/90 p-6 shadow-lg backdrop-blur md:p-8">
             <form onSubmit={handleSubmit} className="space-y-5">
@@ -367,7 +408,7 @@ export default function ProfilePage() {
               </div>
               <div className="space-y-1.5">
                 <label htmlFor="profile_username" className="text-sm font-medium text-slate-700">
-                  Логин (для ссылки на профиль)
+                  Логин (для ссылки на профиль и поиска друзей)
                 </label>
                 <input
                   id="profile_username"
@@ -423,13 +464,20 @@ export default function ProfilePage() {
               <Users className="h-5 w-5 text-slate-600" />
               Друзья
             </h2>
+            <p className="text-sm text-slate-600 mb-4">
+              Поиск друзей по логину. Ваш логин для поиска: {profile?.username ? (
+                <span className="font-mono font-semibold text-blue-700">@{profile.username}</span>
+              ) : (
+                <span className="text-amber-600">укажите во вкладке «Профиль»</span>
+              )}
+            </p>
 
             <form onSubmit={handleAddFriend} className="mb-6 flex gap-2">
               <input
                 type="text"
                 value={addFriendUsername}
                 onChange={(e) => setAddFriendUsername(e.target.value)}
-                placeholder="Логин пользователя"
+                placeholder="Введите логин пользователя"
                 className="flex-1 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
               />
               <button
