@@ -96,6 +96,8 @@ declare
   v_black_id uuid;
   v_white_rating int;
   v_black_rating int;
+  v_white_has_profile boolean;
+  v_black_has_profile boolean;
   v_score_white numeric;
   v_score_black numeric;
   v_expected_white numeric;
@@ -114,6 +116,15 @@ begin
   where gp_white.game_id = p_game_id and gp_white.side = 'white';
 
   if v_white_id is null or v_black_id is null then
+    return;
+  end if;
+
+  -- Если хотя бы один из участников не имеет профиля (например, гость), рейтинг не ведём.
+  select exists (select 1 from profiles where id = v_white_id),
+         exists (select 1 from profiles where id = v_black_id)
+    into v_white_has_profile, v_black_has_profile;
+
+  if not v_white_has_profile or not v_black_has_profile then
     return;
   end if;
 

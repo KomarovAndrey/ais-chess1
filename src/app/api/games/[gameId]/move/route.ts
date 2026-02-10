@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { appendFileSync } from "fs";
 import { Chess } from "chess.js";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getSupabaseOptionalUser } from "@/lib/apiAuth";
@@ -8,16 +9,56 @@ import { moveBodySchema } from "@/lib/validations/games";
 const UUID_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
+// #region agent log helper
+function agentLog(payload: {
+  hypothesisId: string;
+  location: string;
+  message: string;
+  data: Record<string, unknown>;
+  runId?: string;
+}) {
+  try {
+    const line = JSON.stringify({
+      id:
+        "log_" +
+        Date.now() +
+        "_" +
+        Math.random().toString(36).slice(2, 8),
+      timestamp: Date.now(),
+      runId: payload.runId ?? "pre-fix",
+      hypothesisId: payload.hypothesisId,
+      location: payload.location,
+      message: payload.message,
+      data: payload.data
+    });
+    appendFileSync(".cursor/debug.log", line + "\n");
+  } catch {
+    // ignore logging errors
+  }
+}
+// #endregion
+
 /** Обновляет рейтинг по итогам партии: категория (bullet/blitz/rapid) берётся из time_control_seconds игры. */
 async function updateRatings(
   supabase: SupabaseClient,
   gameId: string,
   winner: "white" | "black" | "draw"
 ) {
-  await supabase.rpc("update_game_ratings", {
+  const { error } = await supabase.rpc("update_game_ratings", {
     p_game_id: gameId,
     p_winner: winner
   });
+
+  if (error) {
+    agentLog({
+      hypothesisId: "RATINGS_ERROR",
+      location: "src/app/api/games/[gameId]/move/route.ts:41-51",
+      message: "update_game_ratings RPC failed",
+      data: { gameId, winner, error: error.message ?? String(error) },
+      runId: "pre-fix"
+    });
+    throw new Error("Failed to update ratings");
+  }
 }
 
 function computeStatusAndWinner(
@@ -109,6 +150,19 @@ export async function POST(
 
     const isUci = "uci" in parsed.data && typeof parsed.data.uci === "string";
 
+    agentLog({
+      hypothesisId: "LOG_FLOW",
+      location: "src/app/api/games/[gameId]/move/route.ts:110-120",
+      message: "Move handler parsed request",
+      data: {
+        isUci,
+        hasUser: !!user,
+        hasBodyPlayerId: !!bodyPlayerId,
+        playerId,
+        gameId
+      }
+    });
+
     const { data: currentGame, error: gameError } = await supabase
       .from("games")
       .select("id, status, fen, active_color, white_time_left, black_time_left, last_move_at")
@@ -131,13 +185,25 @@ export async function POST(
 
     const { data: players } = await supabase
       .from("game_players")
-      .select("player_id")
+      .select("player_id, side")
       .eq("game_id", gameId);
 
-    const isPlayer = players?.some((p: { player_id: string }) => p.player_id === playerId);
-    if (!isPlayer) {
+    const playerRow = players?.find(
+      (p: { player_id: string; side: "white" | "black" | null }) =>
+        p.player_id === playerId
+    );
+    if (!playerRow) {
       return NextResponse.json(
         { error: "You are not a player in this game" },
+        { status: 403 }
+      );
+    }
+
+    const expectedSide: "white" | "black" =
+      currentGame.active_color === "w" ? "white" : "black";
+    if (playerRow.side !== expectedSide) {
+      return NextResponse.json(
+        { error: "It is not your turn" },
         { status: 403 }
       );
     }
@@ -240,24 +306,14 @@ export async function POST(
 
     let status: "waiting" | "active" | "finished";
     let winner: "white" | "black" | "draw" | null;
-    if (
-      !isUci &&
-      (parsed.data as { status?: string; winner?: string | null }).status ===
-        "finished" &&
-      (parsed.data as { winner?: string | null }).winner
-    ) {
-      status = "finished";
-      winner = (parsed.data as { winner: "white" | "black" | "draw" }).winner;
-    } else {
-      const computed = computeStatusAndWinner(
-        newFen,
-        nextActive,
-        whiteTimeLeft,
-        blackTimeLeft
-      );
-      status = computed.status;
-      winner = computed.winner;
-    }
+    const computed = computeStatusAndWinner(
+      newFen,
+      nextActive,
+      whiteTimeLeft,
+      blackTimeLeft
+    );
+    status = computed.status;
+    winner = computed.winner;
 
     // #region agent log
     fetch("http://127.0.0.1:7242/ingest/df954510-85f4-43ce-8731-98c6b9de4aeb", {
