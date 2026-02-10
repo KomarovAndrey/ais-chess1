@@ -228,6 +228,7 @@ export default function AppNav() {
               </ul>
             )}
           </div>
+          </div>
 
           {/* Иконка поиска на мобильных (открывает полноэкранный поиск) */}
           <button
