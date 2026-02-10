@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { X } from "lucide-react";
+import type { ReactNode } from "react";
 
 const SIDE_OPTIONS: { id: "black" | "random" | "white"; label: string; icon: string }[] = [
   { id: "black", label: "Чёрные", icon: "♚" },
@@ -23,11 +24,13 @@ export type GameParams = {
 export default function GameParamsModal(props: {
   open: boolean;
   title?: string;
+  topContent?: ReactNode;
   submitLabel: string;
   submittingLabel?: string;
   initialCreatorColor?: "white" | "black" | "random";
   initialTimeControlSeconds?: number;
   isSubmitting?: boolean;
+  submitDisabled?: boolean;
   errorText?: string | null;
   onClose: () => void;
   onSubmit: (params: GameParams) => void | Promise<void>;
@@ -35,11 +38,13 @@ export default function GameParamsModal(props: {
   const {
     open,
     title = "Параметры игры",
+    topContent,
     submitLabel,
     submittingLabel = "Отправка…",
     initialCreatorColor = "random",
     initialTimeControlSeconds = 300,
     isSubmitting = false,
+    submitDisabled = false,
     errorText,
     onClose,
     onSubmit
@@ -104,6 +109,7 @@ export default function GameParamsModal(props: {
         </div>
 
         <div className="px-6 pb-6 pt-2 space-y-6">
+          {topContent}
           <div>
             <p className="mb-3 text-center text-sm font-medium text-slate-600">
               Время
@@ -167,7 +173,7 @@ export default function GameParamsModal(props: {
 
           <button
             type="button"
-            disabled={isSubmitting}
+            disabled={isSubmitting || submitDisabled}
             onClick={() => onSubmit({ creatorColor, timeControlSeconds })}
             className="flex w-full items-center justify-center gap-3 rounded-xl bg-orange-500 px-4 py-4 text-base font-semibold text-white shadow-md transition hover:bg-orange-600 disabled:opacity-60"
           >

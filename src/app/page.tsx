@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { UserPlus, Cpu, X } from "lucide-react";
 import GameParamsModal from "@/components/GameParamsModal";
+import { supabase } from "@/lib/supabaseClient";
 
 const TIME_OPTIONS = [
   { seconds: 60, label: "1 мин" },
@@ -24,22 +25,40 @@ const CPU_LEVELS = [1, 2, 3, 4, 5] as const;
 
 export default function HomePage() {
   const [showModal, setShowModal] = useState(false);
+  const [showFriendModal, setShowFriendModal] = useState(false);
   const [showCpuModal, setShowCpuModal] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
+  const [isSendingChallenge, setIsSendingChallenge] = useState(false);
   const [colorChoice, setColorChoice] = useState<"white" | "black" | "random">("random");
   const [timeControl, setTimeControl] = useState<number>(300);
   const [cpuColorChoice, setCpuColorChoice] = useState<"white" | "black" | "random">("random");
   const [cpuLevel, setCpuLevel] = useState<number>(3);
   const [error, setError] = useState<string | null>(null);
+  const [challengeError, setChallengeError] = useState<string | null>(null);
+  const [challengeOk, setChallengeOk] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [friends, setFriends] = useState<{ id: string; username: string | null; display_name: string; rating: number }[]>([]);
+  const [friendsLoading, setFriendsLoading] = useState(false);
+  const [selectedFriendId, setSelectedFriendId] = useState<string>("");
   const router = useRouter();
 
-  const modalOpen = showModal || showCpuModal;
+  const modalOpen = showModal || showFriendModal || showCpuModal;
 
   useEffect(() => {
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
       if (params.get("open") === "cpu") setShowCpuModal(true);
     }
+  }, []);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUserId(session?.user?.id ?? null);
+    });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => {
+      setUserId(session?.user?.id ?? null);
+    });
+    return () => subscription.unsubscribe();
   }, []);
 
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
@@ -98,6 +117,32 @@ export default function HomePage() {
     }
   }
 
+  async function loadFriends() {
+    if (!userId) return;
+    setFriendsLoading(true);
+    try {
+      const res = await fetch("/api/friends");
+      if (!res.ok) throw new Error("Не удалось загрузить друзей");
+      const data = await res.json().catch(() => ({}));
+      const list = Array.isArray(data?.friends) ? data.friends : [];
+      setFriends(list);
+      if (!selectedFriendId && list.length > 0) setSelectedFriendId(list[0].id);
+    } catch (e) {
+      setChallengeError(e instanceof Error ? e.message : "Ошибка загрузки друзей");
+    } finally {
+      setFriendsLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    if (showFriendModal) {
+      setChallengeError(null);
+      setChallengeOk(null);
+      loadFriends();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showFriendModal]);
+
   return (
     <main className="min-h-screen bg-gradient-to-b from-blue-50 via-white to-orange-50">
       <div className="mx-auto flex max-w-5xl flex-col gap-10 px-4 py-10 md:py-16">
@@ -129,8 +174,14 @@ export default function HomePage() {
                 type="button"
                 className="flex w-full items-center justify-center gap-3 rounded-xl border border-slate-600 bg-slate-700 px-4 py-3.5 text-center text-sm font-medium text-slate-100 shadow-sm transition hover:bg-slate-600"
                 onClick={() => {
-                  setError(null);
-                  setShowModal(true);
+                  if (userId) {
+                    setChallengeError(null);
+                    setChallengeOk(null);
+                    setShowFriendModal(true);
+                  } else {
+                    setError(null);
+                    setShowModal(true);
+                  }
                 }}
               >
                 <UserPlus className="h-5 w-5 shrink-0 text-slate-300" />
@@ -168,6 +219,68 @@ export default function HomePage() {
           setColorChoice(creatorColor);
           setTimeControl(timeControlSeconds);
           await handleCreateGame({ creatorColor, timeControlSeconds });
+        }}
+      />
+
+      {/* Modal — Бросить вызов другу (через уведомления, для зарегистрированных) */}
+      <GameParamsModal
+        open={showFriendModal}
+        title="Параметры игры"
+        submitLabel="Отправить вызов"
+        submittingLabel="Отправка…"
+        initialCreatorColor={colorChoice}
+        initialTimeControlSeconds={timeControl}
+        isSubmitting={isSendingChallenge}
+        submitDisabled={!selectedFriendId || friendsLoading || friends.length === 0}
+        errorText={challengeError}
+        onClose={() => setShowFriendModal(false)}
+        topContent={
+          <div className="space-y-2">
+            <p className="text-center text-sm font-medium text-slate-600">Кого вызвать</p>
+            {friendsLoading ? (
+              <p className="text-center text-sm text-slate-500">Загрузка друзей…</p>
+            ) : friends.length === 0 ? (
+              <p className="text-center text-sm text-slate-500">У вас пока нет добавленных друзей.</p>
+            ) : (
+              <select
+                value={selectedFriendId}
+                onChange={(e) => setSelectedFriendId(e.target.value)}
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+              >
+                {friends.map((f) => (
+                  <option key={f.id} value={f.id}>
+                    {(f.display_name || f.username || "Игрок") + (f.username ? ` (@${f.username})` : "") + ` · ${f.rating ?? 1500}`}
+                  </option>
+                ))}
+              </select>
+            )}
+            {challengeOk && <p className="text-center text-sm text-green-700">{challengeOk}</p>}
+          </div>
+        }
+        onSubmit={async ({ creatorColor, timeControlSeconds }) => {
+          if (!selectedFriendId) return;
+          setChallengeError(null);
+          setChallengeOk(null);
+          setIsSendingChallenge(true);
+          try {
+            const res = await fetch("/api/challenges", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                toUserId: selectedFriendId,
+                creatorColor,
+                timeControlSeconds
+              })
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(data.error ?? "Не удалось отправить вызов");
+            setChallengeOk("Вызов отправлен. Ожидайте принятия.");
+            setShowFriendModal(false);
+          } catch (e) {
+            setChallengeError(e instanceof Error ? e.message : "Ошибка");
+          } finally {
+            setIsSendingChallenge(false);
+          }
         }}
       />
 
