@@ -13,6 +13,7 @@ type ProfileInfo = {
   username: string | null;
   display_name: string;
   bio?: string;
+  avatar_url?: string | null;
   updated_at: string | null;
   rating: number;
   rating_bullet: number;
@@ -182,8 +183,18 @@ export default function PublicProfilePage() {
         </Link>
 
         <div className="mb-6 flex flex-wrap items-center gap-4 rounded-2xl border border-slate-200 bg-white/90 p-4 shadow-md backdrop-blur md:p-6">
-          <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-blue-100 text-xl font-semibold text-blue-700">
-            {initials}
+          <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-full bg-blue-100">
+            {profile.avatar_url ? (
+              <img
+                src={profile.avatar_url}
+                alt="Фото профиля"
+                className="h-full w-full object-cover"
+              />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center text-xl font-semibold text-blue-700">
+                {initials}
+              </div>
+            )}
           </div>
           <div className="min-w-0 flex-1">
             <h1 className="text-xl font-bold text-slate-900 truncate">

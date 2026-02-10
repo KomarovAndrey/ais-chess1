@@ -8,7 +8,7 @@ export async function GET() {
 
   const { data, error } = await supabase
     .from("profiles")
-    .select("username, display_name, bio, updated_at, rating, rating_bullet, rating_blitz, rating_rapid")
+    .select("username, display_name, bio, avatar_url, updated_at, rating, rating_bullet, rating_blitz, rating_rapid")
     .eq("id", auth.user.id)
     .single();
 
@@ -21,6 +21,7 @@ export async function GET() {
     username: data?.username ?? null,
     display_name: data?.display_name ?? "",
     bio: data?.bio ?? "",
+    avatar_url: data?.avatar_url ?? null,
     updated_at: data?.updated_at ?? null,
     rating: data?.rating ?? data?.rating_blitz ?? 1500,
     rating_bullet: data?.rating_bullet ?? data?.rating ?? 1500,
@@ -43,7 +44,7 @@ export async function PATCH(req: NextRequest) {
 
   const { data: existing } = await supabase
     .from("profiles")
-    .select("username, display_name, bio")
+    .select("username, display_name, bio, avatar_url")
     .eq("id", user.id)
     .single();
 
@@ -54,6 +55,7 @@ export async function PATCH(req: NextRequest) {
     username: newUsername,
     display_name: typeof body.display_name === "string" ? body.display_name.slice(0, 100) : (existing?.display_name ?? ""),
     bio: typeof body.bio === "string" ? body.bio.slice(0, 2000) : (existing?.bio ?? ""),
+    avatar_url: existing?.avatar_url ?? null,
     updated_at: new Date().toISOString()
   };
 
@@ -63,7 +65,7 @@ export async function PATCH(req: NextRequest) {
       { id: user.id, ...merged },
       { onConflict: "id", ignoreDuplicates: false }
     )
-    .select("username, display_name, bio, updated_at, rating, rating_bullet, rating_blitz, rating_rapid")
+    .select("username, display_name, bio, avatar_url, updated_at, rating, rating_bullet, rating_blitz, rating_rapid")
     .single();
 
   if (error) {
@@ -75,6 +77,7 @@ export async function PATCH(req: NextRequest) {
     username: data?.username ?? null,
     display_name: data?.display_name ?? "",
     bio: data?.bio ?? "",
+    avatar_url: data?.avatar_url ?? null,
     updated_at: data?.updated_at ?? null,
     rating: data?.rating ?? data?.rating_blitz ?? 1500,
     rating_bullet: data?.rating_bullet ?? data?.rating ?? 1500,

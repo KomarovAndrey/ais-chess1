@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, UserPlus, Users } from "lucide-react";
+import { ArrowLeft, Camera, UserPlus, Users } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import GameParamsModal from "@/components/GameParamsModal";
 import RatingChart, { type RatingPoint } from "@/components/RatingChart";
@@ -12,6 +12,7 @@ type ProfileData = {
   username: string | null;
   display_name: string;
   bio: string;
+  avatar_url: string | null;
   updated_at: string | null;
   rating: number;
   rating_bullet: number;
@@ -54,6 +55,9 @@ export default function ProfilePage() {
     open: false,
     friend: null
   });
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [avatarMessage, setAvatarMessage] = useState<{ type: "ok" | "error"; text: string } | null>(null);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const run = async () => {
@@ -269,8 +273,18 @@ export default function ProfilePage() {
 
         <div className="mb-6 rounded-2xl border border-slate-200 bg-white/90 p-4 shadow-md backdrop-blur md:p-6">
           <div className="flex flex-wrap items-start gap-4">
-            <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-blue-100 text-xl font-semibold text-blue-700">
-              {initials}
+            <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-full bg-blue-100">
+              {profile?.avatar_url ? (
+                <img
+                  src={profile.avatar_url}
+                  alt="Фото профиля"
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                <div className="flex h-full w-full items-center justify-center text-xl font-semibold text-blue-700">
+                  {initials}
+                </div>
+              )}
             </div>
             <div className="min-w-0 flex-1">
               <h1 className="text-xl font-bold text-slate-900 truncate">
@@ -361,6 +375,70 @@ export default function ProfilePage() {
 
         {activeSection === "edit" && (
           <div className="rounded-3xl border border-slate-200 bg-white/90 p-6 shadow-lg backdrop-blur md:p-8">
+            <div className="mb-6 flex flex-wrap items-center gap-4">
+              <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-full bg-blue-100">
+                {profile?.avatar_url ? (
+                  <img
+                    src={profile.avatar_url}
+                    alt="Фото профиля"
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center text-2xl font-semibold text-blue-700">
+                    {initials}
+                  </div>
+                )}
+              </div>
+              <div>
+                <input
+                  ref={avatarInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  className="hidden"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    e.target.value = "";
+                    if (!file) return;
+                    setAvatarMessage(null);
+                    setUploadingAvatar(true);
+                    try {
+                      const formData = new FormData();
+                      formData.append("file", file);
+                      const res = await fetch("/api/profile/avatar", {
+                        method: "POST",
+                        body: formData,
+                      });
+                      const data = await res.json().catch(() => ({}));
+                      if (!res.ok) {
+                        setAvatarMessage({ type: "error", text: data.error ?? "Не удалось загрузить" });
+                        return;
+                      }
+                      setProfile((p) => (p && data.avatar_url ? { ...p, avatar_url: data.avatar_url } : p));
+                      setAvatarMessage({ type: "ok", text: "Фото загружено." });
+                    } catch {
+                      setAvatarMessage({ type: "error", text: "Ошибка загрузки" });
+                    } finally {
+                      setUploadingAvatar(false);
+                    }
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => avatarInputRef.current?.click()}
+                  disabled={uploadingAvatar}
+                  className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50 disabled:opacity-50"
+                >
+                  <Camera className="h-4 w-4" />
+                  {uploadingAvatar ? "Загрузка…" : "Загрузить фото"}
+                </button>
+                <p className="mt-1 text-xs text-slate-500">JPG, PNG или WebP, до 2 МБ</p>
+                {avatarMessage && (
+                  <p className={`mt-1 text-sm ${avatarMessage.type === "ok" ? "text-green-600" : "text-red-600"}`}>
+                    {avatarMessage.text}
+                  </p>
+                )}
+              </div>
+            </div>
             <form onSubmit={handleSubmit} className="space-y-5">
               <div className="space-y-1.5">
                 <label htmlFor="display_name" className="text-sm font-medium text-slate-700">
