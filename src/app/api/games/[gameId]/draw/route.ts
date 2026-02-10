@@ -29,19 +29,17 @@ export async function POST(
     );
   }
 
-  const { data: game, error: gameError } = await supabase
+  const { data, error: gameError } = await supabase
     .from("games")
-    .select<{
-      id: string;
-      status: GameStatus;
-      draw_offer_from: string | null;
-    }>("id, status, draw_offer_from")
+    .select("id, status, draw_offer_from")
     .eq("id", gameId)
     .single();
 
-  if (gameError || !game) {
+  if (gameError || !data) {
     return NextResponse.json({ error: "Game not found" }, { status: 404 });
   }
+
+  const game = data as { id: string; status: GameStatus; draw_offer_from: string | null };
 
   if (game.status !== "active") {
     return NextResponse.json(
