@@ -48,10 +48,12 @@ export async function POST(
     );
   }
 
-  const { data: players } = await supabase
+  const { data: playersData } = await supabase
     .from("game_players")
-    .select<{ player_id: string }>("player_id")
+    .select("player_id")
     .eq("game_id", gameId);
+
+  const players = playersData as { player_id: string }[] | null;
 
   const isPlayer = players?.some((p) => p.player_id === effectivePlayerId);
   if (!isPlayer) {
