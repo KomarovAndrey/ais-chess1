@@ -1,10 +1,40 @@
 import { NextRequest, NextResponse } from "next/server";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { getSupabaseOptionalUser } from "@/lib/apiAuth";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { joinGameSchema } from "@/lib/validations/games";
 
 const UUID_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+export type PlayerInfo = { username: string | null; rating: number | null };
+
+async function getPlayersInfo(
+  supabase: SupabaseClient,
+  gamePlayers: { side: string; player_id: string }[]
+): Promise<{ whitePlayer: PlayerInfo; blackPlayer: PlayerInfo }> {
+  const empty: PlayerInfo = { username: null, rating: null };
+  const white = gamePlayers.find((p) => p.side === "white");
+  const black = gamePlayers.find((p) => p.side === "black");
+  const ids = [white?.player_id, black?.player_id].filter(Boolean) as string[];
+  if (ids.length === 0) {
+    return { whitePlayer: empty, blackPlayer: empty };
+  }
+  const { data: profiles } = await supabase
+    .from("profiles")
+    .select("id, username, rating")
+    .in("id", ids);
+  const byId = new Map(
+    (profiles ?? []).map((r: { id: string; username: string | null; rating: number }) => [
+      r.id,
+      { username: r.username ?? null, rating: r.rating ?? 1500 }
+    ])
+  );
+  return {
+    whitePlayer: white ? byId.get(white.player_id) ?? empty : empty,
+    blackPlayer: black ? byId.get(black.player_id) ?? empty : empty
+  };
+}
 
 export async function POST(req: NextRequest) {
   const auth = await getSupabaseOptionalUser();
@@ -71,8 +101,9 @@ export async function POST(req: NextRequest) {
 
     const existing = players?.find((p: { player_id: string }) => p.player_id === playerId);
     if (existing) {
+      const { whitePlayer, blackPlayer } = await getPlayersInfo(supabase, players ?? []);
       return NextResponse.json(
-        { game, player: existing },
+        { game, player: existing, whitePlayer, blackPlayer },
         { status: 200 }
       );
     }
@@ -128,6 +159,9 @@ export async function POST(req: NextRequest) {
         .eq("id", gameId);
     }
 
+    const allPlayers = [...(players ?? []), player];
+    const { whitePlayer, blackPlayer } = await getPlayersInfo(supabase, allPlayers);
+
     return NextResponse.json(
       {
         game: {
@@ -137,7 +171,9 @@ export async function POST(req: NextRequest) {
               ? "active"
               : game.status
         },
-        player
+        player,
+        whitePlayer,
+        blackPlayer
       },
       { status: 201 }
     );

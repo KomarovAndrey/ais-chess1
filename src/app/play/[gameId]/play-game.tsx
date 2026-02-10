@@ -29,6 +29,11 @@ interface PlayerRow {
   joined_at: string;
 }
 
+interface PlayerInfo {
+  username: string | null;
+  rating: number | null;
+}
+
 interface PlayGameProps {
   initialGame: GameRow;
 }
@@ -65,6 +70,9 @@ export default function PlayGame({ initialGame }: PlayGameProps) {
 
   const [whiteTime, setWhiteTime] = useState(initialGame.white_time_left);
   const [blackTime, setBlackTime] = useState(initialGame.black_time_left);
+
+  const [whitePlayerInfo, setWhitePlayerInfo] = useState<PlayerInfo>({ username: null, rating: null });
+  const [blackPlayerInfo, setBlackPlayerInfo] = useState<PlayerInfo>({ username: null, rating: null });
 
   // Игнорировать устаревшие Realtime/poll, чтобы ход не откатывался
   const lastMoveAtRef = useRef<string | null>(initialGame.last_move_at ?? null);
@@ -113,6 +121,8 @@ export default function PlayGame({ initialGame }: PlayGameProps) {
           setPlayer(data.player);
           setWhiteTime(data.game.white_time_left);
           setBlackTime(data.game.black_time_left);
+          if (data.whitePlayer) setWhitePlayerInfo(data.whitePlayer);
+          if (data.blackPlayer) setBlackPlayerInfo(data.blackPlayer);
           if (data.game.fen && data.game.fen !== "startpos") {
             game.load(data.game.fen);
           }
@@ -134,6 +144,22 @@ export default function PlayGame({ initialGame }: PlayGameProps) {
       cancelled = true;
     };
   }, [playerId, gameId, game]);
+
+  // Подтянуть логины и рейтинги соперника, когда партия началась или завершилась
+  useEffect(() => {
+    if (!gameId || (gameRow.status !== "active" && gameRow.status !== "finished")) return;
+    let cancelled = false;
+    fetch(`/api/games/${gameId}/players`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (!cancelled) {
+          if (data.whitePlayer) setWhitePlayerInfo(data.whitePlayer);
+          if (data.blackPlayer) setBlackPlayerInfo(data.blackPlayer);
+        }
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [gameId, gameRow.status]);
 
   // Subscribe to realtime updates (Supabase Realtime). Игнорируем устаревшие события.
   useEffect(() => {
@@ -407,7 +433,14 @@ export default function PlayGame({ initialGame }: PlayGameProps) {
 
           <div className="space-y-3">
             <div className="flex items-center justify-between rounded-2xl bg-slate-900 px-4 py-2 text-sm font-mono text-white">
-              <span>Чёрные</span>
+              <span>
+                Чёрные
+                {blackPlayerInfo.username != null ? (
+                  <> · {blackPlayerInfo.username} ({blackPlayerInfo.rating ?? 1500})</>
+                ) : (
+                  <> · Гость</>
+                )}
+              </span>
               <span className="text-lg">
                 {formatMs(blackTime)}
               </span>
@@ -428,7 +461,14 @@ export default function PlayGame({ initialGame }: PlayGameProps) {
             </div>
 
             <div className="flex items-center justify-between rounded-2xl bg-slate-900 px-4 py-2 text-sm font-mono text-white">
-              <span>Белые</span>
+              <span>
+                Белые
+                {whitePlayerInfo.username != null ? (
+                  <> · {whitePlayerInfo.username} ({whitePlayerInfo.rating ?? 1500})</>
+                ) : (
+                  <> · Гость</>
+                )}
+              </span>
               <span className="text-lg">
                 {formatMs(whiteTime)}
               </span>

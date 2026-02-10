@@ -1,11 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Chess } from "chess.js";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { getSupabaseOptionalUser } from "@/lib/apiAuth";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { moveBodySchema } from "@/lib/validations/games";
 
 const UUID_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+async function updateRatings(
+  supabase: SupabaseClient,
+  gameId: string,
+  winner: "white" | "black" | "draw"
+) {
+  await supabase.rpc("update_game_ratings", {
+    p_game_id: gameId,
+    p_winner: winner
+  });
+}
 
 function computeStatusAndWinner(
   fen: string,
@@ -259,6 +271,10 @@ export async function POST(
         { error: "Failed to update game state" },
         { status: 500 }
       );
+    }
+
+    if (data.status === "finished" && data.winner) {
+      await updateRatings(supabase, gameId, data.winner);
     }
 
     return NextResponse.json({ game: data }, { status: 200 });
