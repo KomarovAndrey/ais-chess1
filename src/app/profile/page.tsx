@@ -45,6 +45,12 @@ export default function ProfilePage() {
   const [friendsLoading, setFriendsLoading] = useState(false);
   const [challengingId, setChallengingId] = useState<string | null>(null);
   const [outgoingChallengeByFriendId, setOutgoingChallengeByFriendId] = useState<Record<string, string>>({});
+  const [challengeModal, setChallengeModal] = useState<{
+    open: boolean;
+    friend: FriendEntry | null;
+    creatorColor: "white" | "black" | "random";
+    timeControlSeconds: number;
+  }>({ open: false, friend: null, creatorColor: "random", timeControlSeconds: 300 });
   const [removeConfirm, setRemoveConfirm] = useState<{ open: boolean; friend: FriendEntry | null }>({
     open: false,
     friend: null
@@ -163,18 +169,18 @@ export default function ProfilePage() {
     if (res.ok) loadFriends();
   }
 
-  async function challengeToGame(_friendId: string) {
-    setChallengingId(_friendId);
+  async function sendChallenge(friendId: string, creatorColor: "white" | "black" | "random", timeControlSeconds: number) {
+    setChallengingId(friendId);
     try {
       const res = await fetch("/api/challenges", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ toUserId: _friendId, creatorColor: "random", timeControlSeconds: 300 })
+        body: JSON.stringify({ toUserId: friendId, creatorColor, timeControlSeconds })
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error ?? "Не удалось отправить вызов");
       if (typeof data?.challengeId === "string") {
-        setOutgoingChallengeByFriendId((prev) => ({ ...prev, [_friendId]: data.challengeId }));
+        setOutgoingChallengeByFriendId((prev) => ({ ...prev, [friendId]: data.challengeId }));
       } else {
         loadOutgoingChallenges();
       }
@@ -508,7 +514,14 @@ export default function ProfilePage() {
                       ) : (
                         <button
                           type="button"
-                          onClick={() => challengeToGame(f.id)}
+                          onClick={() =>
+                            setChallengeModal({
+                              open: true,
+                              friend: f,
+                              creatorColor: "random",
+                              timeControlSeconds: 300
+                            })
+                          }
                           disabled={challengingId !== null}
                           className="rounded-lg bg-amber-500 px-2 py-1 text-xs font-medium text-white hover:bg-amber-600 disabled:opacity-50"
                         >
@@ -526,6 +539,84 @@ export default function ProfilePage() {
                   </li>
                 ))}
               </ul>
+            )}
+
+            {challengeModal.open && challengeModal.friend && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+                <div className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-4 shadow-xl">
+                  <h3 className="text-sm font-semibold text-slate-900">Вызов на партию</h3>
+                  <p className="mt-1 text-sm text-slate-600">
+                    Игрок:{" "}
+                    <span className="font-semibold">
+                      {challengeModal.friend.display_name || challengeModal.friend.username || "Игрок"}
+                    </span>
+                  </p>
+
+                  <div className="mt-4 space-y-3">
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-medium text-slate-700">Цвет</label>
+                      <select
+                        value={challengeModal.creatorColor}
+                        onChange={(e) =>
+                          setChallengeModal((p) => ({
+                            ...p,
+                            creatorColor: e.target.value as "white" | "black" | "random"
+                          }))
+                        }
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="random">Случайный</option>
+                        <option value="white">Я играю белыми</option>
+                        <option value="black">Я играю чёрными</option>
+                      </select>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-medium text-slate-700">Время (на игрока)</label>
+                      <select
+                        value={challengeModal.timeControlSeconds}
+                        onChange={(e) =>
+                          setChallengeModal((p) => ({
+                            ...p,
+                            timeControlSeconds: Number(e.target.value)
+                          }))
+                        }
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value={60}>1 мин</option>
+                        <option value={180}>3 мин</option>
+                        <option value={300}>5 мин</option>
+                        <option value={600}>10 мин</option>
+                        <option value={900}>15 мин</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="mt-5 flex justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setChallengeModal({ open: false, friend: null, creatorColor: "random", timeControlSeconds: 300 })}
+                      className="rounded-xl bg-slate-200 px-3 py-2 text-sm font-medium text-slate-800 hover:bg-slate-300"
+                    >
+                      Отмена
+                    </button>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        const friend = challengeModal.friend;
+                        if (!friend) return;
+                        const creatorColor = challengeModal.creatorColor;
+                        const time = challengeModal.timeControlSeconds;
+                        setChallengeModal({ open: false, friend: null, creatorColor: "random", timeControlSeconds: 300 });
+                        await sendChallenge(friend.id, creatorColor, time);
+                      }}
+                      className="rounded-xl bg-amber-500 px-3 py-2 text-sm font-semibold text-white hover:bg-amber-600"
+                    >
+                      Отправить вызов
+                    </button>
+                  </div>
+                </div>
+              </div>
             )}
 
             {removeConfirm.open && removeConfirm.friend && (

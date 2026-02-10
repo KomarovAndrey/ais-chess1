@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { Trophy, Swords, ArrowLeft, UserPlus, UserMinus } from "lucide-react";
+import { Trophy, Swords, ArrowLeft, UserPlus, UserMinus, Swords as SwordsIcon } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 
 type ProfileInfo = {
@@ -32,6 +32,12 @@ export default function PublicProfilePage() {
   const [addFriendMessage, setAddFriendMessage] = useState<string | null>(null);
   const [friendStatus, setFriendStatus] = useState<FriendStatus>("unknown");
   const [removeConfirmOpen, setRemoveConfirmOpen] = useState(false);
+  const [outgoingChallengeId, setOutgoingChallengeId] = useState<string | null>(null);
+  const [challengeModal, setChallengeModal] = useState<{
+    open: boolean;
+    creatorColor: "white" | "black" | "random";
+    timeControlSeconds: number;
+  }>({ open: false, creatorColor: "random", timeControlSeconds: 300 });
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -84,6 +90,25 @@ export default function PublicProfilePage() {
       })
       .catch(() => {
         if (!cancelled) setFriendStatus("unknown");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [currentUserId, profile?.id]);
+
+  useEffect(() => {
+    if (!currentUserId || !profile?.id) return;
+    let cancelled = false;
+    fetch("/api/challenges?scope=outgoing")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (cancelled) return;
+        const outgoing = Array.isArray(data?.outgoing) ? data.outgoing : [];
+        const hit = outgoing.find((c: any) => c?.to_user?.id === profile.id);
+        setOutgoingChallengeId(typeof hit?.id === "string" ? hit.id : null);
+      })
+      .catch(() => {
+        if (!cancelled) setOutgoingChallengeId(null);
       });
     return () => {
       cancelled = true;
@@ -156,15 +181,52 @@ export default function PublicProfilePage() {
             <div className="shrink-0">
               {friendStatus === "friends" ? (
                 <>
-                  <button
-                    type="button"
-                    disabled={addFriendLoading}
-                    onClick={() => setRemoveConfirmOpen(true)}
-                    className="inline-flex items-center gap-1 rounded-xl bg-red-600 px-3 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
-                  >
-                    <UserMinus className="h-4 w-4" />
-                    Удалить из друзей
-                  </button>
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
+                    {outgoingChallengeId ? (
+                      <button
+                        type="button"
+                        disabled={addFriendLoading}
+                        onClick={async () => {
+                          setAddFriendMessage(null);
+                          setAddFriendLoading(true);
+                          try {
+                            const res = await fetch(`/api/challenges/${outgoingChallengeId}/cancel`, { method: "POST" });
+                            const data = await res.json().catch(() => ({}));
+                            if (!res.ok) throw new Error(data.error ?? "Не удалось отменить вызов");
+                            setOutgoingChallengeId(null);
+                            setAddFriendMessage("Вызов отменён.");
+                          } catch (e) {
+                            setAddFriendMessage(e instanceof Error ? e.message : "Ошибка");
+                          } finally {
+                            setAddFriendLoading(false);
+                          }
+                        }}
+                        className="inline-flex items-center justify-center gap-1 rounded-xl bg-slate-700 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-50"
+                      >
+                        Отменить вызов
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        disabled={addFriendLoading}
+                        onClick={() => setChallengeModal({ open: true, creatorColor: "random", timeControlSeconds: 300 })}
+                        className="inline-flex items-center justify-center gap-1 rounded-xl bg-amber-500 px-3 py-2 text-sm font-medium text-white hover:bg-amber-600 disabled:opacity-50"
+                      >
+                        <SwordsIcon className="h-4 w-4" />
+                        Вызвать на партию
+                      </button>
+                    )}
+
+                    <button
+                      type="button"
+                      disabled={addFriendLoading}
+                      onClick={() => setRemoveConfirmOpen(true)}
+                      className="inline-flex items-center justify-center gap-1 rounded-xl bg-red-600 px-3 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
+                    >
+                      <UserMinus className="h-4 w-4" />
+                      Удалить из друзей
+                    </button>
+                  </div>
 
                   {removeConfirmOpen && (
                     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
@@ -202,6 +264,97 @@ export default function PublicProfilePage() {
                             className="rounded-xl bg-red-600 px-3 py-2 text-sm font-medium text-white hover:bg-red-700"
                           >
                             Да
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {challengeModal.open && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+                      <div className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-4 shadow-xl">
+                        <h3 className="text-sm font-semibold text-slate-900">Вызов на партию</h3>
+                        <p className="mt-1 text-sm text-slate-600">
+                          Игрок: <span className="font-semibold">{profile.display_name || profile.username || "Игрок"}</span>
+                        </p>
+
+                        <div className="mt-4 space-y-3">
+                          <div className="space-y-1.5">
+                            <label className="text-xs font-medium text-slate-700">Цвет</label>
+                            <select
+                              value={challengeModal.creatorColor}
+                              onChange={(e) =>
+                                setChallengeModal((p) => ({
+                                  ...p,
+                                  creatorColor: e.target.value as "white" | "black" | "random"
+                                }))
+                              }
+                              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+                            >
+                              <option value="random">Случайный</option>
+                              <option value="white">Я играю белыми</option>
+                              <option value="black">Я играю чёрными</option>
+                            </select>
+                          </div>
+
+                          <div className="space-y-1.5">
+                            <label className="text-xs font-medium text-slate-700">Время (на игрока)</label>
+                            <select
+                              value={challengeModal.timeControlSeconds}
+                              onChange={(e) =>
+                                setChallengeModal((p) => ({
+                                  ...p,
+                                  timeControlSeconds: Number(e.target.value)
+                                }))
+                              }
+                              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+                            >
+                              <option value={60}>1 мин</option>
+                              <option value={180}>3 мин</option>
+                              <option value={300}>5 мин</option>
+                              <option value={600}>10 мин</option>
+                              <option value={900}>15 мин</option>
+                            </select>
+                          </div>
+                        </div>
+
+                        <div className="mt-5 flex justify-end gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setChallengeModal({ open: false, creatorColor: "random", timeControlSeconds: 300 })}
+                            className="rounded-xl bg-slate-200 px-3 py-2 text-sm font-medium text-slate-800 hover:bg-slate-300"
+                          >
+                            Отмена
+                          </button>
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              setAddFriendMessage(null);
+                              setAddFriendLoading(true);
+                              try {
+                                const res = await fetch("/api/challenges", {
+                                  method: "POST",
+                                  headers: { "Content-Type": "application/json" },
+                                  body: JSON.stringify({
+                                    toUserId: profile.id,
+                                    creatorColor: challengeModal.creatorColor,
+                                    timeControlSeconds: challengeModal.timeControlSeconds
+                                  })
+                                });
+                                const data = await res.json().catch(() => ({}));
+                                if (!res.ok) throw new Error(data.error ?? "Не удалось отправить вызов");
+                                if (typeof data?.challengeId === "string") setOutgoingChallengeId(data.challengeId);
+                                setAddFriendMessage("Вызов отправлен. Ожидайте принятия.");
+                                setChallengeModal({ open: false, creatorColor: "random", timeControlSeconds: 300 });
+                              } catch (e) {
+                                setAddFriendMessage(e instanceof Error ? e.message : "Ошибка");
+                              } finally {
+                                setAddFriendLoading(false);
+                              }
+                            }}
+                            className="rounded-xl bg-amber-500 px-3 py-2 text-sm font-semibold text-white hover:bg-amber-600"
+                          >
+                            Отправить вызов
                           </button>
                         </div>
                       </div>
