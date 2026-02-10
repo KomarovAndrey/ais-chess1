@@ -8,7 +8,7 @@ export async function GET() {
 
   const { data, error } = await supabase
     .from("profiles")
-    .select("username, display_name, bio, updated_at")
+    .select("username, display_name, bio, updated_at, rating")
     .eq("id", auth.user.id)
     .single();
 
@@ -21,7 +21,8 @@ export async function GET() {
     username: data?.username ?? null,
     display_name: data?.display_name ?? "",
     bio: data?.bio ?? "",
-    updated_at: data?.updated_at ?? null
+    updated_at: data?.updated_at ?? null,
+    rating: data?.rating ?? 1500
   });
 }
 
@@ -73,7 +74,7 @@ export async function PATCH(req: NextRequest) {
       { id: user.id, ...merged },
       { onConflict: "id", ignoreDuplicates: false }
     )
-    .select("username, display_name, bio, updated_at")
+    .select("username, display_name, bio, updated_at, rating")
     .single();
 
   if (error) {
@@ -85,6 +86,7 @@ export async function PATCH(req: NextRequest) {
     username: data?.username ?? null,
     display_name: data?.display_name ?? "",
     bio: data?.bio ?? "",
-    updated_at: data?.updated_at ?? null
+    updated_at: data?.updated_at ?? null,
+    rating: data?.rating ?? 1500
   });
 }

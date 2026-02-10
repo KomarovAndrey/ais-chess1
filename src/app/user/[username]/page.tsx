@@ -11,6 +11,7 @@ type ProfileInfo = {
   display_name: string;
   bio: string;
   updated_at: string | null;
+  rating: number;
 };
 type Stats = { total: number; wins: number; losses: number; draws: number };
 type GameRow = { id: string; side: string; winner: string | null; status: string; created_at: string; started_at: string | null };
@@ -105,13 +106,20 @@ export default function PublicProfilePage() {
           <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-blue-100 text-xl font-semibold text-blue-700">
             {initials}
           </div>
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <h1 className="text-xl font-bold text-slate-900 truncate">
               {profile.display_name || profile.username || "Игрок"}
             </h1>
-            {profile.username && (
-              <p className="text-sm text-slate-500">@{profile.username}</p>
-            )}
+            <div className="flex items-center justify-between gap-3 mt-0.5">
+              {profile.username ? (
+                <p className="text-sm text-slate-500">@{profile.username}</p>
+              ) : (
+                <span />
+              )}
+              <span className="text-sm font-semibold text-amber-600 shrink-0" title="Рейтинг">
+                {profile.rating ?? 1500}
+              </span>
+            </div>
           </div>
         </div>
 
@@ -125,7 +133,7 @@ export default function PublicProfilePage() {
         <div className="mb-6 rounded-2xl border border-slate-200 bg-white/90 p-6 shadow-md backdrop-blur">
           <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold text-slate-900">
             <Trophy className="h-5 w-5 text-amber-500" />
-            Статистика
+            Статистика (рейтинговые партии)
           </h2>
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
             <div className="rounded-xl bg-slate-50 p-4 text-center">
@@ -150,7 +158,7 @@ export default function PublicProfilePage() {
         <div className="rounded-2xl border border-slate-200 bg-white/90 p-6 shadow-md backdrop-blur">
           <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold text-slate-900">
             <Swords className="h-5 w-5 text-slate-600" />
-            Последние партии
+            Последние рейтинговые партии
           </h2>
           {recentGames.length === 0 ? (
             <p className="text-sm text-slate-500">Партий пока нет.</p>
