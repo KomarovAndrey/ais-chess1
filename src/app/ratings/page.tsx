@@ -37,6 +37,7 @@ export default async function RatingsPage({
     .from("profiles")
     .select("id, username, display_name, rating, rating_bullet, rating_blitz, rating_rapid")
     .not("username", "is", null)
+    .not(orderCol, "is", null)
     .order(orderCol, { ascending: false })
     .limit(100);
 

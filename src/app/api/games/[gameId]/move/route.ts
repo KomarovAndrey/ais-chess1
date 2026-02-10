@@ -8,6 +8,7 @@ import { moveBodySchema } from "@/lib/validations/games";
 const UUID_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
+/** Обновляет рейтинг по итогам партии: категория (bullet/blitz/rapid) берётся из time_control_seconds игры. */
 async function updateRatings(
   supabase: SupabaseClient,
   gameId: string,

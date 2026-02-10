@@ -35,7 +35,7 @@ export default function ProfilePage() {
   const [bio, setBio] = useState("");
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: "ok" | "error"; text: string } | null>(null);
-  const [activeSection, setActiveSection] = useState<"ratings" | "friends" | "about" | "edit">("ratings");
+  const [activeSection, setActiveSection] = useState<"edit" | "ratings" | "friends">("edit");
 
   const [ratingType, setRatingType] = useState<"bullet" | "blitz" | "rapid">("blitz");
   const [history, setHistory] = useState<{ bullet: RatingPoint[]; blitz: RatingPoint[]; rapid: RatingPoint[] }>({
@@ -280,40 +280,35 @@ export default function ProfilePage() {
             </div>
             <div className="min-w-0 flex-1">
               <h1 className="text-xl font-bold text-slate-900 truncate">
-                {profile?.display_name?.trim() || profile?.username || user.email?.split("@")[0] || "Профиль"}
+                {profile?.username ? `@${profile.username}` : (user.email ?? "Профиль")}
               </h1>
-              <div className="mt-2">
-                <span className="text-sm font-semibold text-slate-700">Логин: </span>
-                <span className="text-sm font-mono text-blue-700">
-                  {profile?.username ? `@${profile.username}` : "—"}
-                </span>
-                {profile?.username && (
-                  <p className="text-xs text-slate-500 mt-0.5">По этому логину вас находят в поиске друзей</p>
-                )}
-              </div>
+              <p className="text-xs text-slate-500 mt-0.5">
+                {profile?.username ? "По этому логину вас находят в поиске друзей" : "Логин задаётся при регистрации; можно изменить во вкладке «Профиль»"}
+              </p>
+              {profile?.display_name?.trim() && (
+                <p className="text-sm text-slate-600 mt-0.5">Имя: {profile.display_name.trim()}</p>
+              )}
               <p className="text-xs text-slate-400 mt-1">{user.email}</p>
             </div>
-            {profile && (
-              <div className="flex shrink-0 gap-3 rounded-xl bg-slate-50 px-4 py-2">
-                <div className="text-center">
-                  <div className="text-xs font-medium text-slate-500">Bullet</div>
-                  <div className="text-lg font-bold text-amber-600">{profile.rating_bullet ?? 1500}</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-xs font-medium text-slate-500">Blitz</div>
-                  <div className="text-lg font-bold text-amber-600">{profile.rating_blitz ?? 1500}</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-xs font-medium text-slate-500">Rapid</div>
-                  <div className="text-lg font-bold text-amber-600">{profile.rating_rapid ?? 1500}</div>
-                </div>
+            <div className="flex shrink-0 gap-3 rounded-xl bg-slate-50 px-4 py-2">
+              <div className="text-center">
+                <div className="text-xs font-medium text-slate-500">Bullet</div>
+                <div className="text-lg font-bold text-amber-600">{profile?.rating_bullet ?? 1500}</div>
               </div>
-            )}
+              <div className="text-center">
+                <div className="text-xs font-medium text-slate-500">Blitz</div>
+                <div className="text-lg font-bold text-amber-600">{profile?.rating_blitz ?? 1500}</div>
+              </div>
+              <div className="text-center">
+                <div className="text-xs font-medium text-slate-500">Rapid</div>
+                <div className="text-lg font-bold text-amber-600">{profile?.rating_rapid ?? 1500}</div>
+              </div>
+            </div>
           </div>
         </div>
 
         <div className="flex gap-2 border-b border-slate-200 mb-4 flex-wrap">
-          {(["ratings", "friends", "about", "edit"] as const).map((s) => (
+          {(["edit", "ratings", "friends"] as const).map((s) => (
             <button
               key={s}
               type="button"
@@ -324,15 +319,14 @@ export default function ProfilePage() {
                   : "text-slate-600 hover:text-slate-900"
               }`}
             >
+              {s === "edit" && "Профиль"}
               {s === "ratings" && "Рейтинг"}
               {s === "friends" && "Друзья"}
-              {s === "about" && "О себе"}
-              {s === "edit" && "Профиль"}
             </button>
           ))}
         </div>
 
-        {activeSection === "ratings" && profile && (
+        {activeSection === "ratings" && (
           <div className="space-y-4">
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <button
@@ -343,7 +337,7 @@ export default function ProfilePage() {
                 }`}
               >
                 <div className="text-xs font-semibold opacity-90">Bullet</div>
-                <div className="mt-1 text-2xl font-extrabold">{profile.rating_bullet ?? 1500}</div>
+                <div className="mt-1 text-2xl font-extrabold">{profile?.rating_bullet ?? 1500}</div>
               </button>
               <button
                 type="button"
@@ -353,7 +347,7 @@ export default function ProfilePage() {
                 }`}
               >
                 <div className="text-xs font-semibold opacity-90">Blitz</div>
-                <div className="mt-1 text-2xl font-extrabold">{profile.rating_blitz ?? 1500}</div>
+                <div className="mt-1 text-2xl font-extrabold">{profile?.rating_blitz ?? 1500}</div>
               </button>
               <button
                 type="button"
@@ -363,7 +357,7 @@ export default function ProfilePage() {
                 }`}
               >
                 <div className="text-xs font-semibold opacity-90">Rapid</div>
-                <div className="mt-1 text-2xl font-extrabold">{profile.rating_rapid ?? 1500}</div>
+                <div className="mt-1 text-2xl font-extrabold">{profile?.rating_rapid ?? 1500}</div>
               </button>
             </div>
 
@@ -371,26 +365,16 @@ export default function ProfilePage() {
           </div>
         )}
 
-        {activeSection === "about" && (
+        {activeSection === "edit" && (
           <div className="rounded-3xl border border-slate-200 bg-white/90 p-6 shadow-lg backdrop-blur md:p-8">
             <h2 className="mb-4 text-lg font-semibold text-slate-900">Информация о себе</h2>
-            <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4 min-h-[120px]">
+            <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4 min-h-[80px] mb-6">
               {profile?.bio?.trim() ? (
                 <p className="text-slate-700 whitespace-pre-wrap">{profile.bio.trim()}</p>
               ) : (
-                <p className="text-slate-500 italic">
-                  Пока ничего не указано. Заполните во вкладке «Профиль».
-                </p>
+                <p className="text-slate-500 italic">Пока ничего не указано. Заполните поле ниже.</p>
               )}
             </div>
-            <p className="mt-3 text-sm text-slate-500">
-              Редактировать текст можно во вкладке <button type="button" onClick={() => setActiveSection("edit")} className="text-blue-600 hover:underline font-medium">Профиль</button>.
-            </p>
-          </div>
-        )}
-
-        {activeSection === "edit" && (
-          <div className="rounded-3xl border border-slate-200 bg-white/90 p-6 shadow-lg backdrop-blur md:p-8">
             <form onSubmit={handleSubmit} className="space-y-5">
               <div className="space-y-1.5">
                 <label htmlFor="display_name" className="text-sm font-medium text-slate-700">
