@@ -86,7 +86,7 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({ incoming });
 }
 
-/** POST: создать вызов другу (body: { toUserId, creatorColor, timeControlSeconds }) */
+/** POST: создать вызов на партию (body: { toUserId, creatorColor, timeControlSeconds }) */
 export async function POST(req: NextRequest) {
   const auth = await getSupabaseAndUser();
   if ("response" in auth) return auth.response;
@@ -120,18 +120,6 @@ export async function POST(req: NextRequest) {
       : 300;
   if (timeControlSeconds < 1 || timeControlSeconds > 86400) {
     return NextResponse.json({ error: "Некорректный контроль времени" }, { status: 400 });
-  }
-
-  // Разрешаем вызывать только друзей (accepted)
-  const { data: friendsRows } = await supabase
-    .from("friend_requests")
-    .select("id")
-    .eq("status", "accepted")
-    .or(
-      `and(from_user_id.eq.${me},to_user_id.eq.${toUserId}),and(from_user_id.eq.${toUserId},to_user_id.eq.${me})`
-    );
-  if (!friendsRows || friendsRows.length === 0) {
-    return NextResponse.json({ error: "Можно вызывать на партию только друзей" }, { status: 403 });
   }
 
   // Если уже есть pending-вызов — вернём его id (чтобы можно было показать "Отменить вызов")

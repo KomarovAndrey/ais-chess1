@@ -553,7 +553,7 @@ export default function ProfilePage() {
             <GameParamsModal
               open={challengeModalOpenFor !== null}
               title="Параметры игры"
-              submitLabel="Бросить вызов другу"
+              submitLabel="Бросить вызов"
               onClose={() => setChallengeModalOpenFor(null)}
               onSubmit={async ({ creatorColor, timeControlSeconds }) => {
                 const f = challengeModalOpenFor;

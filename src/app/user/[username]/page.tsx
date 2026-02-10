@@ -200,54 +200,54 @@ export default function PublicProfilePage() {
           </div>
           {currentUserId && currentUserId !== profile.id && profile.username && (
             <div className="shrink-0">
-              {friendStatus === "friends" ? (
-                <>
-                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
-                    {outgoingChallengeId ? (
-                      <button
-                        type="button"
-                        disabled={addFriendLoading}
-                        onClick={async () => {
-                          setAddFriendMessage(null);
-                          setAddFriendLoading(true);
-                          try {
-                            const res = await fetch(`/api/challenges/${outgoingChallengeId}/cancel`, { method: "POST" });
-                            const data = await res.json().catch(() => ({}));
-                            if (!res.ok) throw new Error(data.error ?? "Не удалось отменить вызов");
-                            setOutgoingChallengeId(null);
-                            setAddFriendMessage("Вызов отменён.");
-                          } catch (e) {
-                            setAddFriendMessage(e instanceof Error ? e.message : "Ошибка");
-                          } finally {
-                            setAddFriendLoading(false);
-                          }
-                        }}
-                        className="inline-flex items-center justify-center gap-1 rounded-xl bg-slate-700 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-50"
-                      >
-                        Отменить вызов
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        disabled={addFriendLoading}
-                        onClick={() => setChallengeModalOpen(true)}
-                        className="inline-flex items-center justify-center gap-1 rounded-xl bg-amber-500 px-3 py-2 text-sm font-medium text-white hover:bg-amber-600 disabled:opacity-50"
-                      >
-                        <SwordsIcon className="h-4 w-4" />
-                        Вызвать на партию
-                      </button>
-                    )}
+              <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
+                {outgoingChallengeId ? (
+                  <button
+                    type="button"
+                    disabled={addFriendLoading}
+                    onClick={async () => {
+                      setAddFriendMessage(null);
+                      setAddFriendLoading(true);
+                      try {
+                        const res = await fetch(`/api/challenges/${outgoingChallengeId}/cancel`, { method: "POST" });
+                        const data = await res.json().catch(() => ({}));
+                        if (!res.ok) throw new Error(data.error ?? "Не удалось отменить вызов");
+                        setOutgoingChallengeId(null);
+                        setAddFriendMessage("Вызов отменён.");
+                      } catch (e) {
+                        setAddFriendMessage(e instanceof Error ? e.message : "Ошибка");
+                      } finally {
+                        setAddFriendLoading(false);
+                      }
+                    }}
+                    className="inline-flex items-center justify-center gap-1 rounded-xl bg-slate-700 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-50"
+                  >
+                    Отменить вызов
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    disabled={addFriendLoading}
+                    onClick={() => setChallengeModalOpen(true)}
+                    className="inline-flex items-center justify-center gap-1 rounded-xl bg-amber-500 px-3 py-2 text-sm font-medium text-white hover:bg-amber-600 disabled:opacity-50"
+                  >
+                    <SwordsIcon className="h-4 w-4" />
+                    Вызвать на партию
+                  </button>
+                )}
+              </div>
 
-                    <button
-                      type="button"
-                      disabled={addFriendLoading}
-                      onClick={() => setRemoveConfirmOpen(true)}
-                      className="inline-flex items-center justify-center gap-1 rounded-xl bg-red-600 px-3 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
-                    >
-                      <UserMinus className="h-4 w-4" />
-                      Удалить из друзей
-                    </button>
-                  </div>
+              {friendStatus === "friends" && (
+                <>
+                  <button
+                    type="button"
+                    disabled={addFriendLoading}
+                    onClick={() => setRemoveConfirmOpen(true)}
+                    className="inline-flex items-center justify-center gap-1 rounded-xl bg-red-600 px-3 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
+                  >
+                    <UserMinus className="h-4 w-4" />
+                    Удалить из друзей
+                  </button>
 
                   {removeConfirmOpen && (
                     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
@@ -290,39 +290,41 @@ export default function PublicProfilePage() {
                       </div>
                     </div>
                   )}
-
-                  <GameParamsModal
-                    open={challengeModalOpen}
-                    title="Параметры игры"
-                    submitLabel="Бросить вызов другу"
-                    onClose={() => setChallengeModalOpen(false)}
-                    onSubmit={async ({ creatorColor, timeControlSeconds }) => {
-                      setChallengeModalOpen(false);
-                      setAddFriendMessage(null);
-                      setAddFriendLoading(true);
-                      try {
-                        const res = await fetch("/api/challenges", {
-                          method: "POST",
-                          headers: { "Content-Type": "application/json" },
-                          body: JSON.stringify({
-                            toUserId: profile.id,
-                            creatorColor,
-                            timeControlSeconds
-                          })
-                        });
-                        const data = await res.json().catch(() => ({}));
-                        if (!res.ok) throw new Error(data.error ?? "Не удалось отправить вызов");
-                        if (typeof data?.challengeId === "string") setOutgoingChallengeId(data.challengeId);
-                        setAddFriendMessage("Вызов отправлен. Ожидайте принятия.");
-                      } catch (e) {
-                        setAddFriendMessage(e instanceof Error ? e.message : "Ошибка");
-                      } finally {
-                        setAddFriendLoading(false);
-                      }
-                    }}
-                  />
                 </>
-              ) : friendStatus === "pending_outgoing" ? (
+              )}
+
+              <GameParamsModal
+                open={challengeModalOpen}
+                title="Параметры игры"
+                submitLabel="Бросить вызов"
+                onClose={() => setChallengeModalOpen(false)}
+                onSubmit={async ({ creatorColor, timeControlSeconds }) => {
+                  setChallengeModalOpen(false);
+                  setAddFriendMessage(null);
+                  setAddFriendLoading(true);
+                  try {
+                    const res = await fetch("/api/challenges", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        toUserId: profile.id,
+                        creatorColor,
+                        timeControlSeconds
+                      })
+                    });
+                    const data = await res.json().catch(() => ({}));
+                    if (!res.ok) throw new Error(data.error ?? "Не удалось отправить вызов");
+                    if (typeof data?.challengeId === "string") setOutgoingChallengeId(data.challengeId);
+                    setAddFriendMessage("Вызов отправлен. Ожидайте принятия.");
+                  } catch (e) {
+                    setAddFriendMessage(e instanceof Error ? e.message : "Ошибка");
+                  } finally {
+                    setAddFriendLoading(false);
+                  }
+                }}
+              />
+
+              {friendStatus === "pending_outgoing" ? (
                 <button
                   type="button"
                   disabled={addFriendLoading || !friendRequestId}

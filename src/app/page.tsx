@@ -185,7 +185,7 @@ export default function HomePage() {
                 }}
               >
                 <UserPlus className="h-5 w-5 shrink-0 text-slate-300" />
-                Бросить вызов другу
+                Бросить вызов
               </button>
 
               <button
@@ -204,11 +204,11 @@ export default function HomePage() {
         </section>
       </div>
 
-      {/* Modal — Бросить вызов другу (создание игры по ссылке) */}
+      {/* Modal — Бросить вызов (создание игры по ссылке) */}
       <GameParamsModal
         open={showModal}
         title="Параметры игры"
-        submitLabel="Бросить вызов другу"
+        submitLabel="Бросить вызов"
         submittingLabel="Создаётся…"
         initialCreatorColor={colorChoice}
         initialTimeControlSeconds={timeControl}
@@ -222,7 +222,7 @@ export default function HomePage() {
         }}
       />
 
-      {/* Modal — Бросить вызов другу (через уведомления, для зарегистрированных) */}
+      {/* Modal — Бросить вызов (через уведомления, для зарегистрированных) */}
       <GameParamsModal
         open={showFriendModal}
         title="Параметры игры"
