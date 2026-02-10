@@ -25,12 +25,12 @@ export const joinGameSchema = z.object({
 /** UCI move: e.g. e2e4 or e7e8q (promotion) */
 const UCI_REGEX = /^[a-h][1-8][a-h][1-8][qnrb]?$/i;
 
-export const moveBodySchemaUci = z.object({
+const moveBodySchemaUci = z.object({
   uci: z.string().min(4).max(5).regex(UCI_REGEX, "Invalid UCI move format"),
   playerId: z.string().uuid().optional()
 });
 
-export const moveBodySchemaLegacy = z.object({
+const moveBodySchemaLegacy = z.object({
   fen: z
     .string()
     .min(1, "fen is required")
@@ -54,9 +54,3 @@ export const moveBodySchemaLegacy = z.object({
 
 /** Accept either UCI (preferred) or legacy FEN + clocks */
 export const moveBodySchema = z.union([moveBodySchemaUci, moveBodySchemaLegacy]);
-
-export type CreateGameInput = z.infer<typeof createGameSchema>;
-export type JoinGameInput = z.infer<typeof joinGameSchema>;
-export type MoveBodyInput = z.infer<typeof moveBodySchema>;
-export type MoveBodyInputUci = z.infer<typeof moveBodySchemaUci>;
-export type MoveBodyInputLegacy = z.infer<typeof moveBodySchemaLegacy>;

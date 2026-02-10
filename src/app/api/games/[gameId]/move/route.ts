@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { appendFileSync } from "fs";
 import { Chess } from "chess.js";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getSupabaseOptionalUser } from "@/lib/apiAuth";
@@ -8,35 +7,6 @@ import { moveBodySchema } from "@/lib/validations/games";
 
 const UUID_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-
-// #region agent log helper
-function agentLog(payload: {
-  hypothesisId: string;
-  location: string;
-  message: string;
-  data: Record<string, unknown>;
-  runId?: string;
-}) {
-  try {
-    const line = JSON.stringify({
-      id:
-        "log_" +
-        Date.now() +
-        "_" +
-        Math.random().toString(36).slice(2, 8),
-      timestamp: Date.now(),
-      runId: payload.runId ?? "pre-fix",
-      hypothesisId: payload.hypothesisId,
-      location: payload.location,
-      message: payload.message,
-      data: payload.data
-    });
-    appendFileSync(".cursor/debug.log", line + "\n");
-  } catch {
-    // ignore logging errors
-  }
-}
-// #endregion
 
 /** Обновляет рейтинг по итогам партии: категория (bullet/blitz/rapid) берётся из time_control_seconds игры. */
 async function updateRatings(
@@ -50,13 +20,6 @@ async function updateRatings(
   });
 
   if (error) {
-    agentLog({
-      hypothesisId: "RATINGS_ERROR",
-      location: "src/app/api/games/[gameId]/move/route.ts:41-51",
-      message: "update_game_ratings RPC failed",
-      data: { gameId, winner, error: error.message ?? String(error) },
-      runId: "pre-fix"
-    });
     throw new Error("Failed to update ratings");
   }
 }
@@ -149,19 +112,6 @@ export async function POST(
     }
 
     const isUci = "uci" in parsed.data && typeof parsed.data.uci === "string";
-
-    agentLog({
-      hypothesisId: "LOG_FLOW",
-      location: "src/app/api/games/[gameId]/move/route.ts:110-120",
-      message: "Move handler parsed request",
-      data: {
-        isUci,
-        hasUser: !!user,
-        hasBodyPlayerId: !!bodyPlayerId,
-        playerId,
-        gameId
-      }
-    });
 
     const { data: currentGame, error: gameError } = await supabase
       .from("games")
@@ -315,32 +265,6 @@ export async function POST(
     status = computed.status;
     winner = computed.winner;
 
-    // #region agent log
-    fetch("http://127.0.0.1:7242/ingest/df954510-85f4-43ce-8731-98c6b9de4aeb", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        id: "log_" + Date.now() + "_status_winner",
-        runId: "pre-fix",
-        hypothesisId: "A",
-        location: "src/app/api/games/[gameId]/move/route.ts:241-250",
-        message: "Status/winner source comparison",
-        data: {
-          isUci,
-          clientStatus: (parsed.data as { status?: string | null }).status ?? null,
-          clientWinner: (parsed.data as { winner?: string | null }).winner ?? null,
-          finalStatus: status,
-          finalWinner: winner,
-          fen: newFen,
-          activeColor: nextActive,
-          whiteTimeLeft,
-          blackTimeLeft
-        },
-        timestamp: Date.now()
-      })
-    }).catch(() => {});
-    // #endregion
-
     const payload = {
       fen: newFen,
       active_color: nextActive,
@@ -367,51 +291,12 @@ export async function POST(
     }
 
     if (data.status === "finished" && data.winner) {
-      // #region agent log
-      fetch(
-        "http://127.0.0.1:7242/ingest/df954510-85f4-43ce-8731-98c6b9de4aeb",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            id: "log_" + Date.now() + "_ratings_call",
-            runId: "pre-fix",
-            hypothesisId: "B",
-            location: "src/app/api/games/[gameId]/move/route.ts:277-279",
-            message: "Calling updateRatings after finished game",
-            data: {
-              gameId,
-              status: data.status,
-              winner: data.winner
-            },
-            timestamp: Date.now()
-          })
-        }
-      ).catch(() => {});
-      // #endregion
       await updateRatings(supabase, gameId, data.winner);
     }
 
     return NextResponse.json({ game: data }, { status: 200 });
   } catch (error) {
     console.error("Unexpected error in POST /api/games/[gameId]/move:", error);
-    // #region agent log
-    fetch("http://127.0.0.1:7242/ingest/df954510-85f4-43ce-8731-98c6b9de4aeb", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        id: "log_" + Date.now() + "_unexpected_error",
-        runId: "pre-fix",
-        hypothesisId: "C",
-        location: "src/app/api/games/[gameId]/move/route.ts:282-287",
-        message: "Unexpected error in move handler",
-        data: {
-          errorMessage: error instanceof Error ? error.message : String(error)
-        },
-        timestamp: Date.now()
-      })
-    }).catch(() => {});
-    // #endregion
     return NextResponse.json(
       { error: "Unexpected error" },
       { status:500 }
