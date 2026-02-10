@@ -110,16 +110,11 @@ export default function PublicProfilePage() {
             <h1 className="text-xl font-bold text-slate-900 truncate">
               {profile.display_name || profile.username || "Игрок"}
             </h1>
-            <div className="flex items-center justify-between gap-3 mt-0.5">
-              {profile.username ? (
-                <p className="text-sm text-slate-500">@{profile.username}</p>
-              ) : (
-                <span />
-              )}
-              <span className="text-sm font-semibold text-amber-600 shrink-0" title="Рейтинг">
-                {profile.rating ?? 1500}
-              </span>
-            </div>
+            {profile.username && (
+              <p className="text-sm text-slate-500 mt-0.5">
+                @{profile.username} <span className="text-amber-600 font-semibold">({profile.rating ?? 1500})</span>
+              </p>
+            )}
           </div>
         </div>
 
