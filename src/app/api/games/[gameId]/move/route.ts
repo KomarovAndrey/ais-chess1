@@ -240,14 +240,50 @@ export async function POST(
 
     let status: "waiting" | "active" | "finished";
     let winner: "white" | "black" | "draw" | null;
-    if (!isUci && (parsed.data as { status?: string; winner?: string | null }).status === "finished" && (parsed.data as { winner?: string | null }).winner) {
+    if (
+      !isUci &&
+      (parsed.data as { status?: string; winner?: string | null }).status ===
+        "finished" &&
+      (parsed.data as { winner?: string | null }).winner
+    ) {
       status = "finished";
       winner = (parsed.data as { winner: "white" | "black" | "draw" }).winner;
     } else {
-      const computed = computeStatusAndWinner(newFen, nextActive, whiteTimeLeft, blackTimeLeft);
+      const computed = computeStatusAndWinner(
+        newFen,
+        nextActive,
+        whiteTimeLeft,
+        blackTimeLeft
+      );
       status = computed.status;
       winner = computed.winner;
     }
+
+    // #region agent log
+    fetch("http://127.0.0.1:7242/ingest/df954510-85f4-43ce-8731-98c6b9de4aeb", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        id: "log_" + Date.now() + "_status_winner",
+        runId: "pre-fix",
+        hypothesisId: "A",
+        location: "src/app/api/games/[gameId]/move/route.ts:241-250",
+        message: "Status/winner source comparison",
+        data: {
+          isUci,
+          clientStatus: (parsed.data as { status?: string | null }).status ?? null,
+          clientWinner: (parsed.data as { winner?: string | null }).winner ?? null,
+          finalStatus: status,
+          finalWinner: winner,
+          fen: newFen,
+          activeColor: nextActive,
+          whiteTimeLeft,
+          blackTimeLeft
+        },
+        timestamp: Date.now()
+      })
+    }).catch(() => {});
+    // #endregion
 
     const payload = {
       fen: newFen,
@@ -275,15 +311,54 @@ export async function POST(
     }
 
     if (data.status === "finished" && data.winner) {
+      // #region agent log
+      fetch(
+        "http://127.0.0.1:7242/ingest/df954510-85f4-43ce-8731-98c6b9de4aeb",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            id: "log_" + Date.now() + "_ratings_call",
+            runId: "pre-fix",
+            hypothesisId: "B",
+            location: "src/app/api/games/[gameId]/move/route.ts:277-279",
+            message: "Calling updateRatings after finished game",
+            data: {
+              gameId,
+              status: data.status,
+              winner: data.winner
+            },
+            timestamp: Date.now()
+          })
+        }
+      ).catch(() => {});
+      // #endregion
       await updateRatings(supabase, gameId, data.winner);
     }
 
     return NextResponse.json({ game: data }, { status: 200 });
   } catch (error) {
     console.error("Unexpected error in POST /api/games/[gameId]/move:", error);
+    // #region agent log
+    fetch("http://127.0.0.1:7242/ingest/df954510-85f4-43ce-8731-98c6b9de4aeb", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        id: "log_" + Date.now() + "_unexpected_error",
+        runId: "pre-fix",
+        hypothesisId: "C",
+        location: "src/app/api/games/[gameId]/move/route.ts:282-287",
+        message: "Unexpected error in move handler",
+        data: {
+          errorMessage: error instanceof Error ? error.message : String(error)
+        },
+        timestamp: Date.now()
+      })
+    }).catch(() => {});
+    // #endregion
     return NextResponse.json(
       { error: "Unexpected error" },
-      { status: 500 }
+      { status:500 }
     );
   }
 }
