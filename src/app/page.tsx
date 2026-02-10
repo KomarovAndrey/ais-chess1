@@ -309,12 +309,12 @@ export default function HomePage() {
             >
               <X className="h-5 w-5" />
             </button>
-            <div className="px-6 pt-6 pb-2">
-              <h3 className="text-center text-xl font-semibold tracking-wide text-slate-900">
-                Игра с компьютером
-              </h3>
-            </div>
-            <div className="px-6 pb-6 pt-2 space-y-6">
+            <div className="max-h-[85dvh] overflow-y-auto px-6 pt-6 pb-6 space-y-6">
+              <div className="pb-2">
+                <h3 className="text-center text-xl font-semibold tracking-wide text-slate-900">
+                  Игра с компьютером
+                </h3>
+              </div>
               <div>
                 <p className="mb-3 text-center text-sm font-medium text-slate-600">
                   Минут на партию

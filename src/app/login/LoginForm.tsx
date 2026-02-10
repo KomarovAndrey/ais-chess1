@@ -59,7 +59,7 @@ export default function LoginForm({ resetSuccess = false }: LoginFormProps) {
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none ring-offset-2 focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-base outline-none ring-offset-2 focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
               placeholder="you@school.com"
             />
           </div>
@@ -69,7 +69,7 @@ export default function LoginForm({ resetSuccess = false }: LoginFormProps) {
               <label className="text-sm font-medium text-slate-700">
                 Пароль
               </label>
-              <Link href="/forgot-password" className="text-xs font-medium text-blue-700 hover:underline">
+              <Link href="/forgot-password" className="inline-block min-h-[44px] py-2 text-xs font-medium leading-[44px] text-blue-700 hover:underline">
                 Забыли пароль?
               </Link>
             </div>
@@ -78,7 +78,7 @@ export default function LoginForm({ resetSuccess = false }: LoginFormProps) {
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none ring-offset-2 focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-base outline-none ring-offset-2 focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
               placeholder="Минимум 6 символов"
             />
           </div>
@@ -111,7 +111,7 @@ export default function LoginForm({ resetSuccess = false }: LoginFormProps) {
           Нет аккаунта?{" "}
           <Link
             href="/register"
-            className="font-semibold text-blue-700 underline-offset-4 hover:underline"
+            className="inline-block min-h-[44px] py-2 font-semibold leading-[44px] text-blue-700 underline-offset-4 hover:underline"
           >
             Зарегистрироваться
           </Link>

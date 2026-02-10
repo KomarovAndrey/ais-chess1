@@ -166,7 +166,7 @@ export default function RegisterPage() {
                   if (!available) setFieldErrors((prev) => ({ ...prev, login: "Этот логин уже занят" }));
                 }
               }}
-              className={`w-full rounded-xl border bg-slate-50 px-3 py-2 text-sm outline-none ring-offset-2 focus:ring-2 ${
+              className={`w-full rounded-xl border bg-slate-50 px-3 py-2.5 text-base outline-none ring-offset-2 focus:ring-2 ${
                 fieldErrors.login ? "border-red-300 focus:border-red-500 focus:ring-red-500" : "border-slate-200 focus:border-blue-500 focus:ring-blue-500"
               }`}
               placeholder="Латиница, цифры, подчёркивание, 3–30 символов"
@@ -190,7 +190,7 @@ export default function RegisterPage() {
               autoComplete="email"
               value={email}
               onChange={(e) => { setEmail(e.target.value); setFieldErrors((e) => ({ ...e, email: undefined })); }}
-              className={`w-full rounded-xl border bg-slate-50 px-3 py-2 text-sm outline-none ring-offset-2 focus:ring-2 ${
+              className={`w-full rounded-xl border bg-slate-50 px-3 py-2.5 text-base outline-none ring-offset-2 focus:ring-2 ${
                 fieldErrors.email ? "border-red-300 focus:border-red-500 focus:ring-red-500" : "border-slate-200 focus:border-blue-500 focus:ring-blue-500"
               }`}
               placeholder="you@school.com"
@@ -213,7 +213,7 @@ export default function RegisterPage() {
               autoComplete="new-password"
               value={password}
               onChange={(e) => { setPassword(e.target.value); setFieldErrors((e) => ({ ...e, password: undefined, confirmPassword: undefined })); }}
-              className={`w-full rounded-xl border bg-slate-50 px-3 py-2 text-sm outline-none ring-offset-2 focus:ring-2 ${
+              className={`w-full rounded-xl border bg-slate-50 px-3 py-2.5 text-base outline-none ring-offset-2 focus:ring-2 ${
                 fieldErrors.password ? "border-red-300 focus:border-red-500 focus:ring-red-500" : "border-slate-200 focus:border-blue-500 focus:ring-blue-500"
               }`}
               placeholder="Минимум 6 символов"
@@ -236,7 +236,7 @@ export default function RegisterPage() {
               autoComplete="new-password"
               value={confirmPassword}
               onChange={(e) => { setConfirmPassword(e.target.value); setFieldErrors((e) => ({ ...e, confirmPassword: undefined })); }}
-              className={`w-full rounded-xl border bg-slate-50 px-3 py-2 text-sm outline-none ring-offset-2 focus:ring-2 ${
+              className={`w-full rounded-xl border bg-slate-50 px-3 py-2.5 text-base outline-none ring-offset-2 focus:ring-2 ${
                 fieldErrors.confirmPassword ? "border-red-300 focus:border-red-500 focus:ring-red-500" : "border-slate-200 focus:border-blue-500 focus:ring-blue-500"
               }`}
               placeholder="Повторите пароль"
@@ -297,7 +297,7 @@ export default function RegisterPage() {
 
         <div className="mt-4 text-center text-xs text-slate-500">
           Уже есть аккаунт?{" "}
-          <Link href="/login" className="font-semibold text-blue-700 underline-offset-4 hover:underline">
+          <Link href="/login" className="inline-block min-h-[44px] py-2 font-semibold leading-[44px] text-blue-700 underline-offset-4 hover:underline">
             Войти
           </Link>
         </div>

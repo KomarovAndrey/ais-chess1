@@ -2,13 +2,25 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --background: #ffffff;
-  --foreground: #0f172a;
-}
-
 body {
   @apply bg-white text-slate-900 font-sans;
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+html {
+  -webkit-tap-highlight-color: transparent;
+}
+
+main {
+  touch-action: manipulation;
+}
+
+/* iOS: не менее 16px, чтобы не было зума при фокусе */
+input,
+textarea,
+select {
+  font-size: 16px;
 }
 
 .btn-primary {
@@ -21,5 +33,14 @@ body {
 
 .card {
   @apply rounded-2xl border border-slate-200 bg-white/80 p-6 shadow-sm backdrop-blur;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    scroll-behavior: auto !important;
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
 }
 

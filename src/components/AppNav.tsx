@@ -188,8 +188,10 @@ export default function AppNav() {
   return (
     <nav className="flex items-center gap-3">
       {user && (
-        <div className="hidden md:flex items-center gap-2">
-          <div className="relative" ref={searchRef}>
+        <>
+          {/* Поиск на десктопе */}
+          <div className="hidden items-center gap-2 md:flex">
+            <div className="relative" ref={searchRef}>
             <div className="flex items-center rounded-xl border border-slate-200 bg-slate-50 px-2 py-1.5 focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-400/20">
               <Search className="h-4 w-4 text-slate-400" aria-hidden />
               <input
@@ -227,6 +229,17 @@ export default function AppNav() {
             )}
           </div>
 
+          {/* Иконка поиска на мобильных (открывает полноэкранный поиск) */}
+          <button
+            type="button"
+            onClick={() => setSearchOpen(true)}
+            className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 shadow-sm hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 md:hidden"
+            aria-label="Поиск по игрокам"
+          >
+            <Search className="h-4 w-4" />
+          </button>
+
+          {/* Уведомления — видимы на всех размерах экрана */}
           <div className="relative" ref={notifRef}>
             <button
               type="button"
@@ -246,7 +259,7 @@ export default function AppNav() {
             </button>
 
             {notifOpen && (
-              <div className="absolute right-0 top-full z-50 mt-1 w-80 rounded-xl border border-slate-200 bg-white shadow-lg">
+              <div className="absolute right-0 top-full z-50 mt-1 w-80 max-w-[calc(100vw-2rem)] rounded-xl border border-slate-200 bg-white shadow-lg">
                 <div className="px-3 py-2 text-sm font-semibold text-slate-900">Уведомления</div>
                 <div className="border-t border-slate-100" />
                 {incomingChallenges.length === 0 && incomingFriendRequests.length === 0 ? (
@@ -336,7 +349,7 @@ export default function AppNav() {
               </div>
             )}
           </div>
-        </div>
+        </>
       )}
 
       {user ? (
@@ -395,6 +408,57 @@ export default function AppNav() {
           >
             Регистрация
           </Link>
+        </div>
+      )}
+
+      {/* Полноэкранный поиск на мобильных */}
+      {user && searchOpen && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center bg-slate-900/40 backdrop-blur-sm md:hidden">
+          <div className="mx-4 mt-16 w-full max-w-md rounded-2xl bg-white px-4 py-3 shadow-xl">
+            <div className="mb-3 flex items-center gap-2">
+              <div className="flex flex-1 items-center rounded-xl border border-slate-200 bg-slate-50 px-2 py-1.5">
+                <Search className="h-4 w-4 text-slate-400" aria-hidden />
+                <input
+                  type="search"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Поиск по игрокам..."
+                  className="w-full border-0 bg-transparent py-0.5 pl-2 pr-1 text-sm text-slate-800 placeholder-slate-400 outline-none"
+                  autoFocus
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => { setSearchOpen(false); setSearchQuery(""); }}
+                className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200"
+                aria-label="Закрыть поиск"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            {searchResults.length > 0 ? (
+              <ul className="max-h-80 overflow-auto py-1" role="listbox">
+                {searchResults.map((hit) => (
+                  <li key={hit.id} role="option">
+                    <Link
+                      href={hit.username ? `/user/${encodeURIComponent(hit.username)}` : "/profile"}
+                      onClick={() => { setSearchOpen(false); setSearchQuery(""); }}
+                      className="block px-2 py-2 text-sm text-slate-700 hover:bg-slate-100 rounded-lg"
+                    >
+                      <span className="font-medium">{hit.display_name || hit.username || "—"}</span>
+                      {hit.username && (
+                        <span className="ml-1 text-slate-400">{hit.username}</span>
+                      )}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="py-4 text-center text-sm text-slate-500">
+                Начните вводить логин игрока.
+              </p>
+            )}
+          </div>
         </div>
       )}
     </nav>

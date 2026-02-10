@@ -91,7 +91,7 @@ export default function GameParamsModal(props: {
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
-    >
+      >
       <div className="relative mx-4 w-full max-w-md overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
         <button
           type="button"
@@ -102,13 +102,12 @@ export default function GameParamsModal(props: {
           <X className="h-5 w-5" />
         </button>
 
-        <div className="px-6 pt-6 pb-2">
-          <h3 className="text-center text-xl font-semibold tracking-wide text-slate-900">
-            {title}
-          </h3>
-        </div>
-
-        <div className="px-6 pb-6 pt-2 space-y-6">
+        <div className="max-h-[85dvh] overflow-y-auto px-6 pt-6 pb-6 space-y-6">
+          <div className="pb-2">
+            <h3 className="text-center text-xl font-semibold tracking-wide text-slate-900">
+              {title}
+            </h3>
+          </div>
           {topContent}
           <div>
             <p className="mb-3 text-center text-sm font-medium text-slate-600">

@@ -419,7 +419,7 @@ export default function ProfilePage() {
                   maxLength={100}
                   value={displayName}
                   onChange={(e) => setDisplayName(e.target.value)}
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none ring-offset-2 focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-base outline-none ring-offset-2 focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
                   placeholder="Введите имя"
                 />
               </div>
@@ -433,7 +433,7 @@ export default function ProfilePage() {
                   maxLength={2000}
                   value={bio}
                   onChange={(e) => setBio(e.target.value)}
-                  className="w-full resize-y rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none ring-offset-2 focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+                  className="w-full resize-y rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-base outline-none ring-offset-2 focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
                   placeholder="Расскажите о себе..."
                 />
                 <p className="text-xs text-slate-400">{bio.length} / 2000</p>
@@ -450,7 +450,7 @@ export default function ProfilePage() {
               <button
                 type="submit"
                 disabled={saving}
-                className="w-full rounded-full bg-blue-600 px-4 py-3 text-sm font-semibold text-white shadow-md hover:bg-blue-700 disabled:opacity-60"
+                className="min-h-[44px] w-full rounded-full bg-blue-600 px-4 py-3 text-sm font-semibold text-white shadow-md hover:bg-blue-700 disabled:opacity-60"
               >
                 {saving ? "Сохранение..." : "Сохранить"}
               </button>
@@ -554,12 +554,12 @@ export default function ProfilePage() {
                 value={addFriendUsername}
                 onChange={(e) => setAddFriendUsername(e.target.value)}
                 placeholder="Введите логин пользователя"
-                className="flex-1 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+                className="flex-1 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-base outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
               />
               <button
                 type="submit"
                 disabled={friendsLoading || !addFriendUsername.trim()}
-                className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+                className="min-h-[44px] rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
               >
                 <UserPlus className="h-4 w-4 inline mr-1" />
                 Добавить
@@ -690,7 +690,7 @@ export default function ProfilePage() {
                     <button
                       type="button"
                       onClick={() => setRemoveConfirm({ open: false, friend: null })}
-                      className="rounded-xl bg-slate-200 px-3 py-2 text-sm font-medium text-slate-800 hover:bg-slate-300"
+                      className="min-h-[44px] rounded-xl bg-slate-200 px-3 py-2 text-sm font-medium text-slate-800 hover:bg-slate-300"
                     >
                       Нет
                     </button>
@@ -701,7 +701,7 @@ export default function ProfilePage() {
                         setRemoveConfirm({ open: false, friend: null });
                         if (id) await removeFriend(id);
                       }}
-                      className="rounded-xl bg-red-600 px-3 py-2 text-sm font-medium text-white hover:bg-red-700"
+                      className="min-h-[44px] rounded-xl bg-red-600 px-3 py-2 text-sm font-medium text-white hover:bg-red-700"
                     >
                       Да
                     </button>

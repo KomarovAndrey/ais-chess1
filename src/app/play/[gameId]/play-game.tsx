@@ -542,7 +542,14 @@ export default function PlayGame({ initialGame }: PlayGameProps) {
               </span>
             </div>
 
-            <div className="aspect-square max-h-[480px] w-full max-w-[480px] mx-auto overflow-hidden rounded-2xl border border-slate-200 bg-slate-100">
+            <div
+              className="aspect-square w-full mx-auto overflow-hidden rounded-2xl border border-slate-200 bg-slate-100"
+              style={{
+                maxWidth: "min(100vw - 2rem, 480px)",
+                maxHeight: "min(70vh, 480px)",
+                touchAction: "manipulation"
+              }}
+            >
               <Chessboard
                 position={gameRow.fen && gameRow.fen !== "startpos" ? gameRow.fen : game.fen()}
                 onPieceDrop={onDrop}
@@ -606,7 +613,7 @@ export default function PlayGame({ initialGame }: PlayGameProps) {
         </section>
 
         {drawOfferedToMe && gameRow.status === "active" && (
-          <div className="fixed inset-x-0 bottom-20 z-30 flex justify-center px-4">
+          <div className="fixed inset-x-0 bottom-24 z-30 flex justify-center px-4 pb-[env(safe-area-inset-bottom)] md:bottom-20">
             <div className="max-w-xs rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm shadow-lg">
               <p className="mb-2 text-slate-800">Соперник предлагает ничью.</p>
               <div className="flex justify-end gap-2">

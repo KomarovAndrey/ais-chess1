@@ -246,7 +246,14 @@ function ChessPageContent() {
             </div>
           )}
 
-          <div className="aspect-square max-h-[480px] w-full max-w-[480px] mx-auto overflow-hidden rounded-2xl border border-slate-200 bg-slate-100">
+          <div
+            className="aspect-square w-full mx-auto overflow-hidden rounded-2xl border border-slate-200 bg-slate-100"
+            style={{
+              maxWidth: "min(100vw - 2rem, 480px)",
+              maxHeight: "min(70vh, 480px)",
+              touchAction: "manipulation"
+            }}
+          >
             <Chessboard
               position={fen}
               onPieceDrop={onDrop}

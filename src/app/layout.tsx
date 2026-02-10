@@ -7,7 +7,13 @@ const inter = Inter({ subsets: ["latin", "cyrillic"] });
 
 export const metadata: Metadata = {
   title: "AIS Chess",
-  description: "Внутришкольный сайт для игры в шахматы AIS Chess"
+  description: "Внутришкольный сайт для игры в шахматы AIS Chess",
+  viewport: {
+    width: "device-width",
+    initialScale: 1,
+    maximumScale: 5
+  },
+  themeColor: "#f97316"
 };
 
 export default function RootLayout({
