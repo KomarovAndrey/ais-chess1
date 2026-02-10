@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { User, ArrowLeft, Trophy, Swords } from "lucide-react";
+import { ArrowLeft, Trophy, Swords, UserPlus, Users } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 
 const LOGIN_REGEX = /^[a-zA-Z0-9_]{3,30}$/;
@@ -19,6 +19,10 @@ type ProfileData = {
 type Stats = { total: number; wins: number; losses: number; draws: number };
 type GameRow = { id: string; side: string; winner: string | null; status: string; created_at: string; started_at: string | null };
 
+type FriendEntry = { id: string; username: string | null; display_name: string; rating: number };
+type PendingIncoming = { id: string; from_user: FriendEntry };
+type PendingOutgoing = { id: string; to_user: FriendEntry };
+
 export default function ProfilePage() {
   const router = useRouter();
   const [user, setUser] = useState<{ id: string; email?: string } | null>(null);
@@ -31,7 +35,15 @@ export default function ProfilePage() {
   const [bio, setBio] = useState("");
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: "ok" | "error"; text: string } | null>(null);
-  const [activeSection, setActiveSection] = useState<"edit" | "stats" | "games">("edit");
+  const [activeSection, setActiveSection] = useState<"edit" | "stats" | "games" | "friends">("edit");
+
+  const [friends, setFriends] = useState<FriendEntry[]>([]);
+  const [pendingIncoming, setPendingIncoming] = useState<PendingIncoming[]>([]);
+  const [pendingOutgoing, setPendingOutgoing] = useState<PendingOutgoing[]>([]);
+  const [addFriendUsername, setAddFriendUsername] = useState("");
+  const [friendsMessage, setFriendsMessage] = useState<{ type: "ok" | "error"; text: string } | null>(null);
+  const [friendsLoading, setFriendsLoading] = useState(false);
+  const [challengingId, setChallengingId] = useState<string | null>(null);
 
   useEffect(() => {
     const run = async () => {
@@ -62,6 +74,83 @@ export default function ProfilePage() {
     };
     run();
   }, [router]);
+
+  async function loadFriends() {
+    setFriendsLoading(true);
+    setFriendsMessage(null);
+    try {
+      const res = await fetch("/api/friends");
+      if (!res.ok) throw new Error("Не удалось загрузить список");
+      const data = await res.json();
+      setFriends(data.friends ?? []);
+      setPendingIncoming(data.pending_incoming ?? []);
+      setPendingOutgoing(data.pending_outgoing ?? []);
+    } catch (e) {
+      setFriendsMessage({ type: "error", text: e instanceof Error ? e.message : "Ошибка" });
+    } finally {
+      setFriendsLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    if (activeSection === "friends") loadFriends();
+  }, [activeSection]);
+
+  async function handleAddFriend(e: React.FormEvent) {
+    e.preventDefault();
+    const un = addFriendUsername.trim().toLowerCase();
+    if (!un) return;
+    setFriendsMessage(null);
+    setFriendsLoading(true);
+    try {
+      const res = await fetch("/api/friends", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: un })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error ?? "Не удалось отправить заявку");
+      setFriendsMessage({ type: "ok", text: "Заявка отправлена." });
+      setAddFriendUsername("");
+      loadFriends();
+    } catch (e) {
+      setFriendsMessage({ type: "error", text: e instanceof Error ? e.message : "Ошибка" });
+    } finally {
+      setFriendsLoading(false);
+    }
+  }
+
+  async function acceptRequest(requestId: string) {
+    const res = await fetch(`/api/friends/${requestId}/accept`, { method: "POST" });
+    if (res.ok) loadFriends();
+  }
+
+  async function declineRequest(requestId: string) {
+    const res = await fetch(`/api/friends/${requestId}/decline`, { method: "POST" });
+    if (res.ok) loadFriends();
+  }
+
+  async function removeFriend(userId: string) {
+    const res = await fetch(`/api/friends/${userId}`, { method: "DELETE" });
+    if (res.ok) loadFriends();
+  }
+
+  async function challengeToGame(_friendId: string) {
+    setChallengingId(_friendId);
+    try {
+      const res = await fetch("/api/games", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ creatorColor: "random", timeControlSeconds: 300 })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error ?? "Не удалось создать партию");
+      const gameId = data.gameId;
+      if (gameId) router.push(`/play/${gameId}`);
+    } finally {
+      setChallengingId(null);
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -136,8 +225,8 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        <div className="flex gap-2 border-b border-slate-200 mb-4">
-          {(["edit", "stats", "games"] as const).map((s) => (
+        <div className="flex gap-2 border-b border-slate-200 mb-4 flex-wrap">
+          {(["edit", "stats", "games", "friends"] as const).map((s) => (
             <button
               key={s}
               type="button"
@@ -151,6 +240,7 @@ export default function ProfilePage() {
               {s === "edit" && "Редактировать"}
               {s === "stats" && "Статистика"}
               {s === "games" && "Партии"}
+              {s === "friends" && "Друзья"}
             </button>
           ))}
         </div>
@@ -274,6 +364,101 @@ export default function ProfilePage() {
                         {g.created_at ? new Date(g.created_at).toLocaleDateString("ru") : ""}
                       </span>
                     </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
+
+        {activeSection === "friends" && (
+          <div className="rounded-3xl border border-slate-200 bg-white/90 p-6 shadow-lg backdrop-blur md:p-8">
+            <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold text-slate-900">
+              <Users className="h-5 w-5 text-slate-600" />
+              Друзья
+            </h2>
+
+            <form onSubmit={handleAddFriend} className="mb-6 flex gap-2">
+              <input
+                type="text"
+                value={addFriendUsername}
+                onChange={(e) => setAddFriendUsername(e.target.value)}
+                placeholder="Логин пользователя"
+                className="flex-1 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+              />
+              <button
+                type="submit"
+                disabled={friendsLoading || !addFriendUsername.trim()}
+                className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+              >
+                <UserPlus className="h-4 w-4 inline mr-1" />
+                Добавить
+              </button>
+            </form>
+
+            {friendsMessage && (
+              <p className={`mb-4 rounded-xl px-3 py-2 text-sm ${friendsMessage.type === "ok" ? "bg-green-50 text-green-700" : "bg-red-50 text-red-600"}`}>
+                {friendsMessage.text}
+              </p>
+            )}
+
+            {pendingIncoming.length > 0 && (
+              <div className="mb-6">
+                <h3 className="text-sm font-medium text-slate-700 mb-2">Входящие заявки</h3>
+                <ul className="space-y-2">
+                  {pendingIncoming.map((req) => (
+                    <li key={req.id} className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                      <Link href={req.from_user.username ? `/user/${req.from_user.username}` : "#"} className="text-sm font-medium text-slate-800 hover:underline">
+                        {req.from_user.display_name || req.from_user.username || "Игрок"} {req.from_user.username && `(@${req.from_user.username})`} · {req.from_user.rating}
+                      </Link>
+                      <div className="flex gap-2">
+                        <button type="button" onClick={() => acceptRequest(req.id)} className="rounded-lg bg-green-600 px-2 py-1 text-xs text-white hover:bg-green-700">Принять</button>
+                        <button type="button" onClick={() => declineRequest(req.id)} className="rounded-lg bg-slate-300 px-2 py-1 text-xs text-slate-700 hover:bg-slate-400">Отклонить</button>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {pendingOutgoing.length > 0 && (
+              <div className="mb-6">
+                <h3 className="text-sm font-medium text-slate-700 mb-2">Исходящие заявки</h3>
+                <ul className="space-y-2">
+                  {pendingOutgoing.map((req) => (
+                    <li key={req.id} className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                      <Link href={req.to_user.username ? `/user/${req.to_user.username}` : "#"} className="text-sm text-slate-600">
+                        {req.to_user.display_name || req.to_user.username || "Игрок"} {req.to_user.username && `(@${req.to_user.username})`} · ожидание
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            <h3 className="text-sm font-medium text-slate-700 mb-2">Список друзей</h3>
+            {friends.length === 0 && pendingIncoming.length === 0 && pendingOutgoing.length === 0 ? (
+              <p className="text-sm text-slate-500">Друзей пока нет. Введите логин выше, чтобы отправить заявку.</p>
+            ) : friends.length === 0 ? (
+              <p className="text-sm text-slate-500">Нет принятых друзей.</p>
+            ) : (
+              <ul className="space-y-2">
+                {friends.map((f) => (
+                  <li key={f.id} className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                    <Link href={f.username ? `/user/${f.username}` : "#"} className="text-sm font-medium text-slate-800 hover:underline">
+                      {f.display_name || f.username || "Игрок"} {f.username && `(@${f.username})`} · {f.rating}
+                    </Link>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => challengeToGame(f.id)}
+                        disabled={challengingId !== null}
+                        className="rounded-lg bg-amber-500 px-2 py-1 text-xs font-medium text-white hover:bg-amber-600 disabled:opacity-50"
+                      >
+                        {challengingId === f.id ? "Создание…" : "Вызвать на партию"}
+                      </button>
+                      <button type="button" onClick={() => removeFriend(f.id)} className="rounded-lg bg-slate-300 px-2 py-1 text-xs text-slate-700 hover:bg-slate-400">Удалить</button>
+                    </div>
                   </li>
                 ))}
               </ul>

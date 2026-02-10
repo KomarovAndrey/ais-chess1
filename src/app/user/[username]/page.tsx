@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { Trophy, Swords, ArrowLeft } from "lucide-react";
+import { Trophy, Swords, ArrowLeft, UserPlus } from "lucide-react";
+import { supabase } from "@/lib/supabaseClient";
 
 type ProfileInfo = {
   id: string;
@@ -24,6 +25,15 @@ export default function PublicProfilePage() {
   const [recentGames, setRecentGames] = useState<GameRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [addFriendLoading, setAddFriendLoading] = useState(false);
+  const [addFriendMessage, setAddFriendMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setCurrentUserId(session?.user?.id ?? null);
+    });
+  }, []);
 
   useEffect(() => {
     if (!username) {
@@ -102,7 +112,7 @@ export default function PublicProfilePage() {
           На главную
         </Link>
 
-        <div className="mb-6 flex items-center gap-4 rounded-2xl border border-slate-200 bg-white/90 p-4 shadow-md backdrop-blur md:p-6">
+        <div className="mb-6 flex flex-wrap items-center gap-4 rounded-2xl border border-slate-200 bg-white/90 p-4 shadow-md backdrop-blur md:p-6">
           <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-blue-100 text-xl font-semibold text-blue-700">
             {initials}
           </div>
@@ -116,6 +126,37 @@ export default function PublicProfilePage() {
               </p>
             )}
           </div>
+          {currentUserId && currentUserId !== profile.id && profile.username && (
+            <div className="shrink-0">
+              <button
+                type="button"
+                disabled={addFriendLoading}
+                onClick={async () => {
+                  setAddFriendMessage(null);
+                  setAddFriendLoading(true);
+                  try {
+                    const res = await fetch("/api/friends", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ username: profile.username })
+                    });
+                    const data = await res.json().catch(() => ({}));
+                    if (!res.ok) throw new Error(data.error ?? "Не удалось");
+                    setAddFriendMessage("Заявка отправлена.");
+                  } catch (e) {
+                    setAddFriendMessage(e instanceof Error ? e.message : "Ошибка");
+                  } finally {
+                    setAddFriendLoading(false);
+                  }
+                }}
+                className="inline-flex items-center gap-1 rounded-xl bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+              >
+                <UserPlus className="h-4 w-4" />
+                {addFriendLoading ? "Отправка…" : "Добавить в друзья"}
+              </button>
+              {addFriendMessage && <p className="mt-1 text-xs text-slate-600">{addFriendMessage}</p>}
+            </div>
+          )}
         </div>
 
         {profile.bio?.trim() && (
