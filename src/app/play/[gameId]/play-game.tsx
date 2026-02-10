@@ -20,6 +20,7 @@ interface GameRow {
   white_time_left: number;
   black_time_left: number;
   last_move_at: string | null;
+  draw_offer_from?: string | null;
 }
 
 interface PlayerRow {
@@ -281,6 +282,12 @@ export default function PlayGame({ initialGame }: PlayGameProps) {
     whiteTime > 0 &&
     blackTime > 0;
 
+  const mySide = player?.side ?? null;
+  const drawOfferedByMe =
+    !!gameRow.draw_offer_from && !!playerId && gameRow.draw_offer_from === playerId;
+  const drawOfferedToMe =
+    !!gameRow.draw_offer_from && !!playerId && gameRow.draw_offer_from !== playerId;
+
   /** Send move (UCI) or legacy payload (e.g. time's up). Returns server game state on 200; throws on error. */
   async function sendUpdate(
     opts:
@@ -389,6 +396,76 @@ export default function PlayGame({ initialGame }: PlayGameProps) {
     return true;
   };
 
+  async function sendDrawAction(action: "offer" | "decline") {
+    if (!playerId) return;
+    try {
+      const res = await fetch(`/api/games/${gameId}/draw`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action, playerId })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error((data as { error?: string }).error || "Ошибка обработки ничьей");
+      }
+      if ((data as any).game) {
+        const g = (data as any).game as GameRow;
+        setGameRow((prev) => ({ ...prev, draw_offer_from: g.draw_offer_from }));
+      }
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Ошибка обработки ничьей");
+    }
+  }
+
+  async function handleAcceptDraw() {
+    try {
+      const { game: updated } = await sendUpdate({
+        fen: gameRow.fen,
+        activeColor: gameRow.active_color,
+        whiteTimeLeft: whiteTime,
+        blackTimeLeft: blackTime,
+        status: "finished",
+        winner: "draw"
+      });
+      lastMoveAtRef.current = updated.last_move_at;
+      setGameRow(updated);
+      setWhiteTime(updated.white_time_left);
+      setBlackTime(updated.black_time_left);
+      setError(null);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Не удалось завершить партию");
+    } finally {
+      // Очистить предложение ничьей на всякий случай
+      sendDrawAction("decline").catch(() => {});
+    }
+  }
+
+  async function handleResign() {
+    if (!player || gameRow.status !== "active") return;
+    const loserSide = player.side;
+    const winnerSide = loserSide === "white" ? "black" : "white";
+    try {
+      const { game: updated } = await sendUpdate({
+        fen: gameRow.fen,
+        activeColor: gameRow.active_color,
+        whiteTimeLeft: whiteTime,
+        blackTimeLeft: blackTime,
+        status: "finished",
+        winner: winnerSide
+      });
+      lastMoveAtRef.current = updated.last_move_at;
+      setGameRow(updated);
+      setWhiteTime(updated.white_time_left);
+      setBlackTime(updated.black_time_left);
+      setError(null);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Не удалось сдаться");
+    }
+  }
+
+  const [showDrawConfirm, setShowDrawConfirm] = useState(false);
+  const [showResignConfirm, setShowResignConfirm] = useState(false);
+
   const statusText = (() => {
     if (!player) return "Подключаемся к партии...";
     if (gameRow.status === "waiting") {
@@ -482,6 +559,29 @@ export default function PlayGame({ initialGame }: PlayGameProps) {
               />
             </div>
 
+            {gameRow.status === "active" && (
+              <div className="flex items-center justify-center gap-3">
+                <button
+                  type="button"
+                  disabled={!player || drawOfferedByMe}
+                  onClick={() => setShowDrawConfirm(true)}
+                  title="Предложить ничью"
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-300 bg-white text-slate-700 shadow-sm hover:bg-slate-50 disabled:opacity-50"
+                >
+                  <span className="text-lg">🤝</span>
+                </button>
+                <button
+                  type="button"
+                  disabled={!player}
+                  onClick={() => setShowResignConfirm(true)}
+                  title="Сдаться"
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-300 bg-white text-slate-700 shadow-sm hover:bg-slate-50 disabled:opacity-50"
+                >
+                  <span className="text-lg">🏳️</span>
+                </button>
+              </div>
+            )}
+
             <div className="flex items-center justify-between rounded-2xl bg-slate-900 px-4 py-2 text-sm font-mono text-white">
               <span>
                 {bottomSide === "white" ? "Белые" : "Чёрные"}
@@ -503,6 +603,93 @@ export default function PlayGame({ initialGame }: PlayGameProps) {
             </p>
           )}
         </section>
+
+        {/* Небольшие окошки подтверждения — внизу, не перекрывают доску */}
+        {showDrawConfirm && gameRow.status === "active" && (
+          <div className="fixed inset-x-0 bottom-3 z-40 flex justify-center px-4">
+            <div className="max-w-xs rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm shadow-lg">
+              <p className="mb-2 text-slate-800">Вы действительно хотите предложить ничью?</p>
+              <div className="flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowDrawConfirm(false)}
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-slate-300 text-slate-600 hover:bg-slate-100"
+                  aria-label="Отмена предложения ничьей"
+                >
+                  ✕
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    setShowDrawConfirm(false);
+                    await sendDrawAction("offer");
+                  }}
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-emerald-600 text-white hover:bg-emerald-700"
+                  aria-label="Подтвердить предложение ничьей"
+                >
+                  ✓
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {showResignConfirm && gameRow.status === "active" && (
+          <div className="fixed inset-x-0 bottom-3 z-40 flex justify-center px-4">
+            <div className="max-w-xs rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm shadow-lg">
+              <p className="mb-2 text-slate-800">Вы действительно хотите сдаться?</p>
+              <div className="flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowResignConfirm(false)}
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-slate-300 text-slate-600 hover:bg-slate-100"
+                  aria-label="Отмена сдачи"
+                >
+                  ✕
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    setShowResignConfirm(false);
+                    await handleResign();
+                  }}
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-red-600 text-white hover:bg-red-700"
+                  aria-label="Подтвердить сдачу"
+                >
+                  ✓
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {drawOfferedToMe && gameRow.status === "active" && (
+          <div className="fixed inset-x-0 bottom-20 z-30 flex justify-center px-4">
+            <div className="max-w-xs rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm shadow-lg">
+              <p className="mb-2 text-slate-800">Соперник предлагает ничью.</p>
+              <div className="flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={async () => {
+                    await sendDrawAction("decline");
+                  }}
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-slate-300 text-slate-600 hover:bg-slate-100"
+                  aria-label="Отклонить ничью"
+                >
+                  ✕
+                </button>
+                <button
+                  type="button"
+                  onClick={handleAcceptDraw}
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-emerald-600 text-white hover:bg-emerald-700"
+                  aria-label="Принять ничью"
+                >
+                  ✓
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         <aside className="w-full max-w-md space-y-4 md:w-80">
           <div className="rounded-3xl border border-slate-200 bg-white/90 p-4 shadow-md">

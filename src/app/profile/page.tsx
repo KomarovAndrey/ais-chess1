@@ -276,9 +276,10 @@ export default function ProfilePage() {
             <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-full bg-blue-100">
               {profile?.avatar_url ? (
                 <img
-                  src={profile.avatar_url}
+                  src={`${profile.avatar_url}${profile.avatar_url.includes("?") ? "&" : "?"}t=${profile.updated_at ?? ""}`}
                   alt="Фото профиля"
                   className="h-full w-full object-cover"
+                  referrerPolicy="no-referrer"
                 />
               ) : (
                 <div className="flex h-full w-full items-center justify-center text-xl font-semibold text-blue-700">
@@ -379,9 +380,10 @@ export default function ProfilePage() {
               <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-full bg-blue-100">
                 {profile?.avatar_url ? (
                   <img
-                    src={profile.avatar_url}
+                    src={`${profile.avatar_url}${profile.avatar_url.includes("?") ? "&" : "?"}t=${profile.updated_at ?? ""}`}
                     alt="Фото профиля"
                     className="h-full w-full object-cover"
+                    referrerPolicy="no-referrer"
                   />
                 ) : (
                   <div className="flex h-full w-full items-center justify-center text-2xl font-semibold text-blue-700">
@@ -413,7 +415,13 @@ export default function ProfilePage() {
                         setAvatarMessage({ type: "error", text: data.error ?? "Не удалось загрузить" });
                         return;
                       }
-                      setProfile((p) => (p && data.avatar_url ? { ...p, avatar_url: data.avatar_url } : p));
+                      const profileRes = await fetch("/api/profile");
+                      if (profileRes.ok) {
+                        const profileData = await profileRes.json();
+                        setProfile(profileData);
+                      } else {
+                        setProfile((p) => (p && data.avatar_url ? { ...p, avatar_url: data.avatar_url } : p));
+                      }
                       setAvatarMessage({ type: "ok", text: "Фото загружено." });
                     } catch {
                       setAvatarMessage({ type: "error", text: "Ошибка загрузки" });

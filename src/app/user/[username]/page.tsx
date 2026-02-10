@@ -186,9 +186,10 @@ export default function PublicProfilePage() {
           <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-full bg-blue-100">
             {profile.avatar_url ? (
               <img
-                src={profile.avatar_url}
+                src={`${profile.avatar_url}${profile.avatar_url.includes("?") ? "&" : "?"}t=${profile.updated_at ?? ""}`}
                 alt="Фото профиля"
                 className="h-full w-full object-cover"
+                referrerPolicy="no-referrer"
               />
             ) : (
               <div className="flex h-full w-full items-center justify-center text-xl font-semibold text-blue-700">
