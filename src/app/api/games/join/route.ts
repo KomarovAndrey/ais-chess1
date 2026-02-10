@@ -79,13 +79,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (game.status !== "waiting") {
-      return NextResponse.json(
-        { error: "Game is not accepting joins" },
-        { status: 400 }
-      );
-    }
-
     const { data: players, error: playersError } = await supabase
       .from("game_players")
       .select("*")
@@ -105,6 +98,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         { game, player: existing, whitePlayer, blackPlayer },
         { status: 200 }
+      );
+    }
+
+    if (game.status !== "waiting") {
+      return NextResponse.json(
+        { error: "Game is not accepting joins" },
+        { status: 400 }
       );
     }
 

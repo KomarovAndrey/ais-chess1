@@ -83,15 +83,30 @@ export default function PlayGame({ initialGame }: PlayGameProps) {
     return (active === "w" && player.side === "white") || (active === "b" && player.side === "black");
   }, [player, gameRow.active_color]);
 
-  // Initialize local player id
+  // Initialize player id: auth user for logged-in, else localStorage guest id
   useEffect(() => {
-    const existingId = window.localStorage.getItem("ais_chess_player_id");
-    let id = existingId;
-    if (!id) {
-      id = crypto.randomUUID();
-      window.localStorage.setItem("ais_chess_player_id", id);
-    }
-    setPlayerId(id);
+    let cancelled = false;
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (cancelled) return;
+      if (session?.user?.id) {
+        setPlayerId(session.user.id);
+      } else {
+        let id = window.localStorage.getItem("ais_chess_player_id");
+        if (!id) {
+          id = crypto.randomUUID();
+          window.localStorage.setItem("ais_chess_player_id", id);
+        }
+        setPlayerId(id);
+      }
+    });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => {
+      if (cancelled) return;
+      if (session?.user?.id) setPlayerId(session.user.id);
+    });
+    return () => {
+      cancelled = true;
+      subscription.unsubscribe();
+    };
   }, []);
 
   // Join game on mount
