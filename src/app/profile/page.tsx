@@ -121,17 +121,17 @@ export default function ProfilePage() {
   }
 
   async function acceptRequest(requestId: string) {
-    const res = await fetch(`/api/friends/${requestId}/accept`, { method: "POST" });
+    const res = await fetch(`/api/friends/requests/${requestId}/accept`, { method: "POST" });
     if (res.ok) loadFriends();
   }
 
   async function declineRequest(requestId: string) {
-    const res = await fetch(`/api/friends/${requestId}/decline`, { method: "POST" });
+    const res = await fetch(`/api/friends/requests/${requestId}/decline`, { method: "POST" });
     if (res.ok) loadFriends();
   }
 
   async function removeFriend(userId: string) {
-    const res = await fetch(`/api/friends/${userId}`, { method: "DELETE" });
+    const res = await fetch(`/api/friends/users/${userId}`, { method: "DELETE" });
     if (res.ok) loadFriends();
   }
 

@@ -3,17 +3,17 @@ import { getSupabaseAndUser } from "@/lib/apiAuth";
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-/** DELETE: удалить из друзей (userId — id пользователя, которого убираем) */
+/** DELETE: удалить из друзей (id — id пользователя, которого убираем) */
 export async function DELETE(
   _req: NextRequest,
-  { params }: { params: Promise<{ userId: string }> }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const auth = await getSupabaseAndUser();
   if ("response" in auth) return auth.response;
   const { supabase } = auth;
   const me = auth.user.id;
 
-  const { userId } = await params;
+  const { id: userId } = await params;
   if (!UUID_REGEX.test(userId)) {
     return NextResponse.json({ error: "Invalid user id" }, { status: 400 });
   }
