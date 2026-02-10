@@ -463,9 +463,6 @@ export default function PlayGame({ initialGame }: PlayGameProps) {
     }
   }
 
-  const [showDrawConfirm, setShowDrawConfirm] = useState(false);
-  const [showResignConfirm, setShowResignConfirm] = useState(false);
-
   const statusText = (() => {
     if (!player) return "Подключаемся к партии...";
     if (gameRow.status === "waiting") {
@@ -564,7 +561,9 @@ export default function PlayGame({ initialGame }: PlayGameProps) {
                 <button
                   type="button"
                   disabled={!player || drawOfferedByMe}
-                  onClick={() => setShowDrawConfirm(true)}
+                  onClick={() => {
+                    void sendDrawAction("offer");
+                  }}
                   title="Предложить ничью"
                   className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-300 bg-white text-slate-700 shadow-sm hover:bg-slate-50 disabled:opacity-50"
                 >
@@ -573,7 +572,9 @@ export default function PlayGame({ initialGame }: PlayGameProps) {
                 <button
                   type="button"
                   disabled={!player}
-                  onClick={() => setShowResignConfirm(true)}
+                  onClick={() => {
+                    void handleResign();
+                  }}
                   title="Сдаться"
                   className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-300 bg-white text-slate-700 shadow-sm hover:bg-slate-50 disabled:opacity-50"
                 >
@@ -603,65 +604,6 @@ export default function PlayGame({ initialGame }: PlayGameProps) {
             </p>
           )}
         </section>
-
-        {/* Небольшие окошки подтверждения — внизу, не перекрывают доску */}
-        {showDrawConfirm && gameRow.status === "active" && (
-          <div className="fixed inset-x-0 bottom-3 z-40 flex justify-center px-4">
-            <div className="max-w-xs rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm shadow-lg">
-              <p className="mb-2 text-slate-800">Вы действительно хотите предложить ничью?</p>
-              <div className="flex justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => setShowDrawConfirm(false)}
-                  className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-slate-300 text-slate-600 hover:bg-slate-100"
-                  aria-label="Отмена предложения ничьей"
-                >
-                  ✕
-                </button>
-                <button
-                  type="button"
-                  onClick={async () => {
-                    setShowDrawConfirm(false);
-                    await sendDrawAction("offer");
-                  }}
-                  className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-emerald-600 text-white hover:bg-emerald-700"
-                  aria-label="Подтвердить предложение ничьей"
-                >
-                  ✓
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {showResignConfirm && gameRow.status === "active" && (
-          <div className="fixed inset-x-0 bottom-3 z-40 flex justify-center px-4">
-            <div className="max-w-xs rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm shadow-lg">
-              <p className="mb-2 text-slate-800">Вы действительно хотите сдаться?</p>
-              <div className="flex justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => setShowResignConfirm(false)}
-                  className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-slate-300 text-slate-600 hover:bg-slate-100"
-                  aria-label="Отмена сдачи"
-                >
-                  ✕
-                </button>
-                <button
-                  type="button"
-                  onClick={async () => {
-                    setShowResignConfirm(false);
-                    await handleResign();
-                  }}
-                  className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-red-600 text-white hover:bg-red-700"
-                  aria-label="Подтвердить сдачу"
-                >
-                  ✓
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
 
         {drawOfferedToMe && gameRow.status === "active" && (
           <div className="fixed inset-x-0 bottom-20 z-30 flex justify-center px-4">
