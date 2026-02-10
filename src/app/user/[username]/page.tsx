@@ -32,6 +32,7 @@ export default function PublicProfilePage() {
   const [addFriendLoading, setAddFriendLoading] = useState(false);
   const [addFriendMessage, setAddFriendMessage] = useState<string | null>(null);
   const [friendStatus, setFriendStatus] = useState<FriendStatus>("unknown");
+  const [friendRequestId, setFriendRequestId] = useState<string | null>(null);
   const [removeConfirmOpen, setRemoveConfirmOpen] = useState(false);
   const [outgoingChallengeId, setOutgoingChallengeId] = useState<string | null>(null);
   const [challengeModalOpen, setChallengeModalOpen] = useState(false);
@@ -105,6 +106,7 @@ export default function PublicProfilePage() {
         if (cancelled) return;
         const st = typeof data?.status === "string" ? (data.status as FriendStatus) : "unknown";
         setFriendStatus(st);
+        setFriendRequestId(typeof data?.requestId === "string" ? data.requestId : null);
       })
       .catch(() => {
         if (!cancelled) setFriendStatus("unknown");
@@ -323,10 +325,29 @@ export default function PublicProfilePage() {
               ) : friendStatus === "pending_outgoing" ? (
                 <button
                   type="button"
-                  disabled
-                  className="inline-flex items-center gap-1 rounded-xl bg-slate-300 px-3 py-2 text-sm font-medium text-slate-700 opacity-70"
+                  disabled={addFriendLoading || !friendRequestId}
+                  onClick={async () => {
+                    if (!friendRequestId) return;
+                    setAddFriendMessage(null);
+                    setAddFriendLoading(true);
+                    try {
+                      const res = await fetch(`/api/friends/requests/${friendRequestId}/cancel`, {
+                        method: "POST",
+                      });
+                      const data = await res.json().catch(() => ({}));
+                      if (!res.ok) throw new Error(data.error ?? "Не удалось отменить заявку");
+                      setFriendStatus("none");
+                      setFriendRequestId(null);
+                      setAddFriendMessage("Заявка отменена.");
+                    } catch (e) {
+                      setAddFriendMessage(e instanceof Error ? e.message : "Ошибка");
+                    } finally {
+                      setAddFriendLoading(false);
+                    }
+                  }}
+                  className="inline-flex items-center gap-1 rounded-xl bg-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-400 disabled:opacity-70"
                 >
-                  Заявка отправлена
+                  Отменить заявку
                 </button>
               ) : friendStatus === "pending_incoming" ? (
                 <Link
@@ -350,8 +371,18 @@ export default function PublicProfilePage() {
                       });
                       const data = await res.json().catch(() => ({}));
                       if (!res.ok) throw new Error(data.error ?? "Не удалось");
-                      setAddFriendMessage("Заявка отправлена.");
-                      setFriendStatus("pending_outgoing");
+
+                      // После успешной отправки перезагрузим статус дружбы, чтобы получить id заявки
+                      const statusRes = await fetch(`/api/friends/users/${profile.id}`);
+                      const statusData = await statusRes.json().catch(() => ({}));
+                      const st =
+                        typeof statusData?.status === "string"
+                          ? (statusData.status as FriendStatus)
+                          : "pending_outgoing";
+                      setFriendStatus(st);
+                      setFriendRequestId(
+                        typeof statusData?.requestId === "string" ? statusData.requestId : null
+                      );
                     } catch (e) {
                       setAddFriendMessage(e instanceof Error ? e.message : "Ошибка");
                     } finally {

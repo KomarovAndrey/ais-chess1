@@ -172,6 +172,14 @@ export default function ProfilePage() {
     if (res.ok) loadFriends();
   }
 
+  async function cancelFriendRequest(requestId: string) {
+    const res = await fetch(`/api/friends/requests/${requestId}/cancel`, { method: "POST" });
+    if (res.ok) {
+      setFriendsMessage({ type: "ok", text: "Заявка отменена." });
+      loadFriends();
+    }
+  }
+
   async function removeFriend(userId: string) {
     const res = await fetch(`/api/friends/users/${userId}`, { method: "DELETE" });
     if (res.ok) loadFriends();
@@ -473,10 +481,24 @@ export default function ProfilePage() {
                 <h3 className="text-sm font-medium text-slate-700 mb-2">Исходящие заявки</h3>
                 <ul className="space-y-2">
                   {pendingOutgoing.map((req) => (
-                    <li key={req.id} className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                      <Link href={req.to_user.username ? `/user/${req.to_user.username}` : "#"} className="text-sm text-slate-600">
-                        {req.to_user.display_name || req.to_user.username || "Игрок"} {req.to_user.username && ` (${req.to_user.username})`} · ожидание
+                    <li
+                      key={req.id}
+                      className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-3 py-2"
+                    >
+                      <Link
+                        href={req.to_user.username ? `/user/${req.to_user.username}` : "#"}
+                        className="text-sm text-slate-600"
+                      >
+                        {req.to_user.display_name || req.to_user.username || "Игрок"}{" "}
+                        {req.to_user.username && ` (${req.to_user.username})`} · ожидание
                       </Link>
+                      <button
+                        type="button"
+                        onClick={() => cancelFriendRequest(req.id)}
+                        className="rounded-lg bg-slate-300 px-2 py-1 text-xs text-slate-700 hover:bg-slate-400"
+                      >
+                        Отменить заявку
+                      </button>
                     </li>
                   ))}
                 </ul>

@@ -16,6 +16,10 @@ type IncomingChallenge = {
   time_control_seconds: number;
   created_at: string;
 };
+type IncomingFriendRequest = {
+  id: string;
+  from_user: { id: string; username: string | null; display_name: string; rating: number };
+};
 
 function useDebounce<T>(value: T, delay: number): T {
   const [debouncedValue, setDebouncedValue] = useState(value);
@@ -48,6 +52,7 @@ export default function AppNav() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   const [incomingChallenges, setIncomingChallenges] = useState<IncomingChallenge[]>([]);
+  const [incomingFriendRequests, setIncomingFriendRequests] = useState<IncomingFriendRequest[]>([]);
   const handledAcceptedRef = useRef<Set<string>>(new Set());
   const searchRef = useRef<HTMLDivElement>(null);
   const notifRef = useRef<HTMLDivElement>(null);
@@ -120,9 +125,22 @@ export default function AppNav() {
     }
   }
 
+  async function loadIncomingFriendRequests() {
+    try {
+      const res = await fetch("/api/friends");
+      if (!res.ok) return;
+      const data = await res.json().catch(() => ({}));
+      const incoming = Array.isArray((data as any)?.pending_incoming) ? (data as any).pending_incoming : [];
+      setIncomingFriendRequests(incoming);
+    } catch {
+      // ignore
+    }
+  }
+
   useEffect(() => {
     if (!user) return;
     loadIncomingChallenges();
+    loadIncomingFriendRequests();
 
     const channel = supabase
       .channel(`challenges:${user.id}`)
@@ -131,6 +149,13 @@ export default function AppNav() {
         { event: "*", schema: "public", table: "game_challenges", filter: `to_user_id=eq.${user.id}` },
         () => {
           loadIncomingChallenges();
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "friend_requests", filter: `to_user_id=eq.${user.id}` },
+        () => {
+          loadIncomingFriendRequests();
         }
       )
       .on(
@@ -211,9 +236,11 @@ export default function AppNav() {
               aria-expanded={notifOpen}
             >
               <Bell className="h-4 w-4" />
-              {incomingChallenges.length > 0 && (
+            {incomingChallenges.length + incomingFriendRequests.length > 0 && (
                 <span className="absolute -right-1 -top-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-red-600 px-1 text-[11px] font-bold text-white">
-                  {incomingChallenges.length > 9 ? "9+" : incomingChallenges.length}
+                {incomingChallenges.length + incomingFriendRequests.length > 9
+                  ? "9+"
+                  : incomingChallenges.length + incomingFriendRequests.length}
                 </span>
               )}
             </button>
@@ -222,10 +249,36 @@ export default function AppNav() {
               <div className="absolute right-0 top-full z-50 mt-1 w-80 rounded-xl border border-slate-200 bg-white shadow-lg">
                 <div className="px-3 py-2 text-sm font-semibold text-slate-900">Уведомления</div>
                 <div className="border-t border-slate-100" />
-                {incomingChallenges.length === 0 ? (
-                  <div className="px-3 py-3 text-sm text-slate-500">Нет новых вызовов.</div>
+                {incomingChallenges.length === 0 && incomingFriendRequests.length === 0 ? (
+                  <div className="px-3 py-3 text-sm text-slate-500">Нет новых уведомлений.</div>
                 ) : (
                   <ul className="max-h-80 overflow-auto py-1">
+                    {incomingFriendRequests.map((r) => (
+                      <li key={r.id} className="flex items-center justify-between gap-3 px-3 py-2 hover:bg-slate-50">
+                        <div className="min-w-0">
+                          <div className="truncate text-sm text-slate-800">
+                            <span className="font-medium">
+                              {r.from_user.display_name || r.from_user.username || "Игрок"}
+                            </span>
+                            {r.from_user.username && (
+                              <span className="ml-1 text-slate-400">{r.from_user.username}</span>
+                            )}
+                            <span className="ml-2 text-amber-600 font-semibold">
+                              ({r.from_user.rating})
+                            </span>
+                          </div>
+                          <div className="text-xs text-slate-500">
+                            Заявка в друзья · откройте вкладку «Друзья» в профиле
+                          </div>
+                        </div>
+                        <Link
+                          href={r.from_user.username ? `/user/${encodeURIComponent(r.from_user.username)}` : "/profile"}
+                          className="shrink-0 rounded-lg bg-blue-600 px-2 py-1 text-xs font-medium text-white hover:bg-blue-700"
+                        >
+                          Открыть
+                        </Link>
+                      </li>
+                    ))}
                     {incomingChallenges.map((c) => (
                       <li key={c.id} className="group flex items-center justify-between gap-3 px-3 py-2 hover:bg-slate-50">
                         <div className="min-w-0">
