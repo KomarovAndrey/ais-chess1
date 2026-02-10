@@ -32,7 +32,7 @@ export default function ProfilePage() {
   const [bio, setBio] = useState("");
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: "ok" | "error"; text: string } | null>(null);
-  const [activeSection, setActiveSection] = useState<"edit" | "ratings" | "friends">("edit");
+  const [activeSection, setActiveSection] = useState<"edit" | "ratings" | "friends">("ratings");
 
   const [ratingType, setRatingType] = useState<"bullet" | "blitz" | "rapid">("blitz");
   const [history, setHistory] = useState<{ bullet: RatingPoint[]; blitz: RatingPoint[]; rapid: RatingPoint[] }>({
@@ -309,23 +309,32 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        <div className="flex gap-2 border-b border-slate-200 mb-4 flex-wrap">
-          {(["edit", "ratings", "friends"] as const).map((s) => (
-            <button
-              key={s}
-              type="button"
-              onClick={() => setActiveSection(s)}
-              className={`px-3 py-2 text-sm font-medium rounded-t-lg ${
-                activeSection === s
-                  ? "bg-white border border-slate-200 border-b-white -mb-px text-blue-700"
-                  : "text-slate-600 hover:text-slate-900"
-              }`}
-            >
-              {s === "edit" && "Профиль"}
-              {s === "ratings" && "Рейтинг"}
-              {s === "friends" && "Друзья"}
-            </button>
-          ))}
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-2 border-b border-slate-200">
+          <div className="flex gap-2 flex-wrap">
+            {(["edit", "ratings", "friends"] as const).map((s) => (
+              <button
+                key={s}
+                type="button"
+                onClick={() => setActiveSection(s)}
+                className={`px-3 py-2 text-sm font-medium rounded-t-lg ${
+                  activeSection === s
+                    ? "bg-white border border-slate-200 border-b-white -mb-px text-blue-700"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                {s === "edit" && "Профиль"}
+                {s === "ratings" && "Рейтинг"}
+                {s === "friends" && "Друзья"}
+              </button>
+            ))}
+          </div>
+          <button
+            type="button"
+            onClick={() => setActiveSection("edit")}
+            className="mb-1 rounded-full bg-blue-600 px-4 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-blue-700"
+          >
+            Редактировать профиль
+          </button>
         </div>
 
         {activeSection === "ratings" && (
