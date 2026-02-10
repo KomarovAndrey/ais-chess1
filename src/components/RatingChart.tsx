@@ -5,6 +5,8 @@ import { useMemo } from "react";
 export type RatingPoint = { t: string; r: number };
 
 const START_RATING = 1500;
+const CHART_MIN = 1300;
+const CHART_MAX = 1700;
 
 function clamp(v: number, min: number, max: number) {
   return Math.max(min, Math.min(max, v));
@@ -25,6 +27,9 @@ export default function RatingChart(props: {
     coords,
     yBase,
     showBaseline,
+    gridLineYs,
+    padLeft,
+    padRight,
   } = useMemo(() => {
     // Всегда начинаем с 1500: первая точка — стартовая позиция
     const effectivePoints: RatingPoint[] =
@@ -36,24 +41,21 @@ export default function RatingChart(props: {
       return {
         polyline: "",
         fillPath: "",
-        minR: START_RATING,
-        maxR: START_RATING,
+        minR: CHART_MIN,
+        maxR: CHART_MAX,
         lastR: null as number | null,
         coords: [] as { x: number; y: number }[],
         yBase: 0,
-        yScale: 1,
         showBaseline: false,
+        gridLineYs: [] as number[],
+        padLeft: 12,
+        padRight: 12,
       };
     }
 
-    const rs = effectivePoints.map((p) => p.r);
-    const minVal = Math.min(START_RATING, ...rs);
-    const maxVal = Math.max(START_RATING, ...rs);
-    const padding = 40;
-    const span = Math.max(50, maxVal - minVal);
-    const minR = Math.floor(minVal - span * 0.05);
-    const maxR = Math.ceil(maxVal + span * 0.05);
     const lastR = points.length > 0 ? points[points.length - 1].r : START_RATING;
+    const minR = CHART_MIN;
+    const maxR = CHART_MAX;
 
     const w = 300;
     const h = height;
@@ -90,6 +92,7 @@ export default function RatingChart(props: {
 
     const yBase = baseY;
     const showBaseline = effectivePoints.length > 1;
+    const gridLineYs = [1300, 1400, 1500, 1600, 1700].map((r) => toY(r));
 
     return {
       polyline,
@@ -100,21 +103,14 @@ export default function RatingChart(props: {
       coords,
       yBase,
       showBaseline,
+      gridLineYs,
+      padLeft,
+      padRight,
     };
   }, [points, height]);
 
   return (
     <div className="rounded-2xl border border-slate-200 bg-white/90 p-4 shadow-md backdrop-blur">
-      <div className="mb-2 flex items-center justify-between">
-        <div className="text-xs font-medium text-slate-500">
-          {minR === maxR ? `Рейтинг: ${minR}` : `Диапазон: ${minR}–${maxR}`}
-          <span className="ml-2 text-slate-400">· старт {START_RATING}</span>
-        </div>
-        {lastR != null && (
-          <div className="text-xs font-semibold text-amber-700">Текущий: {lastR}</div>
-        )}
-      </div>
-
       {points.length === 0 ? (
         <div className="text-sm text-slate-600">Недостаточно данных для графика.</div>
       ) : (
@@ -133,22 +129,18 @@ export default function RatingChart(props: {
             </linearGradient>
           </defs>
           <rect x="0" y="0" width="300" height={height} rx="14" fill="#f1f5f9" />
-          {/* Сетка: горизонтальные линии */}
-          {[0.25, 0.5, 0.75].map((frac) => {
-            const y = 12 + (1 - frac) * (height - 32);
-            return (
-              <line
-                key={frac}
-                x1={12}
-                y1={y}
-                x2={288}
-                y2={y}
-                stroke="#e2e8f0"
-                strokeWidth="0.8"
-                strokeDasharray="4 4"
-              />
-            );
-          })}
+          {/* Сетка: горизонтальные линии каждые 100 пунктов (1300–1700) */}
+          {gridLineYs.map((y, idx) => (
+            <line
+              key={idx}
+              x1={padLeft}
+              y1={y}
+              x2={300 - padRight}
+              y2={y}
+              stroke="#e2e8f0"
+              strokeWidth="0.6"
+            />
+          ))}
           {/* Базовая линия 1500 */}
           {showBaseline && (
             <line
