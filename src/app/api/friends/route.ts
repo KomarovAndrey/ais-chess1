@@ -36,9 +36,16 @@ export async function GET() {
   if (allOtherIds.size > 0) {
     const { data: profiles } = await supabase
       .from("profiles")
-      .select("id, username, display_name, rating")
+      .select("id, username, display_name, rating, rating_blitz")
       .in("id", Array.from(allOtherIds));
-    const byId = new Map((profiles ?? []).map((p: { id: string; username: string | null; display_name: string; rating: number }) => [p.id, p]));
+    const byId = new Map(
+      (profiles ?? []).map(
+        (p: { id: string; username: string | null; display_name: string; rating?: number; rating_blitz?: number }) => [
+          p.id,
+          { ...p, rating: (p as any).rating_blitz ?? (p as any).rating ?? 1500 }
+        ]
+      )
+    );
 
     accepted.forEach((r) => {
       const otherId = r.from_user_id === me ? r.to_user_id : r.from_user_id;

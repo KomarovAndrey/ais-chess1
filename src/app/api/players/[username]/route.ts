@@ -17,7 +17,7 @@ export async function GET(
 
   const { data: profile, error: profileError } = await supabase
     .from("profiles")
-    .select("id, username, display_name, bio, updated_at, rating")
+    .select("id, username, display_name, bio, updated_at, rating, rating_bullet, rating_blitz, rating_rapid")
     .ilike("username", username)
     .maybeSingle();
 
@@ -46,7 +46,10 @@ export async function GET(
         display_name: profile.display_name ?? profile.username,
         bio: profile.bio ?? "",
         updated_at: profile.updated_at,
-        rating: profile.rating ?? 1500,
+        rating: (profile as any).rating_blitz ?? (profile as any).rating ?? 1500,
+        rating_bullet: (profile as any).rating_bullet ?? (profile as any).rating ?? 1500,
+        rating_blitz: (profile as any).rating_blitz ?? (profile as any).rating ?? 1500,
+        rating_rapid: (profile as any).rating_rapid ?? (profile as any).rating ?? 1500,
       },
       stats: { total: 0, wins: 0, losses: 0, draws: 0 },
       recent_games: [],
@@ -70,7 +73,10 @@ export async function GET(
         display_name: profile.display_name ?? profile.username,
         bio: profile.bio ?? "",
         updated_at: profile.updated_at,
-        rating: profile.rating ?? 1500,
+        rating: (profile as any).rating_blitz ?? (profile as any).rating ?? 1500,
+        rating_bullet: (profile as any).rating_bullet ?? (profile as any).rating ?? 1500,
+        rating_blitz: (profile as any).rating_blitz ?? (profile as any).rating ?? 1500,
+        rating_rapid: (profile as any).rating_rapid ?? (profile as any).rating ?? 1500,
       },
       stats: { total: 0, wins: 0, losses: 0, draws: 0 },
       recent_games: [],
@@ -135,7 +141,10 @@ export async function GET(
       display_name: profile.display_name ?? profile.username,
       bio: profile.bio ?? "",
       updated_at: profile.updated_at,
-      rating: profile.rating ?? 1500,
+      rating: (profile as any).rating_blitz ?? (profile as any).rating ?? 1500,
+      rating_bullet: (profile as any).rating_bullet ?? (profile as any).rating ?? 1500,
+      rating_blitz: (profile as any).rating_blitz ?? (profile as any).rating ?? 1500,
+      rating_rapid: (profile as any).rating_rapid ?? (profile as any).rating ?? 1500,
     },
     stats: {
       total: finishedGames.length,

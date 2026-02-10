@@ -9,9 +9,17 @@ const UUID_REGEX =
 
 export type PlayerInfo = { username: string | null; rating: number | null };
 
+function ratingCategoryFromTimeControlSeconds(t: number | null | undefined): "bullet" | "blitz" | "rapid" {
+  const v = typeof t === "number" && Number.isFinite(t) ? t : 300;
+  if (v <= 120) return "bullet";
+  if (v <= 300) return "blitz";
+  return "rapid";
+}
+
 async function getPlayersInfo(
   supabase: SupabaseClient,
-  gamePlayers: { side: string; player_id: string }[]
+  gamePlayers: { side: string; player_id: string }[],
+  category: "bullet" | "blitz" | "rapid"
 ): Promise<{ whitePlayer: PlayerInfo; blackPlayer: PlayerInfo }> {
   const empty: PlayerInfo = { username: null, rating: null };
   const white = gamePlayers.find((p) => p.side === "white");
@@ -22,12 +30,18 @@ async function getPlayersInfo(
   }
   const { data: profiles } = await supabase
     .from("profiles")
-    .select("id, username, rating")
+    .select("id, username, rating, rating_bullet, rating_blitz, rating_rapid")
     .in("id", ids);
+  const pick = (r: any) => {
+    const base = r?.rating ?? 1500;
+    if (category === "bullet") return r?.rating_bullet ?? base;
+    if (category === "blitz") return r?.rating_blitz ?? base;
+    return r?.rating_rapid ?? base;
+  };
   const byId = new Map(
-    (profiles ?? []).map((r: { id: string; username: string | null; rating: number }) => [
+    (profiles ?? []).map((r: { id: string; username: string | null }) => [
       r.id,
-      { username: r.username ?? null, rating: r.rating ?? 1500 }
+      { username: (r as any).username ?? null, rating: pick(r) }
     ])
   );
   return {
@@ -94,7 +108,8 @@ export async function POST(req: NextRequest) {
 
     const existing = players?.find((p: { player_id: string }) => p.player_id === playerId);
     if (existing) {
-      const { whitePlayer, blackPlayer } = await getPlayersInfo(supabase, players ?? []);
+      const category = ratingCategoryFromTimeControlSeconds(game.time_control_seconds);
+      const { whitePlayer, blackPlayer } = await getPlayersInfo(supabase, players ?? [], category);
       return NextResponse.json(
         { game, player: existing, whitePlayer, blackPlayer },
         { status: 200 }
@@ -160,7 +175,8 @@ export async function POST(req: NextRequest) {
     }
 
     const allPlayers = [...(players ?? []), player];
-    const { whitePlayer, blackPlayer } = await getPlayersInfo(supabase, allPlayers);
+    const category = ratingCategoryFromTimeControlSeconds(game.time_control_seconds);
+    const { whitePlayer, blackPlayer } = await getPlayersInfo(supabase, allPlayers, category);
 
     return NextResponse.json(
       {

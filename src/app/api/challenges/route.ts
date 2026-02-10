@@ -47,18 +47,18 @@ export async function GET(req: NextRequest) {
   );
   const { data: profiles } =
     otherIds.length > 0
-      ? await supabase.from("profiles").select("id, username, display_name, rating").in("id", otherIds)
+      ? await supabase.from("profiles").select("id, username, display_name, rating, rating_blitz").in("id", otherIds)
       : { data: [] as any[] };
 
   const byId = new Map(
     (profiles ?? []).map(
-      (p: { id: string; username: string | null; display_name: string | null; rating: number | null }) => [
+      (p: { id: string; username: string | null; display_name: string | null; rating?: number | null; rating_blitz?: number | null }) => [
         p.id,
         {
           id: p.id,
           username: p.username ?? null,
           display_name: p.display_name ?? p.username ?? "Игрок",
-          rating: p.rating ?? 1500
+          rating: (p.rating_blitz ?? p.rating) ?? 1500
         }
       ]
     )

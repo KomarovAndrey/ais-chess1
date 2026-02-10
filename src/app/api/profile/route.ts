@@ -8,7 +8,7 @@ export async function GET() {
 
   const { data, error } = await supabase
     .from("profiles")
-    .select("username, display_name, bio, updated_at, rating")
+    .select("username, display_name, bio, updated_at, rating, rating_bullet, rating_blitz, rating_rapid")
     .eq("id", auth.user.id)
     .single();
 
@@ -22,7 +22,10 @@ export async function GET() {
     display_name: data?.display_name ?? "",
     bio: data?.bio ?? "",
     updated_at: data?.updated_at ?? null,
-    rating: data?.rating ?? 1500
+    rating: data?.rating ?? data?.rating_blitz ?? 1500,
+    rating_bullet: data?.rating_bullet ?? data?.rating ?? 1500,
+    rating_blitz: data?.rating_blitz ?? data?.rating ?? 1500,
+    rating_rapid: data?.rating_rapid ?? data?.rating ?? 1500
   });
 }
 
@@ -74,7 +77,7 @@ export async function PATCH(req: NextRequest) {
       { id: user.id, ...merged },
       { onConflict: "id", ignoreDuplicates: false }
     )
-    .select("username, display_name, bio, updated_at, rating")
+    .select("username, display_name, bio, updated_at, rating, rating_bullet, rating_blitz, rating_rapid")
     .single();
 
   if (error) {
@@ -87,6 +90,9 @@ export async function PATCH(req: NextRequest) {
     display_name: data?.display_name ?? "",
     bio: data?.bio ?? "",
     updated_at: data?.updated_at ?? null,
-    rating: data?.rating ?? 1500
+    rating: data?.rating ?? data?.rating_blitz ?? 1500,
+    rating_bullet: data?.rating_bullet ?? data?.rating ?? 1500,
+    rating_blitz: data?.rating_blitz ?? data?.rating ?? 1500,
+    rating_rapid: data?.rating_rapid ?? data?.rating ?? 1500
   });
 }

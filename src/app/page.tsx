@@ -3,8 +3,11 @@
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { UserPlus, Cpu, X } from "lucide-react";
+import GameParamsModal from "@/components/GameParamsModal";
 
 const TIME_OPTIONS = [
+  { seconds: 60, label: "1 мин" },
+  { seconds: 120, label: "2 мин" },
   { seconds: 180, label: "3 мин" },
   { seconds: 300, label: "5 мин" },
   { seconds: 600, label: "10 мин" },
@@ -59,19 +62,21 @@ export default function HomePage() {
     };
   }, [modalOpen, handleKeyDown]);
 
-  async function handleCreateGame() {
+  async function handleCreateGame(opts?: { creatorColor: "white" | "black" | "random"; timeControlSeconds: number }) {
     setError(null);
     setIsCreating(true);
     const existingId = window.localStorage.getItem("ais_chess_player_id");
     const playerId = existingId || crypto.randomUUID();
     if (!existingId) window.localStorage.setItem("ais_chess_player_id", playerId);
+    const creatorColor = opts?.creatorColor ?? colorChoice;
+    const timeControlSeconds = opts?.timeControlSeconds ?? timeControl;
     try {
       const res = await fetch("/api/games", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          creatorColor: colorChoice,
-          timeControlSeconds: timeControl,
+          creatorColor,
+          timeControlSeconds,
           playerId,
         }),
       });
@@ -148,87 +153,23 @@ export default function HomePage() {
         </section>
       </div>
 
-      {/* Modal — Бросить вызов другу */}
-      {showModal && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setShowModal(false);
-          }}
-        >
-          <div className="relative mx-4 w-full max-w-md overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
-            <button
-              type="button"
-              onClick={() => setShowModal(false)}
-              className="absolute right-3 top-3 rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
-            >
-              <X className="h-5 w-5" />
-            </button>
-            <div className="px-6 pt-6 pb-2">
-              <h3 className="text-center text-xl font-semibold tracking-wide text-slate-900">
-                Параметры игры
-              </h3>
-            </div>
-            <div className="px-6 pb-6 pt-2 space-y-6">
-              <div>
-                <p className="mb-3 text-center text-sm font-medium text-slate-600">
-                  Минут на партию
-                </p>
-                <div className="grid grid-cols-4 gap-2">
-                  {TIME_OPTIONS.map((opt) => (
-                    <button
-                      key={opt.seconds}
-                      type="button"
-                      onClick={() => setTimeControl(opt.seconds)}
-                      className={`rounded-xl px-3 py-3 text-sm font-bold transition ${
-                        timeControl === opt.seconds
-                          ? "border-2 border-blue-600 bg-blue-600 text-white shadow-md"
-                          : "border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100"
-                      }`}
-                    >
-                      {opt.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div>
-                <p className="mb-3 text-center text-sm font-medium text-slate-600">
-                  Сторона
-                </p>
-                <div className="grid grid-cols-3 gap-2">
-                  {SIDE_OPTIONS.map((opt) => (
-                    <button
-                      key={opt.id}
-                      type="button"
-                      onClick={() => setColorChoice(opt.id)}
-                      className={`flex flex-col items-center gap-1.5 rounded-xl border px-3 py-4 text-sm font-medium transition ${
-                        colorChoice === opt.id
-                          ? "border-2 border-blue-600 bg-blue-600 text-white shadow-md"
-                          : "border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100"
-                      }`}
-                    >
-                      <span className="text-2xl leading-none">{opt.icon}</span>
-                      <span className="text-xs">{opt.label}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <button
-                type="button"
-                disabled={isCreating}
-                onClick={handleCreateGame}
-                className="flex w-full items-center justify-center gap-3 rounded-xl bg-orange-500 px-4 py-4 text-base font-semibold text-white shadow-md transition hover:bg-orange-600 disabled:opacity-60"
-              >
-                <UserPlus className="h-5 w-5 shrink-0" />
-                {isCreating ? "Создаётся…" : "Бросить вызов другу"}
-              </button>
-              {error && (
-                <p className="text-center text-sm text-red-600">{error}</p>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Modal — Бросить вызов другу (создание игры по ссылке) */}
+      <GameParamsModal
+        open={showModal}
+        title="Параметры игры"
+        submitLabel="Бросить вызов другу"
+        submittingLabel="Создаётся…"
+        initialCreatorColor={colorChoice}
+        initialTimeControlSeconds={timeControl}
+        isSubmitting={isCreating}
+        errorText={error}
+        onClose={() => setShowModal(false)}
+        onSubmit={async ({ creatorColor, timeControlSeconds }) => {
+          setColorChoice(creatorColor);
+          setTimeControl(timeControlSeconds);
+          await handleCreateGame({ creatorColor, timeControlSeconds });
+        }}
+      />
 
       {/* Modal — Сыграть с компьютером */}
       {showCpuModal && (
@@ -256,7 +197,7 @@ export default function HomePage() {
                 <p className="mb-3 text-center text-sm font-medium text-slate-600">
                   Минут на партию
                 </p>
-                <div className="grid grid-cols-4 gap-2">
+                <div className="grid grid-cols-3 gap-2">
                   {TIME_OPTIONS.map((opt) => (
                     <button
                       key={opt.seconds}

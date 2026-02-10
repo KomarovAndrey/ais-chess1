@@ -3,8 +3,10 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Trophy, Swords, UserPlus, Users } from "lucide-react";
+import { ArrowLeft, UserPlus, Users } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
+import GameParamsModal from "@/components/GameParamsModal";
+import RatingChart, { type RatingPoint } from "@/components/RatingChart";
 
 const LOGIN_REGEX = /^[a-zA-Z0-9_]{3,30}$/;
 
@@ -14,10 +16,10 @@ type ProfileData = {
   bio: string;
   updated_at: string | null;
   rating: number;
+  rating_bullet: number;
+  rating_blitz: number;
+  rating_rapid: number;
 };
-
-type Stats = { total: number; wins: number; losses: number; draws: number };
-type GameRow = { id: string; side: string; winner: string | null; status: string; created_at: string; started_at: string | null };
 
 type FriendEntry = { id: string; username: string | null; display_name: string; rating: number };
 type PendingIncoming = { id: string; from_user: FriendEntry };
@@ -28,14 +30,19 @@ export default function ProfilePage() {
   const [user, setUser] = useState<{ id: string; email?: string } | null>(null);
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<ProfileData | null>(null);
-  const [stats, setStats] = useState<Stats | null>(null);
-  const [recentGames, setRecentGames] = useState<GameRow[]>([]);
   const [displayName, setDisplayName] = useState("");
   const [username, setUsername] = useState("");
   const [bio, setBio] = useState("");
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: "ok" | "error"; text: string } | null>(null);
-  const [activeSection, setActiveSection] = useState<"edit" | "stats" | "games" | "friends">("edit");
+  const [activeSection, setActiveSection] = useState<"ratings" | "edit" | "friends">("ratings");
+
+  const [ratingType, setRatingType] = useState<"bullet" | "blitz" | "rapid">("blitz");
+  const [history, setHistory] = useState<{ bullet: RatingPoint[]; blitz: RatingPoint[]; rapid: RatingPoint[] }>({
+    bullet: [],
+    blitz: [],
+    rapid: []
+  });
 
   const [friends, setFriends] = useState<FriendEntry[]>([]);
   const [pendingIncoming, setPendingIncoming] = useState<PendingIncoming[]>([]);
@@ -45,12 +52,7 @@ export default function ProfilePage() {
   const [friendsLoading, setFriendsLoading] = useState(false);
   const [challengingId, setChallengingId] = useState<string | null>(null);
   const [outgoingChallengeByFriendId, setOutgoingChallengeByFriendId] = useState<Record<string, string>>({});
-  const [challengeModal, setChallengeModal] = useState<{
-    open: boolean;
-    friend: FriendEntry | null;
-    creatorColor: "white" | "black" | "random";
-    timeControlSeconds: number;
-  }>({ open: false, friend: null, creatorColor: "random", timeControlSeconds: 300 });
+  const [challengeModalOpenFor, setChallengeModalOpenFor] = useState<FriendEntry | null>(null);
   const [removeConfirm, setRemoveConfirm] = useState<{ open: boolean; friend: FriendEntry | null }>({
     open: false,
     friend: null
@@ -71,20 +73,30 @@ export default function ProfilePage() {
         setDisplayName(data.display_name ?? "");
         setUsername(data.username ?? "");
         setBio(data.bio ?? "");
-        const un = data.username;
-        if (un) {
-          const pr = await fetch(`/api/players/${encodeURIComponent(un)}`);
-          if (pr.ok) {
-            const j = await pr.json();
-            setStats(j.stats ?? null);
-            setRecentGames(j.recent_games ?? []);
-          }
-        }
       }
       setLoading(false);
     };
     run();
   }, [router]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    fetch(`/api/ratings/history/${user.id}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (!data) return;
+        const mapPoints = (arr: any[]): RatingPoint[] =>
+          (Array.isArray(arr) ? arr : [])
+            .map((p) => ({ t: String(p.t), r: Number(p.r) }))
+            .filter((p) => Number.isFinite(p.r));
+        setHistory({
+          bullet: mapPoints(data.bullet),
+          blitz: mapPoints(data.blitz),
+          rapid: mapPoints(data.rapid)
+        });
+      })
+      .catch(() => {});
+  }, [user?.id]);
 
   async function loadFriends() {
     setFriendsLoading(true);
@@ -279,7 +291,7 @@ export default function ProfilePage() {
         </div>
 
         <div className="flex gap-2 border-b border-slate-200 mb-4 flex-wrap">
-          {(["edit", "stats", "games", "friends"] as const).map((s) => (
+          {(["ratings", "friends", "edit"] as const).map((s) => (
             <button
               key={s}
               type="button"
@@ -290,13 +302,51 @@ export default function ProfilePage() {
                   : "text-slate-600 hover:text-slate-900"
               }`}
             >
-              {s === "edit" && "Редактировать"}
-              {s === "stats" && "Статистика"}
-              {s === "games" && "Партии"}
+              {s === "ratings" && "Рейтинг"}
               {s === "friends" && "Друзья"}
+              {s === "edit" && "Профиль"}
             </button>
           ))}
         </div>
+
+        {activeSection === "ratings" && profile && (
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <button
+                type="button"
+                onClick={() => setRatingType("bullet")}
+                className={`rounded-2xl border p-4 text-left shadow-sm ${
+                  ratingType === "bullet" ? "border-blue-600 bg-blue-600 text-white" : "border-slate-200 bg-white/90 text-slate-900"
+                }`}
+              >
+                <div className="text-xs font-semibold opacity-90">Bullet</div>
+                <div className="mt-1 text-2xl font-extrabold">{profile.rating_bullet ?? 1500}</div>
+              </button>
+              <button
+                type="button"
+                onClick={() => setRatingType("blitz")}
+                className={`rounded-2xl border p-4 text-left shadow-sm ${
+                  ratingType === "blitz" ? "border-blue-600 bg-blue-600 text-white" : "border-slate-200 bg-white/90 text-slate-900"
+                }`}
+              >
+                <div className="text-xs font-semibold opacity-90">Blitz</div>
+                <div className="mt-1 text-2xl font-extrabold">{profile.rating_blitz ?? 1500}</div>
+              </button>
+              <button
+                type="button"
+                onClick={() => setRatingType("rapid")}
+                className={`rounded-2xl border p-4 text-left shadow-sm ${
+                  ratingType === "rapid" ? "border-blue-600 bg-blue-600 text-white" : "border-slate-200 bg-white/90 text-slate-900"
+                }`}
+              >
+                <div className="text-xs font-semibold opacity-90">Rapid</div>
+                <div className="mt-1 text-2xl font-extrabold">{profile.rating_rapid ?? 1500}</div>
+              </button>
+            </div>
+
+            <RatingChart points={history[ratingType]} />
+          </div>
+        )}
 
         {activeSection === "edit" && (
           <div className="rounded-3xl border border-slate-200 bg-white/90 p-6 shadow-lg backdrop-blur md:p-8">
@@ -364,63 +414,6 @@ export default function ProfilePage() {
                 {saving ? "Сохранение..." : "Сохранить"}
               </button>
             </form>
-          </div>
-        )}
-
-        {activeSection === "stats" && (
-          <div className="rounded-3xl border border-slate-200 bg-white/90 p-6 shadow-lg backdrop-blur md:p-8">
-            <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold text-slate-900">
-              <Trophy className="h-5 w-5 text-amber-500" />
-              Статистика (рейтинговые партии)
-            </h2>
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-              <div className="rounded-xl bg-slate-50 p-4 text-center">
-                <p className="text-2xl font-bold text-slate-900">{stats?.total ?? 0}</p>
-                <p className="text-xs text-slate-500">партий</p>
-              </div>
-              <div className="rounded-xl bg-green-50 p-4 text-center">
-                <p className="text-2xl font-bold text-green-700">{stats?.wins ?? 0}</p>
-                <p className="text-xs text-slate-500">побед</p>
-              </div>
-              <div className="rounded-xl bg-red-50 p-4 text-center">
-                <p className="text-2xl font-bold text-red-700">{stats?.losses ?? 0}</p>
-                <p className="text-xs text-slate-500">поражений</p>
-              </div>
-              <div className="rounded-xl bg-slate-100 p-4 text-center">
-                <p className="text-2xl font-bold text-slate-700">{stats?.draws ?? 0}</p>
-                <p className="text-xs text-slate-500">ничьих</p>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {activeSection === "games" && (
-          <div className="rounded-3xl border border-slate-200 bg-white/90 p-6 shadow-lg backdrop-blur md:p-8">
-            <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold text-slate-900">
-              <Swords className="h-5 w-5 text-slate-600" />
-              Последние рейтинговые партии
-            </h2>
-            {recentGames.length === 0 ? (
-              <p className="text-sm text-slate-500">Партий пока нет.</p>
-            ) : (
-              <ul className="space-y-2">
-                {recentGames.map((g) => (
-                  <li key={g.id}>
-                    <Link
-                      href={`/play/${g.id}`}
-                      className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm hover:bg-slate-100"
-                    >
-                      <span className="text-slate-600">
-                        {g.side === "white" ? "Белые" : "Чёрные"} · {g.status === "finished" ? (g.winner === "draw" ? "Ничья" : g.winner === g.side ? "Победа" : "Поражение") : g.status}
-                      </span>
-                      <span className="text-slate-400 text-xs">
-                        {g.created_at ? new Date(g.created_at).toLocaleDateString("ru") : ""}
-                      </span>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            )}
           </div>
         )}
 
@@ -514,14 +507,7 @@ export default function ProfilePage() {
                       ) : (
                         <button
                           type="button"
-                          onClick={() =>
-                            setChallengeModal({
-                              open: true,
-                              friend: f,
-                              creatorColor: "random",
-                              timeControlSeconds: 300
-                            })
-                          }
+                          onClick={() => setChallengeModalOpenFor(f)}
                           disabled={challengingId !== null}
                           className="rounded-lg bg-amber-500 px-2 py-1 text-xs font-medium text-white hover:bg-amber-600 disabled:opacity-50"
                         >
@@ -541,83 +527,18 @@ export default function ProfilePage() {
               </ul>
             )}
 
-            {challengeModal.open && challengeModal.friend && (
-              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-                <div className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-4 shadow-xl">
-                  <h3 className="text-sm font-semibold text-slate-900">Вызов на партию</h3>
-                  <p className="mt-1 text-sm text-slate-600">
-                    Игрок:{" "}
-                    <span className="font-semibold">
-                      {challengeModal.friend.display_name || challengeModal.friend.username || "Игрок"}
-                    </span>
-                  </p>
-
-                  <div className="mt-4 space-y-3">
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-medium text-slate-700">Цвет</label>
-                      <select
-                        value={challengeModal.creatorColor}
-                        onChange={(e) =>
-                          setChallengeModal((p) => ({
-                            ...p,
-                            creatorColor: e.target.value as "white" | "black" | "random"
-                          }))
-                        }
-                        className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
-                      >
-                        <option value="random">Случайный</option>
-                        <option value="white">Я играю белыми</option>
-                        <option value="black">Я играю чёрными</option>
-                      </select>
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-medium text-slate-700">Время (на игрока)</label>
-                      <select
-                        value={challengeModal.timeControlSeconds}
-                        onChange={(e) =>
-                          setChallengeModal((p) => ({
-                            ...p,
-                            timeControlSeconds: Number(e.target.value)
-                          }))
-                        }
-                        className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
-                      >
-                        <option value={60}>1 мин</option>
-                        <option value={180}>3 мин</option>
-                        <option value={300}>5 мин</option>
-                        <option value={600}>10 мин</option>
-                        <option value={900}>15 мин</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div className="mt-5 flex justify-end gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setChallengeModal({ open: false, friend: null, creatorColor: "random", timeControlSeconds: 300 })}
-                      className="rounded-xl bg-slate-200 px-3 py-2 text-sm font-medium text-slate-800 hover:bg-slate-300"
-                    >
-                      Отмена
-                    </button>
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        const friend = challengeModal.friend;
-                        if (!friend) return;
-                        const creatorColor = challengeModal.creatorColor;
-                        const time = challengeModal.timeControlSeconds;
-                        setChallengeModal({ open: false, friend: null, creatorColor: "random", timeControlSeconds: 300 });
-                        await sendChallenge(friend.id, creatorColor, time);
-                      }}
-                      className="rounded-xl bg-amber-500 px-3 py-2 text-sm font-semibold text-white hover:bg-amber-600"
-                    >
-                      Отправить вызов
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
+            <GameParamsModal
+              open={challengeModalOpenFor !== null}
+              title="Параметры игры"
+              submitLabel="Бросить вызов другу"
+              onClose={() => setChallengeModalOpenFor(null)}
+              onSubmit={async ({ creatorColor, timeControlSeconds }) => {
+                const f = challengeModalOpenFor;
+                setChallengeModalOpenFor(null);
+                if (!f) return;
+                await sendChallenge(f.id, creatorColor, timeControlSeconds);
+              }}
+            />
 
             {removeConfirm.open && removeConfirm.friend && (
               <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
