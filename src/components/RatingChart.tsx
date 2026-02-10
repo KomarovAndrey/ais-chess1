@@ -47,7 +47,7 @@ export default function RatingChart(props: {
         )}
       </div>
 
-      {points.length < 2 ? (
+      {points.length === 0 ? (
         <div className="text-sm text-slate-600">Недостаточно данных для графика.</div>
       ) : (
         <svg viewBox={`0 0 300 ${height}`} className="w-full">

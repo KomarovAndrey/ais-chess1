@@ -358,7 +358,7 @@ export default function PublicProfilePage() {
                 >
                   Есть заявка · открыть «Друзья»
                 </Link>
-              ) : (
+              ) : (friendStatus === "none" || friendStatus === "unknown") ? (
                 <button
                   type="button"
                   disabled={addFriendLoading}
@@ -396,7 +396,7 @@ export default function PublicProfilePage() {
                   <UserPlus className="h-4 w-4" />
                   {addFriendLoading ? "Отправка…" : "Добавить в друзья"}
                 </button>
-              )}
+              ) : null}
               {addFriendMessage && <p className="mt-1 text-xs text-slate-600">{addFriendMessage}</p>}
             </div>
           )}
