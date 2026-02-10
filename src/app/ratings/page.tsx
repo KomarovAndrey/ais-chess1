@@ -55,7 +55,7 @@ export default async function RatingsPage({
           <div>
             <h1 className="text-xl font-bold text-slate-900">Рейтинги</h1>
             <p className="mt-1 text-sm text-slate-600">
-              Топ игроков по рейтингу {type === "bullet" ? "Bullet" : type === "rapid" ? "Rapid" : "Blitz"} (по убыванию).
+              Топ игроков {type === "bullet" ? "Bullet" : type === "rapid" ? "Rapid" : "Blitz"}
             </p>
           </div>
           <Link

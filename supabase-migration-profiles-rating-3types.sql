@@ -25,6 +25,35 @@ begin
   end if;
 end $$;
 
+-- Гарантия для новых пользователей: при создании профиля выставлять 1500 во всех режимах
+-- (после добавления колонок можно безопасно переопределить триггерную функцию)
+create or replace function public.handle_new_user()
+returns trigger as $$
+declare
+  meta_username text;
+begin
+  meta_username := nullif(trim(new.raw_user_meta_data->>'username'), '');
+  if meta_username is not null then
+    meta_username := lower(meta_username);
+  end if;
+  insert into public.profiles (id, username, display_name, rating_bullet, rating_blitz, rating_rapid)
+  values (
+    new.id,
+    meta_username,
+    coalesce(
+      nullif(trim(new.raw_user_meta_data->>'display_name'), ''),
+      nullif(trim(new.raw_user_meta_data->>'username'), ''),
+      nullif(trim(new.raw_user_meta_data->>'full_name'), '')
+    ),
+    1500,
+    1500,
+    1500
+  )
+  on conflict (id) do nothing;
+  return new;
+end;
+$$ language plpgsql security definer;
+
 -- 2) Таблица истории рейтинга (для графика)
 create table if not exists public.rating_history (
   id uuid primary key default gen_random_uuid(),
