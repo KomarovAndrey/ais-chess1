@@ -14,9 +14,15 @@ export default function RatingChart(props: {
 }) {
   const { points, height = 140 } = props;
 
-  const { polyline, minR, maxR, lastR } = useMemo(() => {
+  const { polyline, minR, maxR, lastR, coords } = useMemo(() => {
     if (!points || points.length === 0) {
-      return { polyline: "", minR: 1500, maxR: 1500, lastR: null as number | null };
+      return {
+        polyline: "",
+        minR: 1500,
+        maxR: 1500,
+        lastR: null as number | null,
+        coords: [] as { x: number; y: number }[],
+      };
     }
     const rs = points.map((p) => p.r);
     const minR = Math.min(...rs);
@@ -31,9 +37,10 @@ export default function RatingChart(props: {
     const coords = points.map((p, i) => {
       const x = pad + (i * (w - pad * 2)) / Math.max(1, points.length - 1);
       const y = pad + (1 - (p.r - minR) / span) * (h - pad * 2);
-      return `${x.toFixed(1)},${clamp(y, pad, h - pad).toFixed(1)}`;
+      return { x, y: clamp(y, pad, h - pad) };
     });
-    return { polyline: coords.join(" "), minR, maxR, lastR };
+    const polyline = coords.map((c) => `${c.x.toFixed(1)},${c.y.toFixed(1)}`).join(" ");
+    return { polyline, minR, maxR, lastR, coords };
   }, [points, height]);
 
   return (
@@ -52,14 +59,27 @@ export default function RatingChart(props: {
       ) : (
         <svg viewBox={`0 0 300 ${height}`} className="w-full">
           <rect x="0" y="0" width="300" height={height} rx="14" fill="#f8fafc" />
-          <polyline
-            points={polyline}
-            fill="none"
-            stroke="#2563eb"
-            strokeWidth="2.5"
-            strokeLinejoin="round"
-            strokeLinecap="round"
-          />
+          {points.length > 1 && (
+            <polyline
+              points={polyline}
+              fill="none"
+              stroke="#2563eb"
+              strokeWidth="2.5"
+              strokeLinejoin="round"
+              strokeLinecap="round"
+            />
+          )}
+          {coords.map((c, idx) => (
+            <circle
+              key={idx}
+              cx={c.x}
+              cy={c.y}
+              r={3}
+              fill="#2563eb"
+              stroke="white"
+              strokeWidth="1"
+            />
+          ))}
         </svg>
       )}
     </div>

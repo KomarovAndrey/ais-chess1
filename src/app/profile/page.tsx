@@ -22,6 +22,15 @@ type ProfileData = {
 type FriendEntry = { id: string; username: string | null; display_name: string; rating: number };
 type PendingIncoming = { id: string; from_user: FriendEntry };
 type PendingOutgoing = { id: string; to_user: FriendEntry };
+type PlayedGame = {
+  id: string;
+  created_at: string;
+  mode: string;
+  white_username: string | null;
+  black_username: string | null;
+  result: string;
+  rating_delta: number;
+};
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -32,7 +41,7 @@ export default function ProfilePage() {
   const [bio, setBio] = useState("");
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: "ok" | "error"; text: string } | null>(null);
-  const [activeSection, setActiveSection] = useState<"edit" | "ratings" | "friends">("ratings");
+  const [activeSection, setActiveSection] = useState<"edit" | "ratings" | "friends" | "games">("ratings");
 
   const [ratingType, setRatingType] = useState<"bullet" | "blitz" | "rapid">("blitz");
   const [history, setHistory] = useState<{ bullet: RatingPoint[]; blitz: RatingPoint[]; rapid: RatingPoint[] }>({
@@ -54,6 +63,9 @@ export default function ProfilePage() {
     open: false,
     friend: null
   });
+  const [games, setGames] = useState<PlayedGame[]>([]);
+  const [gamesLoading, setGamesLoading] = useState(false);
+  const [gamesError, setGamesError] = useState<string | null>(null);
 
   useEffect(() => {
     const run = async () => {
@@ -131,10 +143,27 @@ export default function ProfilePage() {
     }
   }
 
+  async function loadPlayedGames() {
+    setGamesLoading(true);
+    setGamesError(null);
+    try {
+      const res = await fetch("/api/profile/games");
+      if (!res.ok) throw new Error("Не удалось загрузить партии");
+      const data = await res.json().catch(() => ({}));
+      setGames(Array.isArray(data?.games) ? data.games : []);
+    } catch (e) {
+      setGamesError(e instanceof Error ? e.message : "Ошибка");
+    } finally {
+      setGamesLoading(false);
+    }
+  }
+
   useEffect(() => {
     if (activeSection === "friends") {
       loadFriends();
       loadOutgoingChallenges();
+    } else if (activeSection === "games") {
+      loadPlayedGames();
     }
   }, [activeSection]);
 
@@ -311,7 +340,7 @@ export default function ProfilePage() {
 
         <div className="mb-4 flex flex-wrap items-center justify-between gap-2 border-b border-slate-200">
           <div className="flex gap-2 flex-wrap">
-            {(["edit", "ratings", "friends"] as const).map((s) => (
+            {(["edit", "ratings", "friends", "games"] as const).map((s) => (
               <button
                 key={s}
                 type="button"
@@ -325,6 +354,7 @@ export default function ProfilePage() {
                 {s === "edit" && "Профиль"}
                 {s === "ratings" && "Рейтинг"}
                 {s === "friends" && "Друзья"}
+                {s === "games" && "Партии"}
               </button>
             ))}
           </div>
@@ -425,6 +455,82 @@ export default function ProfilePage() {
                 {saving ? "Сохранение..." : "Сохранить"}
               </button>
             </form>
+          </div>
+        )}
+
+        {activeSection === "games" && (
+          <div className="rounded-3xl border border-slate-200 bg-white/90 p-6 shadow-lg backdrop-blur md:p-8 space-y-4">
+            <h2 className="text-lg font-semibold text-slate-900 mb-2">Партии</h2>
+            {gamesLoading && (
+              <p className="text-sm text-slate-500">Загрузка партий…</p>
+            )}
+            {gamesError && (
+              <p className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-600">
+                {gamesError}
+              </p>
+            )}
+            {!gamesLoading && !gamesError && games.length === 0 && (
+              <p className="text-sm text-slate-500">
+                Пока нет сыгранных рейтинговых партий.
+              </p>
+            )}
+            {!gamesLoading && games.length > 0 && (
+              <div className="overflow-x-auto">
+                <table className="min-w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-500">
+                      <th className="py-2 pr-3 text-left font-medium">Дата</th>
+                      <th className="py-2 px-3 text-left font-medium">Режим</th>
+                      <th className="py-2 px-3 text-left font-medium">Белые</th>
+                      <th className="py-2 px-3 text-left font-medium">Чёрные</th>
+                      <th className="py-2 px-3 text-left font-medium">Результат</th>
+                      <th className="py-2 pl-3 text-right font-medium">Изм. рейтинга</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {games.map((g) => (
+                      <tr key={g.id} className="border-b border-slate-100 last:border-0">
+                        <td className="py-2 pr-3 text-slate-700 whitespace-nowrap">
+                          {new Date(g.created_at).toLocaleString("ru-RU", {
+                            day: "2-digit",
+                            month: "2-digit",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </td>
+                        <td className="py-2 px-3 text-slate-700 whitespace-nowrap">
+                          {g.mode}
+                        </td>
+                        <td className="py-2 px-3 text-slate-700 whitespace-nowrap">
+                          {g.white_username ?? "—"}
+                        </td>
+                        <td className="py-2 px-3 text-slate-700 whitespace-nowrap">
+                          {g.black_username ?? "—"}
+                        </td>
+                        <td className="py-2 px-3 text-slate-700 whitespace-nowrap">
+                          {g.result}
+                        </td>
+                        <td className="py-2 pl-3 text-right whitespace-nowrap">
+                          {g.rating_delta > 0 && (
+                            <span className="text-green-600 font-semibold">
+                              +{g.rating_delta}
+                            </span>
+                          )}
+                          {g.rating_delta < 0 && (
+                            <span className="text-red-600 font-semibold">
+                              {g.rating_delta}
+                            </span>
+                          )}
+                          {g.rating_delta === 0 && (
+                            <span className="text-slate-500">0</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         )}
 
