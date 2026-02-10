@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { Trophy, Swords, ArrowLeft, UserPlus } from "lucide-react";
+import { Trophy, Swords, ArrowLeft, UserPlus, UserMinus } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 
 type ProfileInfo = {
@@ -17,6 +17,8 @@ type ProfileInfo = {
 type Stats = { total: number; wins: number; losses: number; draws: number };
 type GameRow = { id: string; side: string; winner: string | null; status: string; created_at: string; started_at: string | null };
 
+type FriendStatus = "unknown" | "none" | "friends" | "pending_outgoing" | "pending_incoming" | "self";
+
 export default function PublicProfilePage() {
   const params = useParams();
   const username = typeof params?.username === "string" ? params.username : "";
@@ -28,6 +30,8 @@ export default function PublicProfilePage() {
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [addFriendLoading, setAddFriendLoading] = useState(false);
   const [addFriendMessage, setAddFriendMessage] = useState<string | null>(null);
+  const [friendStatus, setFriendStatus] = useState<FriendStatus>("unknown");
+  const [removeConfirmOpen, setRemoveConfirmOpen] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -63,6 +67,28 @@ export default function PublicProfilePage() {
       });
     return () => { cancelled = true; };
   }, [username]);
+
+  useEffect(() => {
+    if (!currentUserId || !profile?.id) return;
+    if (currentUserId === profile.id) {
+      setFriendStatus("self");
+      return;
+    }
+    let cancelled = false;
+    fetch(`/api/friends/users/${profile.id}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (cancelled) return;
+        const st = typeof data?.status === "string" ? (data.status as FriendStatus) : "unknown";
+        setFriendStatus(st);
+      })
+      .catch(() => {
+        if (!cancelled) setFriendStatus("unknown");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [currentUserId, profile?.id]);
 
   if (!username) {
     return (
@@ -128,32 +154,104 @@ export default function PublicProfilePage() {
           </div>
           {currentUserId && currentUserId !== profile.id && profile.username && (
             <div className="shrink-0">
-              <button
-                type="button"
-                disabled={addFriendLoading}
-                onClick={async () => {
-                  setAddFriendMessage(null);
-                  setAddFriendLoading(true);
-                  try {
-                    const res = await fetch("/api/friends", {
-                      method: "POST",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({ username: profile.username })
-                    });
-                    const data = await res.json().catch(() => ({}));
-                    if (!res.ok) throw new Error(data.error ?? "Не удалось");
-                    setAddFriendMessage("Заявка отправлена.");
-                  } catch (e) {
-                    setAddFriendMessage(e instanceof Error ? e.message : "Ошибка");
-                  } finally {
-                    setAddFriendLoading(false);
-                  }
-                }}
-                className="inline-flex items-center gap-1 rounded-xl bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
-              >
-                <UserPlus className="h-4 w-4" />
-                {addFriendLoading ? "Отправка…" : "Добавить в друзья"}
-              </button>
+              {friendStatus === "friends" ? (
+                <>
+                  <button
+                    type="button"
+                    disabled={addFriendLoading}
+                    onClick={() => setRemoveConfirmOpen(true)}
+                    className="inline-flex items-center gap-1 rounded-xl bg-red-600 px-3 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
+                  >
+                    <UserMinus className="h-4 w-4" />
+                    Удалить из друзей
+                  </button>
+
+                  {removeConfirmOpen && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+                      <div className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-4 shadow-xl">
+                        <h3 className="text-sm font-semibold text-slate-900">Подтверждение</h3>
+                        <p className="mt-2 text-sm text-slate-700">
+                          Вы действительно хотите удалить из друзей?
+                        </p>
+                        <div className="mt-4 flex justify-end gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setRemoveConfirmOpen(false)}
+                            className="rounded-xl bg-slate-200 px-3 py-2 text-sm font-medium text-slate-800 hover:bg-slate-300"
+                          >
+                            Нет
+                          </button>
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              setAddFriendMessage(null);
+                              setAddFriendLoading(true);
+                              try {
+                                const res = await fetch(`/api/friends/users/${profile.id}`, { method: "DELETE" });
+                                const data = await res.json().catch(() => ({}));
+                                if (!res.ok) throw new Error(data.error ?? "Не удалось удалить");
+                                setFriendStatus("none");
+                                setAddFriendMessage("Удалено из друзей.");
+                              } catch (e) {
+                                setAddFriendMessage(e instanceof Error ? e.message : "Ошибка");
+                              } finally {
+                                setAddFriendLoading(false);
+                                setRemoveConfirmOpen(false);
+                              }
+                            }}
+                            className="rounded-xl bg-red-600 px-3 py-2 text-sm font-medium text-white hover:bg-red-700"
+                          >
+                            Да
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </>
+              ) : friendStatus === "pending_outgoing" ? (
+                <button
+                  type="button"
+                  disabled
+                  className="inline-flex items-center gap-1 rounded-xl bg-slate-300 px-3 py-2 text-sm font-medium text-slate-700 opacity-70"
+                >
+                  Заявка отправлена
+                </button>
+              ) : friendStatus === "pending_incoming" ? (
+                <Link
+                  href="/profile"
+                  className="inline-flex items-center gap-1 rounded-xl bg-amber-500 px-3 py-2 text-sm font-medium text-white hover:bg-amber-600"
+                >
+                  Есть заявка · открыть «Друзья»
+                </Link>
+              ) : (
+                <button
+                  type="button"
+                  disabled={addFriendLoading}
+                  onClick={async () => {
+                    setAddFriendMessage(null);
+                    setAddFriendLoading(true);
+                    try {
+                      const res = await fetch("/api/friends", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ username: profile.username })
+                      });
+                      const data = await res.json().catch(() => ({}));
+                      if (!res.ok) throw new Error(data.error ?? "Не удалось");
+                      setAddFriendMessage("Заявка отправлена.");
+                      setFriendStatus("pending_outgoing");
+                    } catch (e) {
+                      setAddFriendMessage(e instanceof Error ? e.message : "Ошибка");
+                    } finally {
+                      setAddFriendLoading(false);
+                    }
+                  }}
+                  className="inline-flex items-center gap-1 rounded-xl bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+                >
+                  <UserPlus className="h-4 w-4" />
+                  {addFriendLoading ? "Отправка…" : "Добавить в друзья"}
+                </button>
+              )}
               {addFriendMessage && <p className="mt-1 text-xs text-slate-600">{addFriendMessage}</p>}
             </div>
           )}

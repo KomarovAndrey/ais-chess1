@@ -44,6 +44,10 @@ export default function ProfilePage() {
   const [friendsMessage, setFriendsMessage] = useState<{ type: "ok" | "error"; text: string } | null>(null);
   const [friendsLoading, setFriendsLoading] = useState(false);
   const [challengingId, setChallengingId] = useState<string | null>(null);
+  const [removeConfirm, setRemoveConfirm] = useState<{ open: boolean; friend: FriendEntry | null }>({
+    open: false,
+    friend: null
+  });
 
   useEffect(() => {
     const run = async () => {
@@ -138,15 +142,14 @@ export default function ProfilePage() {
   async function challengeToGame(_friendId: string) {
     setChallengingId(_friendId);
     try {
-      const res = await fetch("/api/games", {
+      const res = await fetch("/api/challenges", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ creatorColor: "random", timeControlSeconds: 300 })
+        body: JSON.stringify({ toUserId: _friendId, creatorColor: "random", timeControlSeconds: 300 })
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error ?? "Не удалось создать партию");
-      const gameId = data.gameId;
-      if (gameId) router.push(`/play/${gameId}`);
+      if (!res.ok) throw new Error(data.error ?? "Не удалось отправить вызов");
+      setFriendsMessage({ type: "ok", text: "Вызов отправлен. Ожидайте принятия." });
     } finally {
       setChallengingId(null);
     }
@@ -457,11 +460,49 @@ export default function ProfilePage() {
                       >
                         {challengingId === f.id ? "Создание…" : "Вызвать на партию"}
                       </button>
-                      <button type="button" onClick={() => removeFriend(f.id)} className="rounded-lg bg-slate-300 px-2 py-1 text-xs text-slate-700 hover:bg-slate-400">Удалить</button>
+                      <button
+                        type="button"
+                        onClick={() => setRemoveConfirm({ open: true, friend: f })}
+                        className="rounded-lg bg-slate-300 px-2 py-1 text-xs text-slate-700 hover:bg-slate-400"
+                      >
+                        Удалить
+                      </button>
                     </div>
                   </li>
                 ))}
               </ul>
+            )}
+
+            {removeConfirm.open && removeConfirm.friend && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+                <div className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-4 shadow-xl">
+                  <h3 className="text-sm font-semibold text-slate-900">Подтверждение</h3>
+                  <p className="mt-2 text-sm text-slate-700">
+                    Вы действительно хотите удалить из друзей{" "}
+                    <span className="font-semibold">{removeConfirm.friend.display_name || removeConfirm.friend.username || "игрока"}</span>?
+                  </p>
+                  <div className="mt-4 flex justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setRemoveConfirm({ open: false, friend: null })}
+                      className="rounded-xl bg-slate-200 px-3 py-2 text-sm font-medium text-slate-800 hover:bg-slate-300"
+                    >
+                      Нет
+                    </button>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        const id = removeConfirm.friend?.id;
+                        setRemoveConfirm({ open: false, friend: null });
+                        if (id) await removeFriend(id);
+                      }}
+                      className="rounded-xl bg-red-600 px-3 py-2 text-sm font-medium text-white hover:bg-red-700"
+                    >
+                      Да
+                    </button>
+                  </div>
+                </div>
+              </div>
             )}
           </div>
         )}
