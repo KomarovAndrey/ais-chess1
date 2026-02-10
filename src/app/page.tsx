@@ -231,7 +231,7 @@ export default function HomePage() {
         initialCreatorColor={colorChoice}
         initialTimeControlSeconds={timeControl}
         isSubmitting={isSendingChallenge}
-        submitDisabled={!selectedFriendId || friendsLoading || friends.length === 0}
+        submitDisabled={friendsLoading || isSendingChallenge}
         errorText={challengeError}
         onClose={() => setShowFriendModal(false)}
         topContent={
@@ -258,29 +258,38 @@ export default function HomePage() {
           </div>
         }
         onSubmit={async ({ creatorColor, timeControlSeconds }) => {
-          if (!selectedFriendId) return;
           setChallengeError(null);
           setChallengeOk(null);
-          setIsSendingChallenge(true);
-          try {
-            const res = await fetch("/api/challenges", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                toUserId: selectedFriendId,
-                creatorColor,
-                timeControlSeconds
-              })
-            });
-            const data = await res.json().catch(() => ({}));
-            if (!res.ok) throw new Error(data.error ?? "Не удалось отправить вызов");
-            setChallengeOk("Вызов отправлен. Ожидайте принятия.");
-            setShowFriendModal(false);
-          } catch (e) {
-            setChallengeError(e instanceof Error ? e.message : "Ошибка");
-          } finally {
-            setIsSendingChallenge(false);
+
+          // Если выбран друг — отправляем ему вызов
+          if (selectedFriendId) {
+            setIsSendingChallenge(true);
+            try {
+              const res = await fetch("/api/challenges", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  toUserId: selectedFriendId,
+                  creatorColor,
+                  timeControlSeconds
+                })
+              });
+              const data = await res.json().catch(() => ({}));
+              if (!res.ok) throw new Error(data.error ?? "Не удалось отправить вызов");
+              setChallengeOk("Вызов отправлен. Ожидайте принятия.");
+              setShowFriendModal(false);
+            } catch (e) {
+              setChallengeError(e instanceof Error ? e.message : "Ошибка");
+            } finally {
+              setIsSendingChallenge(false);
+            }
+            return;
           }
+
+          // Если друг не выбран — создаём обычную партию по ссылке
+          setColorChoice(creatorColor);
+          setTimeControl(timeControlSeconds);
+          await handleCreateGame({ creatorColor, timeControlSeconds });
         }}
       />
 

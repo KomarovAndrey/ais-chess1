@@ -17,7 +17,7 @@ export async function GET(
 
   const { data: profile, error: profileError } = await supabase
     .from("profiles")
-    .select("id, username, display_name, bio, avatar_url, updated_at, rating, rating_bullet, rating_blitz, rating_rapid")
+    .select("id, username, display_name, bio, updated_at, rating, rating_bullet, rating_blitz, rating_rapid")
     .ilike("username", username)
     .maybeSingle();
 
@@ -45,7 +45,6 @@ export async function GET(
         username: profile.username,
         display_name: profile.display_name ?? profile.username,
         bio: profile.bio ?? "",
-        avatar_url: (profile as any).avatar_url ?? null,
         updated_at: profile.updated_at,
         rating: (profile as any).rating_blitz ?? (profile as any).rating ?? 1500,
         rating_bullet: (profile as any).rating_bullet ?? (profile as any).rating ?? 1500,
@@ -73,7 +72,6 @@ export async function GET(
         username: profile.username,
         display_name: profile.display_name ?? profile.username,
         bio: profile.bio ?? "",
-        avatar_url: (profile as any).avatar_url ?? null,
         updated_at: profile.updated_at,
         rating: (profile as any).rating_blitz ?? (profile as any).rating ?? 1500,
         rating_bullet: (profile as any).rating_bullet ?? (profile as any).rating ?? 1500,
@@ -142,7 +140,6 @@ export async function GET(
       username: profile.username,
       display_name: profile.display_name ?? profile.username,
       bio: profile.bio ?? "",
-      avatar_url: (profile as any).avatar_url ?? null,
       updated_at: profile.updated_at,
       rating: (profile as any).rating_blitz ?? (profile as any).rating ?? 1500,
       rating_bullet: (profile as any).rating_bullet ?? (profile as any).rating ?? 1500,
