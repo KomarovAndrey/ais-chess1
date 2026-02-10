@@ -193,7 +193,7 @@ export default function AppNav() {
                     >
                       <span className="font-medium">{hit.display_name || hit.username || "—"}</span>
                       {hit.username && (
-                        <span className="ml-1 text-slate-400">@{hit.username}</span>
+                        <span className="ml-1 text-slate-400">{hit.username}</span>
                       )}
                     </Link>
                   </li>
@@ -231,7 +231,7 @@ export default function AppNav() {
                         <div className="min-w-0">
                           <div className="truncate text-sm text-slate-800">
                             <span className="font-medium">{c.from_user.display_name}</span>
-                            {c.from_user.username && <span className="ml-1 text-slate-400">@{c.from_user.username}</span>}
+                            {c.from_user.username && <span className="ml-1 text-slate-400">{c.from_user.username}</span>}
                             <span className="ml-2 text-amber-600 font-semibold">({c.from_user.rating})</span>
                           </div>
                           <div className="text-xs text-slate-500">

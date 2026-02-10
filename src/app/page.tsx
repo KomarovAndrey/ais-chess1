@@ -249,7 +249,7 @@ export default function HomePage() {
               >
                 {friends.map((f) => (
                   <option key={f.id} value={f.id}>
-                    {(f.display_name || f.username || "Игрок") + (f.username ? ` (@${f.username})` : "") + ` · ${f.rating ?? 1500}`}
+                    {(f.display_name || f.username || "Игрок") + (f.username ? ` (${f.username})` : "") + ` · ${f.rating ?? 1500}`}
                   </option>
                 ))}
               </select>

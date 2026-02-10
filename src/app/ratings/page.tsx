@@ -115,7 +115,7 @@ export default async function RatingsPage({
                     {r.username && (
                       <div className="truncate text-xs text-slate-500">
                         <Link className="hover:underline" href={`/user/${encodeURIComponent(r.username)}`}>
-                          @{r.username}
+                          {r.username}
                         </Link>
                       </div>
                     )}

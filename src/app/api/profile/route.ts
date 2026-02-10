@@ -34,8 +34,6 @@ export async function PATCH(req: NextRequest) {
   if ("response" in auth) return auth.response;
   const { supabase, user } = auth;
 
-  const USERNAME_REGEX = /^[a-zA-Z0-9_]{3,30}$/;
-
   let body: { display_name?: string; bio?: string; username?: string };
   try {
     body = await req.json();
@@ -49,20 +47,8 @@ export async function PATCH(req: NextRequest) {
     .eq("id", user.id)
     .single();
 
-  let newUsername: string | null = existing?.username ?? null;
-  if (typeof body.username === "string") {
-    const trimmed = body.username.trim().toLowerCase();
-    if (!trimmed) newUsername = null;
-    else if (!USERNAME_REGEX.test(trimmed)) {
-      return NextResponse.json({ error: "Логин: только латиница, цифры и подчёркивание, 3–30 символов" }, { status: 400 });
-    } else {
-      const { data: taken } = await supabase.from("profiles").select("id").ilike("username", trimmed).limit(1).maybeSingle();
-      if (taken && taken.id !== user.id) {
-        return NextResponse.json({ error: "Этот логин уже занят" }, { status: 400 });
-      }
-      newUsername = trimmed;
-    }
-  }
+  // Логин задаётся при регистрации и не изменяется через API
+  const newUsername = existing?.username ?? null;
 
   const merged = {
     username: newUsername,

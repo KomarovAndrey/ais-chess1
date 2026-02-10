@@ -8,8 +8,6 @@ import { supabase } from "@/lib/supabaseClient";
 import GameParamsModal from "@/components/GameParamsModal";
 import RatingChart, { type RatingPoint } from "@/components/RatingChart";
 
-const LOGIN_REGEX = /^[a-zA-Z0-9_]{3,30}$/;
-
 type ProfileData = {
   username: string | null;
   display_name: string;
@@ -31,7 +29,6 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [displayName, setDisplayName] = useState("");
-  const [username, setUsername] = useState("");
   const [bio, setBio] = useState("");
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: "ok" | "error"; text: string } | null>(null);
@@ -71,7 +68,6 @@ export default function ProfilePage() {
         const data = await res.json();
         setProfile(data);
         setDisplayName(data.display_name ?? "");
-        setUsername(data.username ?? "");
         setBio(data.bio ?? "");
       }
       setLoading(false);
@@ -227,7 +223,6 @@ export default function ProfilePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           display_name: displayName.trim(),
-          username: username.trim() || undefined,
           bio: bio.trim(),
         }),
       });
@@ -237,7 +232,6 @@ export default function ProfilePage() {
       }
       const data = await res.json();
       setProfile((p) => (p ? { ...p, ...data } : null));
-      setUsername(data.username ?? "");
       setMessage({ type: "ok", text: "Изменения сохранены." });
     } catch (err: unknown) {
       setMessage({ type: "error", text: err instanceof Error ? err.message : "Ошибка сохранения." });
@@ -280,10 +274,10 @@ export default function ProfilePage() {
             </div>
             <div className="min-w-0 flex-1">
               <h1 className="text-xl font-bold text-slate-900 truncate">
-                {profile?.username ? `@${profile.username}` : (user.email ?? "Профиль")}
+                {profile?.username ?? (user.email ?? "Профиль")}
               </h1>
               <p className="text-xs text-slate-500 mt-0.5">
-                {profile?.username ? "По этому логину вас находят в поиске друзей" : "Логин задаётся при регистрации; можно изменить во вкладке «Профиль»"}
+                {profile?.username ? "По этому логину вас находят в поиске друзей" : "Логин задаётся при регистрации и не изменяется"}
               </p>
               {profile?.display_name?.trim() && (
                 <p className="text-sm text-slate-600 mt-0.5">Имя: {profile.display_name.trim()}</p>
@@ -367,14 +361,6 @@ export default function ProfilePage() {
 
         {activeSection === "edit" && (
           <div className="rounded-3xl border border-slate-200 bg-white/90 p-6 shadow-lg backdrop-blur md:p-8">
-            <h2 className="mb-4 text-lg font-semibold text-slate-900">Информация о себе</h2>
-            <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4 min-h-[80px] mb-6">
-              {profile?.bio?.trim() ? (
-                <p className="text-slate-700 whitespace-pre-wrap">{profile.bio.trim()}</p>
-              ) : (
-                <p className="text-slate-500 italic">Пока ничего не указано. Заполните поле ниже.</p>
-              )}
-            </div>
             <form onSubmit={handleSubmit} className="space-y-5">
               <div className="space-y-1.5">
                 <label htmlFor="display_name" className="text-sm font-medium text-slate-700">
@@ -389,23 +375,6 @@ export default function ProfilePage() {
                   className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none ring-offset-2 focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
                   placeholder="Введите имя"
                 />
-              </div>
-              <div className="space-y-1.5">
-                <label htmlFor="profile_username" className="text-sm font-medium text-slate-700">
-                  Логин (для ссылки на профиль и поиска друзей)
-                </label>
-                <input
-                  id="profile_username"
-                  type="text"
-                  maxLength={30}
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none ring-offset-2 focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
-                  placeholder="Латиница, цифры, подчёркивание, 3–30"
-                />
-                {username && !LOGIN_REGEX.test(username.trim()) && username.length >= 3 && (
-                  <p className="text-xs text-amber-600">Только латиница, цифры и _</p>
-                )}
               </div>
               <div className="space-y-1.5">
                 <label htmlFor="bio" className="text-sm font-medium text-slate-700">
@@ -450,7 +419,7 @@ export default function ProfilePage() {
             </h2>
             <p className="text-sm text-slate-600 mb-4">
               Поиск друзей по логину. Ваш логин для поиска: {profile?.username ? (
-                <span className="font-mono font-semibold text-blue-700">@{profile.username}</span>
+                <span className="font-mono font-semibold text-blue-700">{profile.username}</span>
               ) : (
                 <span className="text-amber-600">укажите во вкладке «Профиль»</span>
               )}
@@ -487,7 +456,7 @@ export default function ProfilePage() {
                   {pendingIncoming.map((req) => (
                     <li key={req.id} className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
                       <Link href={req.from_user.username ? `/user/${req.from_user.username}` : "#"} className="text-sm font-medium text-slate-800 hover:underline">
-                        {req.from_user.display_name || req.from_user.username || "Игрок"} {req.from_user.username && `(@${req.from_user.username})`} · {req.from_user.rating}
+                        {req.from_user.display_name || req.from_user.username || "Игрок"} {req.from_user.username && ` (${req.from_user.username})`} · {req.from_user.rating}
                       </Link>
                       <div className="flex gap-2">
                         <button type="button" onClick={() => acceptRequest(req.id)} className="rounded-lg bg-green-600 px-2 py-1 text-xs text-white hover:bg-green-700">Принять</button>
@@ -506,7 +475,7 @@ export default function ProfilePage() {
                   {pendingOutgoing.map((req) => (
                     <li key={req.id} className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
                       <Link href={req.to_user.username ? `/user/${req.to_user.username}` : "#"} className="text-sm text-slate-600">
-                        {req.to_user.display_name || req.to_user.username || "Игрок"} {req.to_user.username && `(@${req.to_user.username})`} · ожидание
+                        {req.to_user.display_name || req.to_user.username || "Игрок"} {req.to_user.username && ` (${req.to_user.username})`} · ожидание
                       </Link>
                     </li>
                   ))}
@@ -524,7 +493,7 @@ export default function ProfilePage() {
                 {friends.map((f) => (
                   <li key={f.id} className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
                     <Link href={f.username ? `/user/${f.username}` : "#"} className="text-sm font-medium text-slate-800 hover:underline">
-                      {f.display_name || f.username || "Игрок"} {f.username && `(@${f.username})`} · {f.rating}
+                      {f.display_name || f.username || "Игрок"} {f.username && ` (${f.username})`} · {f.rating}
                     </Link>
                     <div className="flex gap-2">
                       {outgoingChallengeByFriendId[f.id] ? (

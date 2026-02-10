@@ -158,7 +158,7 @@ export default function PublicProfilePage() {
             На главную
           </Link>
           <h1 className="text-xl font-bold text-slate-900">Профиль не найден</h1>
-          <p className="text-slate-600 mt-2">Игрок с логином @{username} не найден.</p>
+          <p className="text-slate-600 mt-2">Игрок с логином {username} не найден.</p>
         </div>
       </main>
     );
@@ -192,7 +192,7 @@ export default function PublicProfilePage() {
             <div className="mt-1">
               <span className="text-sm font-semibold text-slate-700">Логин: </span>
               <span className="text-sm font-mono text-blue-700">
-                {profile.username ? `@${profile.username}` : "—"}
+                {profile.username ?? "—"}
               </span>
             </div>
           </div>
