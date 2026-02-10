@@ -22,6 +22,16 @@ type ProfileInfo = {
 
 type FriendStatus = "unknown" | "none" | "friends" | "pending_outgoing" | "pending_incoming" | "self";
 
+type PlayedGame = {
+  id: string;
+  created_at: string;
+  mode: string;
+  white_username: string | null;
+  black_username: string | null;
+  result: string;
+  rating_delta: number;
+};
+
 export default function PublicProfilePage() {
   const params = useParams();
   const username = typeof params?.username === "string" ? params.username : "";
@@ -42,6 +52,9 @@ export default function PublicProfilePage() {
     blitz: [],
     rapid: []
   });
+  const [games, setGames] = useState<PlayedGame[]>([]);
+  const [gamesLoading, setGamesLoading] = useState(false);
+  const [gamesError, setGamesError] = useState<string | null>(null);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -115,6 +128,29 @@ export default function PublicProfilePage() {
       cancelled = true;
     };
   }, [currentUserId, profile?.id]);
+
+  useEffect(() => {
+    if (!username || !profile?.id) return;
+    let cancelled = false;
+    setGamesLoading(true);
+    setGamesError(null);
+    fetch(`/api/players/${encodeURIComponent(username)}/games`)
+      .then((r) => {
+        if (!r.ok) throw new Error(r.status === 401 ? "Войдите, чтобы видеть партии" : "Не удалось загрузить партии");
+        return r.json();
+      })
+      .then((data) => {
+        if (cancelled) return;
+        setGames(Array.isArray(data?.games) ? data.games : []);
+      })
+      .catch((e) => {
+        if (!cancelled) setGamesError(e instanceof Error ? e.message : "Ошибка");
+      })
+      .finally(() => {
+        if (!cancelled) setGamesLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [username, profile?.id]);
 
   useEffect(() => {
     if (!currentUserId || !profile?.id) return;
@@ -436,6 +472,82 @@ export default function PublicProfilePage() {
         </div>
 
         <RatingChart points={history[ratingType]} />
+
+        <div className="mt-6 rounded-3xl border border-slate-200 bg-white/90 p-6 shadow-lg backdrop-blur md:p-8">
+          <h2 className="mb-4 text-lg font-semibold text-slate-900">Партии</h2>
+          {gamesLoading && (
+            <p className="text-sm text-slate-500">Загрузка партий…</p>
+          )}
+          {gamesError && (
+            <p className="rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-800">
+              {gamesError}
+            </p>
+          )}
+          {!gamesLoading && !gamesError && games.length === 0 && (
+            <p className="text-sm text-slate-500">Партий пока нет.</p>
+          )}
+          {!gamesLoading && games.length > 0 && (
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-sm">
+                <thead>
+                  <tr className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-500">
+                    <th className="py-2 pr-3 text-left font-medium">Дата</th>
+                    <th className="py-2 px-3 text-left font-medium">Режим</th>
+                    <th className="py-2 px-3 text-left font-medium">Белые</th>
+                    <th className="py-2 px-3 text-left font-medium">Чёрные</th>
+                    <th className="py-2 px-3 text-left font-medium">Результат</th>
+                    <th className="py-2 pl-3 text-right font-medium">Изм. рейтинга</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {games.map((g) => (
+                    <tr key={g.id} className="border-b border-slate-100 last:border-0">
+                      <td className="py-2 pr-3 text-slate-700 whitespace-nowrap">
+                        {new Date(g.created_at).toLocaleString("ru-RU", {
+                          day: "2-digit",
+                          month: "2-digit",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </td>
+                      <td className="py-2 px-3 text-slate-700 whitespace-nowrap">{g.mode}</td>
+                      <td className="py-2 px-3 text-slate-700 whitespace-nowrap">
+                        {g.white_username ? (
+                          <Link href={`/user/${encodeURIComponent(g.white_username)}`} className="text-blue-600 hover:underline">
+                            {g.white_username}
+                          </Link>
+                        ) : (
+                          "—"
+                        )}
+                      </td>
+                      <td className="py-2 px-3 text-slate-700 whitespace-nowrap">
+                        {g.black_username ? (
+                          <Link href={`/user/${encodeURIComponent(g.black_username)}`} className="text-blue-600 hover:underline">
+                            {g.black_username}
+                          </Link>
+                        ) : (
+                          "—"
+                        )}
+                      </td>
+                      <td className="py-2 px-3 text-slate-700 whitespace-nowrap">{g.result}</td>
+                      <td className="py-2 pl-3 text-right whitespace-nowrap">
+                        {g.rating_delta > 0 && (
+                          <span className="text-green-600 font-semibold">+{g.rating_delta}</span>
+                        )}
+                        {g.rating_delta < 0 && (
+                          <span className="text-red-600 font-semibold">{g.rating_delta}</span>
+                        )}
+                        {g.rating_delta === 0 && (
+                          <span className="text-slate-500">0</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
 
         {profile.bio?.trim() && (
           <div className="mt-6 rounded-3xl border border-slate-200 bg-white/90 p-6 shadow-lg backdrop-blur md:p-8">
