@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { Link2, Cpu } from "lucide-react";
 import {
   createInitialBoard,
   getValidMoves,
@@ -15,13 +17,47 @@ const BOARD_SIZE = 8;
 const CELL_SIZE = 44;
 
 export default function ReversiPage() {
+  const router = useRouter();
+  const [mode, setMode] = useState<"choice" | "vsCpu">("choice");
+  const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
+
   const [board, setBoard] = useState<Board>(() => createInitialBoard());
   const [turn, setTurn] = useState<"black" | "white">("black");
-  const [vsCpu, setVsCpu] = useState(false);
+  const [vsCpu, setVsCpu] = useState(true);
 
   const validMoves = getValidMoves(board, turn);
   const winner = getWinner(board);
   const { black, white } = countPieces(board);
+
+  const handleCreateByLink = useCallback(async () => {
+    setCreateError(null);
+    setCreating(true);
+    let playerId = typeof window !== "undefined" ? localStorage.getItem("ais_reversi_player_id") : null;
+    if (!playerId) {
+      playerId = crypto.randomUUID();
+      localStorage.setItem("ais_reversi_player_id", playerId);
+    }
+    try {
+      const res = await fetch("/api/reversi", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ playerId, creatorSide: "random" }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error((data as { error?: string }).error ?? "Не удалось создать игру");
+      const gameId = (data as { gameId?: string }).gameId;
+      if (gameId && typeof window !== "undefined") {
+        const url = `${window.location.origin}/reversi/play/${gameId}`;
+        await navigator.clipboard.writeText(url).catch(() => {});
+        router.push(`/reversi/play/${gameId}`);
+      }
+    } catch (e) {
+      setCreateError(e instanceof Error ? e.message : "Ошибка");
+    } finally {
+      setCreating(false);
+    }
+  }, [router]);
 
   const handleCellClick = useCallback(
     (r: number, c: number) => {
@@ -35,11 +71,7 @@ export default function ReversiPage() {
         setTurn(nextTurn);
       } else {
         const skipValid = getValidMoves(next, turn);
-        if (skipValid.length > 0) {
-          setTurn(turn);
-        } else {
-          setTurn(nextTurn);
-        }
+        setTurn(skipValid.length > 0 ? turn : nextTurn);
       }
     },
     [board, turn, winner]
@@ -78,17 +110,61 @@ export default function ReversiPage() {
       ? `Нет ходов. Ход переходит ${turn === "black" ? "белым" : "чёрным"}.`
       : `Ход: ${turn === "black" ? "Чёрные" : "Белые"}`;
 
+  if (mode === "choice") {
+    return (
+      <main className="min-h-screen bg-gradient-to-b from-green-50 via-white to-emerald-50 px-4 py-6">
+        <div className="mx-auto max-w-lg">
+          <div className="mb-6 flex items-center justify-between">
+            <Link href="/" className="text-sm font-medium text-slate-600 hover:text-slate-900">
+              ← На главную
+            </Link>
+            <h1 className="text-xl font-bold text-slate-900">Reversi</h1>
+          </div>
+
+          <div className="mb-6 rounded-2xl border border-slate-200 bg-white/90 p-6 shadow-md">
+            <h2 className="mb-4 text-center text-lg font-semibold text-slate-900">Выберите режим</h2>
+            <div className="flex flex-col gap-3">
+              <button
+                type="button"
+                onClick={handleCreateByLink}
+                disabled={creating}
+                className="flex items-center justify-center gap-3 rounded-xl border border-slate-600 bg-slate-700 px-4 py-3.5 text-sm font-medium text-slate-100 shadow-sm transition hover:bg-slate-600 disabled:opacity-70"
+              >
+                <Link2 className="h-5 w-5 shrink-0 text-slate-300" />
+                {creating ? "Создаём игру…" : "Игра по ссылке (онлайн)"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setMode("vsCpu")}
+                className="flex items-center justify-center gap-3 rounded-xl border border-slate-600 bg-slate-700 px-4 py-3.5 text-sm font-medium text-slate-100 shadow-sm transition hover:bg-slate-600"
+              >
+                <Cpu className="h-5 w-5 shrink-0 text-slate-300" />
+                С компьютером
+              </button>
+            </div>
+            {createError && <p className="mt-3 text-center text-sm text-red-600">{createError}</p>}
+          </div>
+
+          <p className="text-center text-xs text-slate-500">
+            По ссылке: создаётся игра, вы получаете ссылку. Отправьте её сопернику — он откроет и вы сможете играть онлайн. Без регистрации.
+          </p>
+        </div>
+      </main>
+    );
+  }
+
   return (
     <main className="min-h-screen bg-gradient-to-b from-green-50 via-white to-emerald-50 px-4 py-6">
       <div className="mx-auto max-w-lg">
         <div className="mb-4 flex items-center justify-between">
-          <Link
-            href="/"
+          <button
+            type="button"
+            onClick={() => setMode("choice")}
             className="text-sm font-medium text-slate-600 hover:text-slate-900"
           >
-            ← На главную
-          </Link>
-          <h1 className="text-xl font-bold text-slate-900">Reversi</h1>
+            ← Выбор режима
+          </button>
+          <h1 className="text-xl font-bold text-slate-900">Reversi — с компьютером</h1>
         </div>
 
         <div className="mb-4 flex items-center justify-between rounded-2xl border border-slate-200 bg-white/90 px-4 py-3 shadow-sm">
@@ -100,24 +176,13 @@ export default function ReversiPage() {
               Белые: <span className="text-slate-400">{white}</span>
             </span>
           </div>
-          <div className="flex items-center gap-2">
-            <label className="flex items-center gap-2 text-sm text-slate-600">
-              <input
-                type="checkbox"
-                checked={vsCpu}
-                onChange={(e) => setVsCpu(e.target.checked)}
-                className="rounded border-slate-300"
-              />
-              vs CPU
-            </label>
-            <button
-              type="button"
-              onClick={startNewGame}
-              className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-100"
-            >
-              Новая игра
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={startNewGame}
+            className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-100"
+          >
+            Новая игра
+          </button>
         </div>
 
         <div
@@ -137,20 +202,12 @@ export default function ReversiPage() {
                     className="flex h-11 w-11 items-center justify-center rounded-md bg-green-700 transition hover:bg-green-600 disabled:cursor-default disabled:opacity-100"
                   >
                     {cell === "black" && (
-                      <span
-                        className="h-8 w-8 rounded-full shadow-md"
-                        style={{ backgroundColor: "#1f2937" }}
-                      />
+                      <span className="h-8 w-8 rounded-full shadow-md" style={{ backgroundColor: "#1f2937" }} />
                     )}
                     {cell === "white" && (
-                      <span
-                        className="h-8 w-8 rounded-full shadow-md"
-                        style={{ backgroundColor: "#f3f4f6" }}
-                      />
+                      <span className="h-8 w-8 rounded-full shadow-md" style={{ backgroundColor: "#f3f4f6" }} />
                     )}
-                    {!cell && isValid && (
-                      <span className="h-2 w-2 rounded-full bg-slate-400/60" />
-                    )}
+                    {!cell && isValid && <span className="h-2 w-2 rounded-full bg-slate-400/60" />}
                   </button>
                 );
               })
