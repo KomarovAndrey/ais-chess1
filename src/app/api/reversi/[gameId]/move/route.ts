@@ -100,7 +100,10 @@ export async function POST(
       status: winner ? "finished" : "active",
       winner: winner ?? null,
     };
-    const fromTable = supabase.from("reversi_games") as { update: (v: ReversiGameUpdate) => { eq: (col: string, id: string) => { select: (cols: string) => { single: () => Promise<{ data: unknown; error: unknown }> } } } } };
+    type ReversiTable = {
+      update: (v: ReversiGameUpdate) => { eq: (c: string, id: string) => { select: (s: string) => { single: () => Promise<{ data: unknown; error: unknown }> } } };
+    };
+    const fromTable = supabase.from("reversi_games") as unknown as ReversiTable;
     const { data: updated, error: updateError } = await fromTable
       .update(updatePayload)
       .eq("id", gameId)
