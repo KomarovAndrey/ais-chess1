@@ -6,6 +6,7 @@ const baseUrl =
 const staticRoutes: { path: string; changeFrequency?: "yearly" | "monthly" | "weekly" | "daily"; priority?: number }[] = [
   { path: "/", changeFrequency: "weekly", priority: 1 },
   { path: "/chess", changeFrequency: "weekly", priority: 0.9 },
+  { path: "/reversi", changeFrequency: "weekly", priority: 0.8 },
   { path: "/puzzles", changeFrequency: "weekly", priority: 0.8 },
   { path: "/tournaments", changeFrequency: "daily", priority: 0.8 },
   { path: "/ratings", changeFrequency: "daily", priority: 0.9 },

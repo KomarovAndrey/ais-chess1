@@ -28,6 +28,12 @@ export default function SiteHeader() {
             >
               <span className="text-lg font-bold tracking-tight">Рейтинги</span>
             </Link>
+            <Link
+              href="/reversi"
+              className="flex items-center rounded-lg border border-slate-300 px-3 py-1.5 font-semibold text-slate-900 transition hover:bg-slate-100 hover:text-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+            >
+              <span className="text-lg font-bold tracking-tight">Reversi</span>
+            </Link>
           </div>
         </div>
         <AppNav />
