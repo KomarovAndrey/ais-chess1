@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSupabaseOptionalUser } from "@/lib/apiAuth";
+import { getAnonSupabase } from "@/lib/supabase/anon-server";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { createInitialBoard } from "@/lib/reversi";
 
@@ -7,18 +7,21 @@ const UUID_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 export async function POST(req: NextRequest) {
-  const auth = await getSupabaseOptionalUser();
-  if ("response" in auth) return auth.response;
-  const { supabase, user } = auth;
+  const supabase = getAnonSupabase();
+  if (!supabase) {
+    return NextResponse.json(
+      { error: "Сервис временно недоступен. Настройте Supabase (NEXT_PUBLIC_SUPABASE_*)." },
+      { status: 503 }
+    );
+  }
 
   try {
     const body = await req.json().catch(() => ({}));
     const creatorSide = body.creatorSide === "white" ? "white" : body.creatorSide === "black" ? "black" : "random";
-    const bodyPlayerId = body.playerId;
-    const playerId = user?.id ?? bodyPlayerId;
-    if (!playerId || (user === null && (!bodyPlayerId || !UUID_REGEX.test(bodyPlayerId)))) {
+    const playerId = body.playerId;
+    if (!playerId || !UUID_REGEX.test(playerId)) {
       return NextResponse.json(
-        { error: "Укажите playerId (UUID) в теле запроса для игры без входа." },
+        { error: "Укажите playerId (UUID) в теле запроса для игры по ссылке." },
         { status: 400 }
       );
     }

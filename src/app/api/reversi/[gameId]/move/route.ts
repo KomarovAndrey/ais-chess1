@@ -1,18 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSupabaseOptionalUser } from "@/lib/apiAuth";
+import { getAnonSupabase } from "@/lib/supabase/anon-server";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { makeMove as reversiMakeMove, getWinner, getValidMoves } from "@/lib/reversi";
 import type { Board } from "@/lib/reversi";
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
+function samePlayer(a: string | null | undefined, b: string | null | undefined): boolean {
+  if (a == null || b == null) return false;
+  return a.toLowerCase() === b.toLowerCase();
+}
+
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ gameId: string }> }
 ) {
-  const auth = await getSupabaseOptionalUser();
-  if ("response" in auth) return auth.response;
-  const { supabase, user } = auth;
+  const supabase = getAnonSupabase();
+  if (!supabase) {
+    return NextResponse.json({ error: "Сервис временно недоступен." }, { status: 503 });
+  }
 
   try {
     const { gameId } = await params;
@@ -21,11 +27,11 @@ export async function POST(
     }
 
     const body = await req.json().catch(() => ({}));
-    const playerId = user?.id ?? body.playerId;
+    const playerId = body.playerId;
     const row = typeof body.row === "number" ? body.row : parseInt(body.row, 10);
     const col = typeof body.col === "number" ? body.col : parseInt(body.col, 10);
-    if (!playerId || (user === null && !body.playerId)) {
-      return NextResponse.json({ error: "Укажите playerId" }, { status: 400 });
+    if (!playerId || !UUID_REGEX.test(playerId)) {
+      return NextResponse.json({ error: "Укажите playerId (UUID)" }, { status: 400 });
     }
     if (row < 0 || row > 7 || col < 0 || col > 7) {
       return NextResponse.json({ error: "Недопустимая клетка" }, { status: 400 });
@@ -49,7 +55,7 @@ export async function POST(
 
     const currentTurn = game.turn as "black" | "white";
     const currentPlayerId = currentTurn === "black" ? game.black_player_id : game.white_player_id;
-    if (currentPlayerId !== playerId) {
+    if (!samePlayer(currentPlayerId, playerId)) {
       return NextResponse.json({ error: "Не ваш ход" }, { status: 403 });
     }
 

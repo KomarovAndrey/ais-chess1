@@ -1,21 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSupabaseOptionalUser } from "@/lib/apiAuth";
+import { getAnonSupabase } from "@/lib/supabase/anon-server";
 import { checkRateLimit } from "@/lib/rateLimit";
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 export async function POST(req: NextRequest) {
-  const auth = await getSupabaseOptionalUser();
-  if ("response" in auth) return auth.response;
-  const { supabase, user } = auth;
+  const supabase = getAnonSupabase();
+  if (!supabase) {
+    return NextResponse.json(
+      { error: "Сервис временно недоступен. Настройте Supabase (NEXT_PUBLIC_SUPABASE_*)." },
+      { status: 503 }
+    );
+  }
 
   try {
     const body = await req.json().catch(() => ({}));
     const gameId = body.gameId;
-    const playerId = user?.id ?? body.playerId;
-    if (!gameId || !playerId || (user === null && (!body.playerId || !UUID_REGEX.test(body.playerId)))) {
+    const playerId = body.playerId;
+    if (!gameId || !playerId || !UUID_REGEX.test(playerId)) {
       return NextResponse.json(
-        { error: "Укажите gameId и playerId в теле запроса." },
+        { error: "Укажите gameId и playerId (UUID) в теле запроса." },
         { status: 400 }
       );
     }

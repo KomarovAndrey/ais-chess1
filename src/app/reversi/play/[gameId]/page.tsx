@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server";
+import { getAnonSupabase } from "@/lib/supabase/anon-server";
 import ReversiPlayClient from "./reversi-play-client";
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -17,7 +17,7 @@ export default async function ReversiPlayPage({
     );
   }
 
-  const supabase = await createClient();
+  const supabase = getAnonSupabase();
   let initialGame: { id: string; status: string; board: unknown; turn: string; winner: string | null } | null = null;
   if (supabase) {
     const { data } = await supabase
