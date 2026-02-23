@@ -2,8 +2,10 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { UserPlus, Cpu, X } from "lucide-react";
+import Link from "next/link";
+import { UserPlus, Cpu, X, Trophy, Puzzle, Swords } from "lucide-react";
 import GameParamsModal from "@/components/GameParamsModal";
+import { CPU_LEVEL_DESCRIPTIONS, CPU_PERSONAS } from "@/lib/cpu-levels";
 import { supabase } from "@/lib/supabaseClient";
 
 const TIME_OPTIONS = [
@@ -202,6 +204,81 @@ export default function HomePage() {
             </div>
           </div>
         </section>
+
+        {/* Quick action blocks: Рейтинги, Игра с компьютером, Партия, Головоломки, Турниры */}
+        <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">
+          <Link
+            href="/ratings"
+            className="flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-orange-200 hover:shadow-md"
+          >
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-700">
+              <Trophy className="h-6 w-6" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-slate-900">Рейтинги</h3>
+              <p className="text-xs text-slate-500">Таблица лидеров по быстрым партиям</p>
+            </div>
+          </Link>
+          <button
+            type="button"
+            onClick={() => setShowCpuModal(true)}
+            className="flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm transition hover:border-orange-200 hover:shadow-md"
+          >
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-blue-100 text-blue-700">
+              <Cpu className="h-6 w-6" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-slate-900">С компьютером</h3>
+              <p className="text-xs text-slate-500">Тренировка против ИИ</p>
+            </div>
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              if (userId) {
+                setChallengeError(null);
+                setChallengeOk(null);
+                setShowFriendModal(true);
+              } else {
+                setError(null);
+                setShowModal(true);
+              }
+            }}
+            className="flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm transition hover:border-orange-200 hover:shadow-md"
+          >
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700">
+              <UserPlus className="h-6 w-6" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-slate-900">Партия с другом</h3>
+              <p className="text-xs text-slate-500">По ссылке или вызов из списка</p>
+            </div>
+          </button>
+          <Link
+            href="/puzzles"
+            className="flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-orange-200 hover:shadow-md"
+          >
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-violet-100 text-violet-700">
+              <Puzzle className="h-6 w-6" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-slate-900">Головоломки</h3>
+              <p className="text-xs text-slate-500">Тактические задачи</p>
+            </div>
+          </Link>
+          <Link
+            href="/tournaments"
+            className="flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-orange-200 hover:shadow-md"
+          >
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-700">
+              <Swords className="h-6 w-6" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-slate-900">Турниры</h3>
+              <p className="text-xs text-slate-500">Школьные соревнования</p>
+            </div>
+          </Link>
+        </section>
       </div>
 
       {/* Modal — Бросить вызов (создание игры по ссылке) */}
@@ -368,16 +445,23 @@ export default function HomePage() {
                       key={level}
                       type="button"
                       onClick={() => setCpuLevel(level)}
-                      className={`rounded-xl border px-2 py-3 text-sm font-bold transition ${
+                      className={`flex flex-col rounded-xl border px-2 py-3 text-sm font-bold transition ${
                         cpuLevel === level
                           ? "border-2 border-blue-600 bg-blue-600 text-white shadow-md"
                           : "border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100"
                       }`}
+                      title={CPU_PERSONAS[level].name + " — " + CPU_PERSONAS[level].style}
                     >
-                      {level}
+                      <span>{level}</span>
+                      <span className="mt-0.5 truncate text-[10px] font-normal opacity-90">
+                        {CPU_PERSONAS[level].name}
+                      </span>
                     </button>
                   ))}
                 </div>
+                <p className="mt-2 text-center text-xs text-slate-500">
+                  {CPU_LEVEL_DESCRIPTIONS[cpuLevel]}
+                </p>
               </div>
               <button
                 type="button"

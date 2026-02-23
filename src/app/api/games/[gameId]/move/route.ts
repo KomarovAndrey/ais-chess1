@@ -115,7 +115,7 @@ export async function POST(
 
     const { data: currentGame, error: gameError } = await supabase
       .from("games")
-      .select("id, status, fen, active_color, white_time_left, black_time_left, last_move_at")
+      .select("id, status, fen, active_color, white_time_left, black_time_left, last_move_at, moves")
       .eq("id", gameId)
       .single();
 
@@ -171,6 +171,12 @@ export async function POST(
     let nextActive: "w" | "b";
     let whiteTimeLeft: number;
     let blackTimeLeft: number;
+
+    const currentMoves: string[] = Array.isArray(currentGame.moves)
+      ? currentGame.moves
+      : typeof currentGame.moves === "object" && currentGame.moves !== null
+        ? (Object.values(currentGame.moves) as string[])
+        : [];
 
     if (isUci) {
       const uci = (parsed.data as { uci: string }).uci;
@@ -265,12 +271,17 @@ export async function POST(
     status = computed.status;
     winner = computed.winner;
 
+    const newMoves = isUci
+      ? [...currentMoves, (parsed.data as { uci: string }).uci]
+      : currentMoves;
+
     const payload = {
       fen: newFen,
       active_color: nextActive,
       white_time_left: whiteTimeLeft,
       black_time_left: blackTimeLeft,
       last_move_at: new Date().toISOString(),
+      moves: newMoves,
       status,
       winner: status === "finished" ? winner : null
     };

@@ -2,8 +2,10 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "next/navigation";
+import Link from "next/link";
 import { Chess } from "chess.js";
 import { Chessboard } from "react-chessboard";
+import { ChevronLeft, ChevronRight, SkipBack, SkipForward, Download } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 
 type GameStatus = "waiting" | "active" | "finished";
@@ -21,6 +23,7 @@ interface GameRow {
   black_time_left: number;
   last_move_at: string | null;
   draw_offer_from?: string | null;
+  moves?: string[];
 }
 
 interface PlayerRow {
@@ -58,6 +61,56 @@ function pliesFromFen(fen: string | null | undefined): number {
   }
 }
 
+const START_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+
+/** FEN after applying first n moves from start position. */
+function fenAtStep(moves: string[], step: number): string {
+  if (!moves.length || step <= 0) return START_FEN;
+  const chess = new Chess();
+  const end = Math.min(step, moves.length);
+  for (let i = 0; i < end; i++) {
+    const m = chess.move(moves[i], { strict: false });
+    if (!m) break;
+  }
+  return chess.fen();
+}
+
+/** Build PGN string for download. */
+function buildPgn(
+  moves: string[],
+  whiteName: string,
+  blackName: string,
+  result: "white" | "black" | "draw" | null,
+  timeControlSeconds: number
+): string {
+  const chess = new Chess();
+  const moveList: string[] = [];
+  let moveNumber = 1;
+  for (const uci of moves) {
+    const m = chess.move(uci, { strict: false });
+    if (!m) break;
+    if (m.color === "w") {
+      moveList.push(`${moveNumber}. ${m.san}`);
+    } else {
+      moveList.push(m.san);
+      moveNumber++;
+    }
+  }
+  const resultTag =
+    result === "white" ? "1-0" : result === "black" ? "0-1" : "1/2-1/2";
+  const headers = [
+    `[Event "AIS Chess"]`,
+    `[Site "?"]`,
+    `[Date "${new Date().toISOString().slice(0, 10).replace(/-/g, ".")}"]`,
+    `[White "${whiteName.replace(/"/g, '\\"')}"]`,
+    `[Black "${blackName.replace(/"/g, '\\"')}"]`,
+    `[TimeControl "${timeControlSeconds}"]`,
+    `[Result "${resultTag}"]`,
+    ""
+  ].join("\n");
+  return headers + moveList.join(" ") + " " + resultTag;
+}
+
 export default function PlayGame({ initialGame }: PlayGameProps) {
   const params = useParams<{ gameId: string }>();
   const gameId = params.gameId;
@@ -74,6 +127,8 @@ export default function PlayGame({ initialGame }: PlayGameProps) {
 
   const [whitePlayerInfo, setWhitePlayerInfo] = useState<PlayerInfo>({ username: null, rating: null });
   const [blackPlayerInfo, setBlackPlayerInfo] = useState<PlayerInfo>({ username: null, rating: null });
+  /** Replay: 0 = start, moves.length = final position. Only used when status === 'finished'. */
+  const [replayStep, setReplayStep] = useState(0);
 
   // Игнорировать устаревшие Realtime/poll, чтобы ход не откатывался
   const lastMoveAtRef = useRef<string | null>(initialGame.last_move_at ?? null);
@@ -478,6 +533,27 @@ export default function PlayGame({ initialGame }: PlayGameProps) {
     return "Ваш ход.";
   })();
 
+  const moveList = gameRow.moves ?? [];
+  const replayFen =
+    gameRow.status === "finished" && moveList.length > 0
+      ? fenAtStep(moveList, replayStep)
+      : null;
+  const displayFen =
+    replayFen ?? (gameRow.fen && gameRow.fen !== "startpos" ? gameRow.fen : game.fen());
+
+  const syncReplayStepToMoves = () => {
+    const len = moveList.length;
+    if (replayStep > len) setReplayStep(len);
+  };
+  useEffect(syncReplayStepToMoves, [moveList.length, replayStep]);
+
+  // When game becomes finished, show final position by default
+  useEffect(() => {
+    if (gameRow.status === "finished" && moveList.length > 0 && replayStep === 0) {
+      setReplayStep(moveList.length);
+    }
+  }, [gameRow.status, moveList.length, replayStep]);
+
   return (
     <main className="min-h-screen bg-gradient-to-b from-blue-50 via-white to-orange-50 px-4 py-6">
       <div className="mx-auto flex max-w-5xl flex-col gap-6 md:flex-row">
@@ -543,6 +619,8 @@ export default function PlayGame({ initialGame }: PlayGameProps) {
             </div>
 
             <div
+              role="img"
+              aria-label="Шахматная доска. Текущая позиция."
               className="aspect-square w-full mx-auto overflow-hidden rounded-2xl border border-slate-200 bg-slate-100"
               style={{
                 maxWidth: "min(100vw - 2rem, 480px)",
@@ -551,8 +629,8 @@ export default function PlayGame({ initialGame }: PlayGameProps) {
               }}
             >
               <Chessboard
-                position={gameRow.fen && gameRow.fen !== "startpos" ? gameRow.fen : game.fen()}
-                onPieceDrop={onDrop}
+                position={displayFen}
+                onPieceDrop={gameRow.status === "active" ? onDrop : undefined}
                 boardOrientation={boardOrientation}
                 customDarkSquareStyle={{ backgroundColor: "#b58863" }}
                 customLightSquareStyle={{ backgroundColor: "#f0d9b5" }}
@@ -562,6 +640,37 @@ export default function PlayGame({ initialGame }: PlayGameProps) {
                 }}
               />
             </div>
+            {moveList.length > 0 && (
+              <div className="mt-2 flex items-center gap-2">
+                <p
+                  className="text-sm text-slate-600"
+                  aria-live="polite"
+                  aria-atomic="true"
+                >
+                  {replayStep > 0
+                    ? `Ход ${replayStep}: ${moveList[replayStep - 1]?.replace(/([a-h])([1-8])/g, "$1-$2") ?? ""}`
+                    : "Начальная позиция"}
+                </p>
+                {replayStep > 0 && moveList[replayStep - 1] && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const uci = moveList[replayStep - 1];
+                      if (!uci) return;
+                      const from = uci.slice(0, 2);
+                      const to = uci.slice(2, 4);
+                      const msg = new SpeechSynthesisUtterance(`${from} ${to}`);
+                      msg.lang = "ru-RU";
+                      window.speechSynthesis?.speak(msg);
+                    }}
+                    className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs text-slate-600 hover:bg-slate-50"
+                    aria-label="Озвучить текущий ход"
+                  >
+                    Озвучить
+                  </button>
+                )}
+              </div>
+            )}
 
             {gameRow.status === "active" && (
               <div className="flex items-center justify-center gap-3">
@@ -603,7 +712,105 @@ export default function PlayGame({ initialGame }: PlayGameProps) {
                 {formatMs(bottomTime)}
               </span>
             </div>
-          </div>
+            </div>
+
+          {gameRow.status === "finished" && (
+            <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50/80 p-4 shadow-sm">
+              <h3 className="mb-2 text-sm font-semibold text-slate-900">Итог партии</h3>
+              <p className="text-slate-700">
+                {gameRow.winner === "draw"
+                  ? "Ничья."
+                  : gameRow.winner === "white"
+                    ? "Победили белые."
+                    : "Победили чёрные."}
+              </p>
+              {gameRow.started_at && (
+                <p className="mt-1 text-xs text-slate-500">
+                  Партия заняла {moveList.length} ходов.
+                </p>
+              )}
+              <div className="mt-3">
+                <Link
+                  href="/"
+                  className="inline-flex items-center rounded-xl bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700"
+                >
+                  Сыграть ещё
+                </Link>
+              </div>
+            </div>
+          )}
+
+          {gameRow.status === "finished" && moveList.length > 0 && (
+            <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+              <h3 className="mb-3 text-sm font-semibold text-slate-900">Просмотр партии</h3>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setReplayStep(0)}
+                  disabled={replayStep === 0}
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100 disabled:opacity-40"
+                  aria-label="В начало"
+                >
+                  <SkipBack className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setReplayStep((s) => Math.max(0, s - 1))}
+                  disabled={replayStep === 0}
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100 disabled:opacity-40"
+                  aria-label="Назад"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </button>
+                <span className="min-w-[4rem] text-center text-sm text-slate-600">
+                  {replayStep} / {moveList.length}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setReplayStep((s) => Math.min(moveList.length, s + 1))}
+                  disabled={replayStep === moveList.length}
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100 disabled:opacity-40"
+                  aria-label="Вперёд"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setReplayStep(moveList.length)}
+                  disabled={replayStep === moveList.length}
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100 disabled:opacity-40"
+                  aria-label="В конец"
+                >
+                  <SkipForward className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const whiteName = whitePlayerInfo.username ?? "Белые";
+                    const blackName = blackPlayerInfo.username ?? "Чёрные";
+                    const pgn = buildPgn(
+                      moveList,
+                      whiteName,
+                      blackName,
+                      gameRow.winner,
+                      gameRow.time_control_seconds
+                    );
+                    const blob = new Blob([pgn], { type: "application/x-chess-pgn" });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement("a");
+                    a.href = url;
+                    a.download = `ais-chess-${gameId}.pgn`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                  }}
+                  className="ml-2 inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 hover:bg-slate-100"
+                >
+                  <Download className="h-4 w-4" />
+                  Скачать PGN
+                </button>
+              </div>
+            </div>
+          )}
 
           {error && (
             <p className="mt-3 text-xs text-red-600">

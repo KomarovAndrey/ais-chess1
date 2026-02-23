@@ -4,8 +4,9 @@ import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Chess } from "chess.js";
 import { Chessboard } from "react-chessboard";
-import { Cpu, X } from "lucide-react";
+import { Cpu, X, ChevronLeft, ChevronRight, SkipBack, SkipForward, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { CPU_LEVEL_DESCRIPTIONS, CPU_PERSONAS } from "@/lib/cpu-levels";
 
 const TIME_OPTIONS = [
   { seconds: 180, label: "3 мин" },
@@ -53,7 +54,31 @@ function ChessPageContent() {
   const [modalTime, setModalTime] = useState(300);
   const [modalColor, setModalColor] = useState<"white" | "black" | "random">("random");
   const [modalLevel, setModalLevel] = useState<DifficultyLevel>(3);
+  /** Replay step for finished game: 0 = start, history.length = end. */
+  const [replayStep, setReplayStep] = useState(0);
   const router = useRouter();
+
+  const gameOver = game.isGameOver() || gameOverByTime;
+  const history = game.history();
+  const fenAtStepLocal = (step: number) => {
+    if (step <= 0) return "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+    const c = new Chess();
+    const slice = history.slice(0, step);
+    for (const san of slice) {
+      const m = c.move(san);
+      if (!m) break;
+    }
+    return c.fen();
+  };
+  const displayFen = gameOver && history.length > 0
+    ? fenAtStepLocal(replayStep)
+    : fen;
+
+  useEffect(() => {
+    if (gameOver && history.length > 0 && replayStep === 0) {
+      setReplayStep(history.length);
+    }
+  }, [gameOver, history.length, replayStep]);
 
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     if (e.key === "Escape") setShowNewGameModal(false);
@@ -247,6 +272,8 @@ function ChessPageContent() {
           )}
 
           <div
+            role="img"
+            aria-label="Шахматная доска. Игра с компьютером. Текущая позиция."
             className="aspect-square w-full mx-auto overflow-hidden rounded-2xl border border-slate-200 bg-slate-100"
             style={{
               maxWidth: "min(100vw - 2rem, 480px)",
@@ -255,8 +282,8 @@ function ChessPageContent() {
             }}
           >
             <Chessboard
-              position={fen}
-              onPieceDrop={onDrop}
+              position={displayFen}
+              onPieceDrop={gameOver ? undefined : onDrop}
               boardOrientation={playerColor}
               customDarkSquareStyle={{ backgroundColor: "#b58863" }}
               customLightSquareStyle={{ backgroundColor: "#f0d9b5" }}
@@ -266,6 +293,35 @@ function ChessPageContent() {
               }}
             />
           </div>
+          {history.length > 0 && (
+            <div className="mt-2 flex items-center gap-2">
+              <p
+                className="text-sm text-slate-600"
+                aria-live="polite"
+                aria-atomic="true"
+              >
+                {gameOver
+                  ? (replayStep > 0 ? `Ход ${replayStep}: ${history[replayStep - 1] ?? ""}` : "Начальная позиция")
+                  : `Последний ход: ${history[history.length - 1] ?? ""}`}
+              </p>
+              {(gameOver ? replayStep > 0 && history[replayStep - 1] : history[history.length - 1]) && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const san = gameOver ? history[replayStep - 1] : history[history.length - 1];
+                    if (!san) return;
+                    const msg = new SpeechSynthesisUtterance(san);
+                    msg.lang = "ru-RU";
+                    window.speechSynthesis?.speak(msg);
+                  }}
+                  className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs text-slate-600 hover:bg-slate-50"
+                  aria-label="Озвучить последний ход"
+                >
+                  Озвучить
+                </button>
+              )}
+            </div>
+          )}
 
           {initialTimeMs > 0 && (
             <div className="mt-3 flex items-center justify-between rounded-2xl bg-slate-900 px-4 py-2 text-sm font-mono text-white">
@@ -277,6 +333,102 @@ function ChessPageContent() {
           <div className="mt-4 rounded-2xl bg-slate-50 px-4 py-3 text-sm text-slate-700">
             {status}
           </div>
+
+          {gameOver && (
+            <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50/80 p-4 shadow-sm">
+              <h3 className="mb-2 text-sm font-semibold text-slate-900">Итог партии</h3>
+              <p className="text-slate-700">{status}</p>
+              {history.length > 0 && (
+                <p className="mt-1 text-xs text-slate-500">Партия заняла {history.length} ходов.</p>
+              )}
+              <button
+                type="button"
+                onClick={openNewGameModal}
+                className="mt-3 inline-flex items-center rounded-xl bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700"
+              >
+                Новая партия
+              </button>
+            </div>
+          )}
+
+          {gameOver && history.length > 0 && (
+            <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+              <h3 className="mb-3 text-sm font-semibold text-slate-900">Просмотр партии</h3>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setReplayStep(0)}
+                  disabled={replayStep === 0}
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100 disabled:opacity-40"
+                  aria-label="В начало"
+                >
+                  <SkipBack className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setReplayStep((s) => Math.max(0, s - 1))}
+                  disabled={replayStep === 0}
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100 disabled:opacity-40"
+                  aria-label="Назад"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </button>
+                <span className="min-w-[4rem] text-center text-sm text-slate-600">
+                  {replayStep} / {history.length}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setReplayStep((s) => Math.min(history.length, s + 1))}
+                  disabled={replayStep === history.length}
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100 disabled:opacity-40"
+                  aria-label="Вперёд"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setReplayStep(history.length)}
+                  disabled={replayStep === history.length}
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100 disabled:opacity-40"
+                  aria-label="В конец"
+                >
+                  <SkipForward className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const result = game.isCheckmate()
+                      ? (game.turn() === "w" ? "0-1" : "1-0")
+                      : game.isDraw()
+                        ? "1/2-1/2"
+                        : "1/2-1/2";
+                    const pgnBody = game.pgn();
+                    const headers = [
+                      `[Event "AIS Chess"]`,
+                      `[Site "?"]`,
+                      `[Date "${new Date().toISOString().slice(0, 10).replace(/-/g, ".")}"]`,
+                      `[White "${playerColor === "white" ? "Вы" : "Компьютер"}"]`,
+                      `[Black "${playerColor === "black" ? "Вы" : "Компьютер"}"]`,
+                      `[Result "${result}"]`,
+                      ""
+                    ].join("\n");
+                    const blob = new Blob([headers + pgnBody], { type: "application/x-chess-pgn" });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement("a");
+                    a.href = url;
+                    a.download = "ais-chess-vs-cpu.pgn";
+                    a.click();
+                    URL.revokeObjectURL(url);
+                  }}
+                  className="ml-2 inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 hover:bg-slate-100"
+                >
+                  <Download className="h-4 w-4" />
+                  Скачать PGN
+                </button>
+              </div>
+            </div>
+          )}
+
         </section>
 
         <aside className="w-full max-w-md space-y-4 md:w-80">
@@ -289,6 +441,12 @@ function ChessPageContent() {
             >
               Новая партия
             </Button>
+          </div>
+          <div className="rounded-3xl border border-slate-200 bg-white/90 p-4 shadow-md">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+              Уровень {difficulty}: {CPU_PERSONAS[difficulty].name}
+            </p>
+            <p className="mt-1 text-sm text-slate-600">{CPU_LEVEL_DESCRIPTIONS[difficulty]}</p>
           </div>
         </aside>
       </div>
@@ -367,16 +525,23 @@ function ChessPageContent() {
                       key={level}
                       type="button"
                       onClick={() => setModalLevel(level)}
-                      className={`rounded-xl border px-2 py-3 text-sm font-bold transition ${
+                      className={`flex flex-col rounded-xl border px-2 py-3 text-sm font-bold transition ${
                         modalLevel === level
                           ? "border-2 border-blue-600 bg-blue-600 text-white shadow-md"
                           : "border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100"
                       }`}
+                      title={CPU_PERSONAS[level].name + " — " + CPU_PERSONAS[level].style}
                     >
-                      {level}
+                      <span>{level}</span>
+                      <span className="mt-0.5 truncate text-[10px] font-normal opacity-90">
+                        {CPU_PERSONAS[level].name}
+                      </span>
                     </button>
                   ))}
                 </div>
+                <p className="mt-2 text-center text-xs text-slate-500">
+                  {CPU_LEVEL_DESCRIPTIONS[modalLevel]}
+                </p>
               </div>
               <button
                 type="button"
