@@ -13,6 +13,13 @@ type ReversiGameRow = {
   white_player_id: string | null;
 };
 
+type ReversiGameUpdate = {
+  board: Board;
+  turn: "black" | "white";
+  status: "active" | "finished";
+  winner: "black" | "white" | "draw" | null;
+};
+
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function samePlayer(a: string | null | undefined, b: string | null | undefined): boolean {
@@ -87,14 +94,16 @@ export async function POST(
       }
     }
 
+    const updatePayload: ReversiGameUpdate = {
+      board: finalBoard,
+      turn: nextTurn,
+      status: winner ? "finished" : "active",
+      winner: winner ?? null,
+    };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- reversi_games not in Supabase generated types
     const { data: updated, error: updateError } = await supabase
       .from("reversi_games")
-      .update({
-        board: finalBoard,
-        turn: nextTurn,
-        status: winner ? "finished" : "active",
-        winner: winner ?? null,
-      })
+      .update(updatePayload as any)
       .eq("id", gameId)
       .select("*")
       .single();
