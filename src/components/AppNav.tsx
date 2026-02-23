@@ -177,10 +177,21 @@ export default function AppNav() {
     };
   }, [user, router]);
 
-  if (loading) {
+  if (loading && !user) {
     return (
-      <nav className="flex items-center gap-3 text-sm font-medium text-slate-600">
-        <span className="animate-pulse">...</span>
+      <nav className="flex items-center gap-3">
+        <Link
+          href="/login"
+          className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50"
+        >
+          Войти
+        </Link>
+        <Link
+          href="/register"
+          className="rounded-xl bg-blue-600 px-3 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700"
+        >
+          Регистрация
+        </Link>
       </nav>
     );
   }
