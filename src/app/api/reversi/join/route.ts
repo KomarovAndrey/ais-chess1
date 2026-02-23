@@ -4,6 +4,17 @@ import { checkRateLimit } from "@/lib/rateLimit";
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
+type ReversiGameRow = {
+  id: string;
+  status: string;
+  black_player_id: string | null;
+  white_player_id: string | null;
+};
+
+type ReversiTableUpdate = {
+  update: (v: Record<string, unknown>) => { eq: (c: string, id: string) => { select: (s: string) => { single: () => Promise<{ data: unknown; error: unknown }> } } };
+};
+
 export async function POST(req: NextRequest) {
   const supabase = getAnonSupabase();
   if (!supabase) {
@@ -31,12 +42,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Too many requests" }, { status: 429 });
     }
 
-    const { data: game, error: fetchError } = await supabase
+    const { data, error: fetchError } = await supabase
       .from("reversi_games")
       .select("*")
       .eq("id", gameId)
       .single();
 
+    const game = data as ReversiGameRow | null;
     if (fetchError || !game) {
       return NextResponse.json({ error: "Игра не найдена" }, { status: 404 });
     }
@@ -55,8 +67,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "В игре уже два игрока" }, { status: 400 });
     }
 
-    const { data: updated, error: updateError } = await supabase
-      .from("reversi_games")
+    const fromTable = supabase.from("reversi_games") as unknown as ReversiTableUpdate;
+    const { data: updated, error: updateError } = await fromTable
       .update(updates)
       .eq("id", gameId)
       .select("*")
