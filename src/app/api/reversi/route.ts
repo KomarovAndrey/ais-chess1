@@ -74,8 +74,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Не удалось создать игру" }, { status: 500 });
     }
 
+    const created = game as { id: string };
     return NextResponse.json(
-      { gameId: game.id, url: `/reversi/play/${game.id}` },
+      { gameId: created.id, url: `/reversi/play/${created.id}` },
       { status: 201 }
     );
   } catch (e) {
