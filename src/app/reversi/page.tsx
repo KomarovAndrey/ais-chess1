@@ -15,6 +15,9 @@ import {
 
 const BOARD_SIZE = 8;
 const CELL_SIZE = 44;
+const GRID_GAP = 2;
+const GRID_PADDING = 4;
+const BOARD_WRAPPER_SIZE = BOARD_SIZE * CELL_SIZE + (BOARD_SIZE - 1) * GRID_GAP + 2 * GRID_PADDING + 4;
 
 export default function ReversiPage() {
   const router = useRouter();
@@ -186,10 +189,13 @@ export default function ReversiPage() {
         </div>
 
         <div
-          className="inline-block overflow-hidden rounded-2xl border-2 border-slate-400 bg-green-800 shadow-lg"
-          style={{ width: BOARD_SIZE * CELL_SIZE + 8, height: BOARD_SIZE * CELL_SIZE + 8 }}
+          className="inline-block rounded-2xl border-2 border-slate-400 bg-green-800 shadow-lg"
+          style={{ width: BOARD_WRAPPER_SIZE, height: BOARD_WRAPPER_SIZE }}
         >
-          <div className="grid gap-0.5 p-1" style={{ gridTemplateColumns: `repeat(${BOARD_SIZE}, ${CELL_SIZE}px)` }}>
+          <div
+            className="grid gap-0.5 p-1"
+            style={{ gridTemplateColumns: `repeat(${BOARD_SIZE}, ${CELL_SIZE}px)`, gridTemplateRows: `repeat(${BOARD_SIZE}, ${CELL_SIZE}px)` }}
+          >
             {board.map((row, r) =>
               row.map((cell, c) => {
                 const isValid = !winner && validMoves.some(([mr, mc]) => mr === r && mc === c);
