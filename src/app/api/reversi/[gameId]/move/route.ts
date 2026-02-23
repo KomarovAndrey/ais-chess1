@@ -100,7 +100,7 @@ export async function POST(
       status: winner ? "finished" : "active",
       winner: winner ?? null,
     };
-    const fromTable = supabase.from("reversi_games");
+    const fromTable = supabase.from("reversi_games") as { update: (v: ReversiGameUpdate) => { eq: (col: string, id: string) => { select: (cols: string) => { single: () => Promise<{ data: unknown; error: unknown }> } } } } };
     const { data: updated, error: updateError } = await fromTable
       .update(updatePayload)
       .eq("id", gameId)
