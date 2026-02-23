@@ -217,7 +217,6 @@ export default function HomePage() {
             </div>
             <div>
               <h3 className="font-semibold text-slate-900">Рейтинги</h3>
-              <p className="text-xs text-slate-500">Таблица лидеров по быстрым партиям</p>
             </div>
           </Link>
           <button
@@ -230,7 +229,6 @@ export default function HomePage() {
             </div>
             <div>
               <h3 className="font-semibold text-slate-900">С компьютером</h3>
-              <p className="text-xs text-slate-500">Тренировка против ИИ</p>
             </div>
           </button>
           <button
@@ -252,7 +250,6 @@ export default function HomePage() {
             </div>
             <div>
               <h3 className="font-semibold text-slate-900">Партия с другом</h3>
-              <p className="text-xs text-slate-500">По ссылке или вызов из списка</p>
             </div>
           </button>
           <Link
@@ -264,7 +261,6 @@ export default function HomePage() {
             </div>
             <div>
               <h3 className="font-semibold text-slate-900">Головоломки</h3>
-              <p className="text-xs text-slate-500">Тактические задачи</p>
             </div>
           </Link>
           <Link
@@ -276,7 +272,6 @@ export default function HomePage() {
             </div>
             <div>
               <h3 className="font-semibold text-slate-900">Турниры</h3>
-              <p className="text-xs text-slate-500">Школьные соревнования</p>
             </div>
           </Link>
         </section>

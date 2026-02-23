@@ -126,10 +126,6 @@ export default function PuzzlesPage() {
             </button>
           </div>
         </div>
-
-        <div className="mt-6 rounded-2xl border border-slate-200 bg-white/90 p-4 text-center text-sm text-slate-600">
-          Тактические задачи помогают улучшить расчёт вариантов. Решайте по несколько в день.
-        </div>
       </div>
     </main>
   );
