@@ -81,7 +81,7 @@ export default function PuzzlesPage() {
             key={key}
             role="img"
             aria-label="Шахматная доска. Найдите лучший ход."
-            className="mx-auto overflow-hidden rounded-2xl border border-slate-200 bg-slate-100"
+            className="mx-auto overflow-hidden border border-slate-200 bg-slate-100"
             style={{
               width: "min(100vw - 2rem, 70vh, 480px)",
               height: "min(100vw - 2rem, 70vh, 480px)",
@@ -98,7 +98,7 @@ export default function PuzzlesPage() {
               customDarkSquareStyle={{ backgroundColor: "#b58863" }}
               customLightSquareStyle={{ backgroundColor: "#f0d9b5" }}
               customBoardStyle={{
-                borderRadius: "1rem",
+                borderRadius: 0,
                 boxShadow: "0 10px 30px rgba(15,23,42,0.1)"
               }}
             />

@@ -274,7 +274,7 @@ function ChessPageContent() {
           <div
             role="img"
             aria-label="Шахматная доска. Игра с компьютером. Текущая позиция."
-            className="mx-auto overflow-hidden rounded-2xl border border-slate-200 bg-slate-100"
+            className="mx-auto overflow-hidden border border-slate-200 bg-slate-100"
             style={{
               width: "min(100vw - 2rem, 70vh, 480px)",
               height: "min(100vw - 2rem, 70vh, 480px)",
@@ -288,7 +288,7 @@ function ChessPageContent() {
               customDarkSquareStyle={{ backgroundColor: "#b58863" }}
               customLightSquareStyle={{ backgroundColor: "#f0d9b5" }}
               customBoardStyle={{
-                borderRadius: "1.5rem",
+                borderRadius: 0,
                 boxShadow: "0 15px 40px rgba(15,23,42,0.15)"
               }}
             />
