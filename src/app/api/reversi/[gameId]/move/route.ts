@@ -101,8 +101,6 @@ export async function POST(
       winner: winner ?? null,
     };
     const fromTable = supabase.from("reversi_games");
-    // reversi_games not in Supabase generated types — update() expects never
-    // @ts-expect-error table exists at runtime
     const { data: updated, error: updateError } = await fromTable
       .update(updatePayload)
       .eq("id", gameId)
