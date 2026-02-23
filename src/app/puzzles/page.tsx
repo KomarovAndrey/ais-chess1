@@ -83,8 +83,8 @@ export default function PuzzlesPage() {
             aria-label="Шахматная доска. Найдите лучший ход."
             className="mx-auto overflow-hidden rounded-2xl border border-slate-200 bg-slate-100"
             style={{
-              maxWidth: "min(100vw - 2rem, 480px)",
-              aspectRatio: "1",
+              width: "min(100vw - 2rem, 70vh, 480px)",
+              height: "min(100vw - 2rem, 70vh, 480px)",
               touchAction: "manipulation"
             }}
           >

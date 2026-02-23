@@ -274,10 +274,10 @@ function ChessPageContent() {
           <div
             role="img"
             aria-label="Шахматная доска. Игра с компьютером. Текущая позиция."
-            className="aspect-square w-full mx-auto overflow-hidden rounded-2xl border border-slate-200 bg-slate-100"
+            className="mx-auto overflow-hidden rounded-2xl border border-slate-200 bg-slate-100"
             style={{
-              maxWidth: "min(100vw - 2rem, 480px)",
-              maxHeight: "min(70vh, 480px)",
+              width: "min(100vw - 2rem, 70vh, 480px)",
+              height: "min(100vw - 2rem, 70vh, 480px)",
               touchAction: "manipulation"
             }}
           >
