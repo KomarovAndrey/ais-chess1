@@ -210,24 +210,24 @@ export default function HomePage() {
         <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">
           <Link
             href="/ratings"
-            className="flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-orange-200 hover:shadow-md"
+            className="flex min-h-[72px] items-center gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-orange-200 hover:shadow-md"
           >
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-700">
-              <Trophy className="h-6 w-6" />
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-amber-100 text-amber-700">
+              <Trophy className="h-6 w-6 shrink-0" />
             </div>
-            <div>
+            <div className="min-w-0">
               <h3 className="font-semibold text-slate-900">Рейтинги</h3>
             </div>
           </Link>
           <button
             type="button"
             onClick={() => setShowCpuModal(true)}
-            className="flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm transition hover:border-orange-200 hover:shadow-md"
+            className="flex min-h-[72px] items-center gap-4 rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm transition hover:border-orange-200 hover:shadow-md"
           >
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-blue-100 text-blue-700">
-              <Cpu className="h-6 w-6" />
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-blue-100 text-blue-700">
+              <Cpu className="h-6 w-6 shrink-0" />
             </div>
-            <div>
+            <div className="min-w-0">
               <h3 className="font-semibold text-slate-900">С компьютером</h3>
             </div>
           </button>
@@ -243,34 +243,34 @@ export default function HomePage() {
                 setShowModal(true);
               }
             }}
-            className="flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm transition hover:border-orange-200 hover:shadow-md"
+            className="flex min-h-[72px] items-center gap-4 rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm transition hover:border-orange-200 hover:shadow-md"
           >
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700">
-              <UserPlus className="h-6 w-6" />
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-emerald-100 text-emerald-700">
+              <UserPlus className="h-6 w-6 shrink-0" />
             </div>
-            <div>
+            <div className="min-w-0">
               <h3 className="font-semibold text-slate-900">Партия с другом</h3>
             </div>
           </button>
           <Link
             href="/puzzles"
-            className="flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-orange-200 hover:shadow-md"
+            className="flex min-h-[72px] items-center gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-orange-200 hover:shadow-md"
           >
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-violet-100 text-violet-700">
-              <Puzzle className="h-6 w-6" />
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-violet-100 text-violet-700">
+              <Puzzle className="h-6 w-6 shrink-0" />
             </div>
-            <div>
+            <div className="min-w-0">
               <h3 className="font-semibold text-slate-900">Головоломки</h3>
             </div>
           </Link>
           <Link
             href="/tournaments"
-            className="flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-orange-200 hover:shadow-md"
+            className="flex min-h-[72px] items-center gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-orange-200 hover:shadow-md"
           >
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-700">
-              <Swords className="h-6 w-6" />
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-amber-100 text-amber-700">
+              <Swords className="h-6 w-6 shrink-0" />
             </div>
-            <div>
+            <div className="min-w-0">
               <h3 className="font-semibold text-slate-900">Турниры</h3>
             </div>
           </Link>
