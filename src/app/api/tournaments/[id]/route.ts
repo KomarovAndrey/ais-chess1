@@ -36,19 +36,25 @@ export async function GET(
     return NextResponse.json({ error: pError.message }, { status: 500 });
   }
 
+  type ProfileRow = { id: string; username: string | null; display_name: string | null };
   const userIds = (players ?? []).map((p: { user_id: string }) => p.user_id);
   const { data: profiles } = await supabase
     .from("profiles")
     .select("id, username, display_name")
     .in("id", userIds);
 
-  const byId = new Map((profiles ?? []).map((r: { id: string }) => [r.id, r]));
-  const playersWithProfile = (players ?? []).map((p: { user_id: string; joined_at: string }) => ({
-    user_id: p.user_id,
-    joined_at: p.joined_at,
-    username: (byId.get(p.user_id) as { username: string | null })?.username ?? null,
-    display_name: (byId.get(p.user_id) as { display_name: string | null })?.display_name ?? null
-  }));
+  const byId = new Map<string, ProfileRow>(
+    (profiles ?? []).map((r: ProfileRow) => [r.id, r])
+  );
+  const playersWithProfile = (players ?? []).map((p: { user_id: string; joined_at: string }) => {
+    const profile = byId.get(p.user_id);
+    return {
+      user_id: p.user_id,
+      joined_at: p.joined_at,
+      username: profile?.username ?? null,
+      display_name: profile?.display_name ?? null
+    };
+  });
 
   return NextResponse.json({
     ...tournament,
