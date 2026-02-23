@@ -1,6 +1,15 @@
+import dynamic from "next/dynamic";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import PlayGame from "./play-game";
+
+const PlayGame = dynamic(() => import("./play-game"), {
+  ssr: true,
+  loading: () => (
+    <div className="flex min-h-[50vh] items-center justify-center text-slate-500">
+      Загрузка партии…
+    </div>
+  ),
+});
 
 interface PlayPageProps {
   params: Promise<{ gameId: string }>;

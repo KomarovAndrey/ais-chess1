@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 
+export const revalidate = 60;
+
 type RatingRow = {
   id: string;
   username: string | null;

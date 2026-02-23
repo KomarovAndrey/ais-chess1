@@ -34,7 +34,7 @@ NEXT_PUBLIC_SUPABASE_URL=...
 NEXT_PUBLIC_SUPABASE_ANON_KEY=...
 ```
 
-Значения возьмите в [Supabase Dashboard](https://supabase.com/dashboard) → ваш проект → **Settings** → **API** (Project URL и anon public key). Можно скопировать `.env.example` в `.env.local` и подставить свои ключи.
+Значения возьмите в [Supabase Dashboard](https://supabase.com/dashboard) → ваш проект → **Settings** → **API** (Project URL и anon public key). Можно скопировать `.env.example` в `.env.local` и подставить свои ключи. Для SEO (корректные ссылки в robots.txt и sitemap) при необходимости укажите в `.env.local` переменную `NEXT_PUBLIC_SITE_URL` (полный URL сайта, например `https://your-domain.com`).
 
 3. **Создайте таблицы в Supabase** (иначе будет ошибка «Could not find the table public.games»):
    - Откройте [Supabase Dashboard](https://supabase.com/dashboard) → ваш проект.
@@ -201,6 +201,15 @@ git push -u origin main
 5. Нажмите **Deploy**. Vercel соберёт Next.js и задеплоит. После сборки откроется ссылка вида `https://ais-chess-xxx.vercel.app`.
 
 6. Таблицы в Supabase уже должны быть созданы (шаг 3 в «Быстрый старт»). На продакшене используется тот же Supabase проект — база общая.
+
+7. **Опционально для SEO:** в Environment Variables добавьте `NEXT_PUBLIC_SITE_URL` — полный URL сайта (например `https://ais-chess-xxx.vercel.app`). Тогда в `robots.txt` и `sitemap.xml` будут подставляться правильные ссылки.
+
+## SEO и технические настройки
+
+- **robots.txt** — генерируется динамически из `src/app/robots.ts`. Правила: разрешена индексация главной, шахмат, рейтингов, soft-skills, privacy, terms; закрыты от индексации `/api/`, `/auth/`, страницы входа/регистрации/профиля и партий. Ссылка на sitemap подставляется из переменной `NEXT_PUBLIC_SITE_URL` (если не задана — используется заглушка `https://ais-chess.example.com`).
+- **sitemap.xml** — генерируется из `src/app/sitemap.ts`. В карту входят публичные страницы: главная, `/chess`, `/ratings`, `/soft-skills`, `/privacy`, `/terms`. Для корректных URL в sitemap задайте `NEXT_PUBLIC_SITE_URL` в `.env.local` (разработка) и в настройках проекта на Vercel (продакшен).
+- **Сжатие (gzip):** включено в `next.config.mjs` (`compress: true`). При запуске через `next start` или на Vercel ответы сжимаются. Проверка: откройте сайт в браузере → DevTools → вкладка Network → выберите документ или крупный JS/CSS → во вкладке Headers ответа должно быть поле `Content-Encoding: gzip` (или `br` на части хостингов).
+- **Скорость:** страница рейтингов кэшируется на 60 секунд (`revalidate = 60`). Тяжёлый компонент игры (`play-game`) подгружается динамически при открытии партии, чтобы не увеличивать размер основного бандла.
 
 ## Как обновить данные на сайте (пошагово)
 
