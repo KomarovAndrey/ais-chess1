@@ -24,6 +24,7 @@ const SIDE_OPTIONS: { id: "black" | "random" | "white"; label: string; icon: str
 ];
 
 const CPU_LEVELS = [1, 2, 3, 4, 5] as const;
+type CpuLevel = (typeof CPU_LEVELS)[number];
 
 export default function HomePage() {
   const [showModal, setShowModal] = useState(false);
@@ -34,7 +35,7 @@ export default function HomePage() {
   const [colorChoice, setColorChoice] = useState<"white" | "black" | "random">("random");
   const [timeControl, setTimeControl] = useState<number>(300);
   const [cpuColorChoice, setCpuColorChoice] = useState<"white" | "black" | "random">("random");
-  const [cpuLevel, setCpuLevel] = useState<number>(3);
+  const [cpuLevel, setCpuLevel] = useState<CpuLevel>(3);
   const [error, setError] = useState<string | null>(null);
   const [challengeError, setChallengeError] = useState<string | null>(null);
   const [challengeOk, setChallengeOk] = useState<string | null>(null);
