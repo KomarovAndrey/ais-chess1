@@ -651,24 +651,6 @@ export default function PlayGame({ initialGame }: PlayGameProps) {
                     ? `Ход ${replayStep}: ${moveList[replayStep - 1]?.replace(/([a-h])([1-8])/g, "$1-$2") ?? ""}`
                     : "Начальная позиция"}
                 </p>
-                {replayStep > 0 && moveList[replayStep - 1] && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const uci = moveList[replayStep - 1];
-                      if (!uci) return;
-                      const from = uci.slice(0, 2);
-                      const to = uci.slice(2, 4);
-                      const msg = new SpeechSynthesisUtterance(`${from} ${to}`);
-                      msg.lang = "ru-RU";
-                      window.speechSynthesis?.speak(msg);
-                    }}
-                    className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs text-slate-600 hover:bg-slate-50"
-                    aria-label="Озвучить текущий ход"
-                  >
-                    Озвучить
-                  </button>
-                )}
               </div>
             )}
 

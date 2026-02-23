@@ -304,22 +304,6 @@ function ChessPageContent() {
                   ? (replayStep > 0 ? `Ход ${replayStep}: ${history[replayStep - 1] ?? ""}` : "Начальная позиция")
                   : `Последний ход: ${history[history.length - 1] ?? ""}`}
               </p>
-              {(gameOver ? replayStep > 0 && history[replayStep - 1] : history[history.length - 1]) && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    const san = gameOver ? history[replayStep - 1] : history[history.length - 1];
-                    if (!san) return;
-                    const msg = new SpeechSynthesisUtterance(san);
-                    msg.lang = "ru-RU";
-                    window.speechSynthesis?.speak(msg);
-                  }}
-                  className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs text-slate-600 hover:bg-slate-50"
-                  aria-label="Озвучить последний ход"
-                >
-                  Озвучить
-                </button>
-              )}
             </div>
           )}
 
