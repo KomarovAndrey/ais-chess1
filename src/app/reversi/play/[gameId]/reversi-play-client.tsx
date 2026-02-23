@@ -10,6 +10,11 @@ const GRID_GAP = 2;
 const GRID_PADDING = 4;
 const BOARD_WRAPPER_SIZE = BOARD_SIZE * CELL_SIZE + (BOARD_SIZE - 1) * GRID_GAP + 2 * GRID_PADDING + 4;
 
+function samePlayer(a: string | null | undefined, b: string | null | undefined): boolean {
+  if (a == null || b == null) return false;
+  return a.toLowerCase() === b.toLowerCase();
+}
+
 type GameState = {
   id: string;
   status: string;
@@ -76,8 +81,8 @@ export default function ReversiPlayClient({
           board: (data.board as Board) ?? INITIAL_BOARD,
           turn: data.turn ?? "black",
         }));
-        if (data.black_player_id === playerId) setMySide("black");
-        else if (data.white_player_id === playerId) setMySide("white");
+        if (samePlayer(data.black_player_id, playerId)) setMySide("black");
+        else if (samePlayer(data.white_player_id, playerId)) setMySide("white");
         else if (data.status === "waiting") {
           const joinRes = await fetch("/api/reversi/join", {
             method: "POST",
@@ -128,12 +133,15 @@ export default function ReversiPlayClient({
               }
             : null
         );
+        if (playerId && (samePlayer(data.black_player_id, playerId) || samePlayer(data.white_player_id, playerId))) {
+          setMySide(samePlayer(data.black_player_id, playerId) ? "black" : "white");
+        }
       }
     }, 1500);
     return () => {
       if (pollRef.current) clearInterval(pollRef.current);
     };
-  }, [gameId, game?.status, game?.turn, mySide]);
+  }, [gameId, game?.status, game?.turn, mySide, playerId]);
 
   const handleMove = useCallback(
     async (r: number, c: number) => {
