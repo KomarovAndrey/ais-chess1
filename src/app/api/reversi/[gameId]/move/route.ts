@@ -4,6 +4,15 @@ import { checkRateLimit } from "@/lib/rateLimit";
 import { makeMove as reversiMakeMove, getWinner, getValidMoves } from "@/lib/reversi";
 import type { Board } from "@/lib/reversi";
 
+type ReversiGameRow = {
+  id: string;
+  status: string;
+  board: Board;
+  turn: string;
+  black_player_id: string | null;
+  white_player_id: string | null;
+};
+
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function samePlayer(a: string | null | undefined, b: string | null | undefined): boolean {
@@ -40,12 +49,13 @@ export async function POST(
       return NextResponse.json({ error: "Too many requests" }, { status: 429 });
     }
 
-    const { data: game, error: fetchError } = await supabase
+    const { data, error: fetchError } = await supabase
       .from("reversi_games")
       .select("id, status, board, turn, black_player_id, white_player_id")
       .eq("id", gameId)
       .single();
 
+    const game = data as ReversiGameRow | null;
     if (fetchError || !game) {
       return NextResponse.json({ error: "Игра не найдена" }, { status: 404 });
     }
