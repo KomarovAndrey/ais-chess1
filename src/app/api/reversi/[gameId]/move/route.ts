@@ -100,10 +100,11 @@ export async function POST(
       status: winner ? "finished" : "active",
       winner: winner ?? null,
     };
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- reversi_games not in Supabase generated types
-    const { data: updated, error: updateError } = await supabase
-      .from("reversi_games")
-      .update(updatePayload as any)
+    const fromTable = supabase.from("reversi_games");
+    // reversi_games not in Supabase generated types — update() expects never
+    // @ts-expect-error table exists at runtime
+    const { data: updated, error: updateError } = await fromTable
+      .update(updatePayload)
       .eq("id", gameId)
       .select("*")
       .single();
