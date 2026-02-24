@@ -225,9 +225,6 @@ export default function ReversiPage() {
           {statusText}
         </p>
 
-        <p className="mt-4 text-center text-xs text-slate-500">
-          Поставьте фишку так, чтобы между ней и своей другой фишкой оказалась линия фишек соперника — они перевернутся.
-        </p>
       </div>
     </main>
   );
