@@ -148,9 +148,6 @@ export default function ReversiPage() {
             {createError && <p className="mt-3 text-center text-sm text-red-600">{createError}</p>}
           </div>
 
-          <p className="text-center text-xs text-slate-500">
-            По ссылке: создаётся игра, вы получаете ссылку. Отправьте её сопернику — он откроет и вы сможете играть онлайн. Без регистрации.
-          </p>
         </div>
       </main>
     );
