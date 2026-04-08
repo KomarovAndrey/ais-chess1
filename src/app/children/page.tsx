@@ -2,13 +2,12 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
-import { Download, RefreshCw, Send } from "lucide-react";
+import { Download, RefreshCw, Send, Upload, Pencil, Trash2, X, Check } from "lucide-react";
 
 type CommentAuthor = {
   id: string;
   username: string | null;
   display_name: string | null;
-  email?: string;
 };
 
 type ChildComment = {
@@ -28,7 +27,7 @@ type ChildRow = {
 };
 
 function formatAuthor(a?: CommentAuthor | null) {
-  return a?.display_name || a?.username || a?.email || "—";
+  return a?.display_name || a?.username || "—";
 }
 
 export default function ChildrenCommentsPage() {
@@ -42,6 +41,13 @@ export default function ChildrenCommentsPage() {
   const [adding, setAdding] = useState(false);
   const [newChildName, setNewChildName] = useState("");
   const [newChildClass, setNewChildClass] = useState("");
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editClass, setEditClass] = useState("");
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [importing, setImporting] = useState(false);
+  const [importFile, setImportFile] = useState<File | null>(null);
   const refreshTimer = useRef<number | null>(null);
 
   const filtered = useMemo(() => {
@@ -154,6 +160,70 @@ export default function ChildrenCommentsPage() {
     window.location.href = "/api/children/export";
   }
 
+  async function saveEdit(childId: string) {
+    const full_name = editName.trim();
+    const class_name = editClass.trim();
+    if (!full_name) return;
+
+    setSavingEdit(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/children/${encodeURIComponent(childId)}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          full_name,
+          class_name: class_name ? class_name : null,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || "Ошибка сохранения");
+      setEditingId(null);
+      setEditName("");
+      setEditClass("");
+      load();
+    } catch (e: any) {
+      setError(e?.message || "Ошибка");
+    } finally {
+      setSavingEdit(false);
+    }
+  }
+
+  async function deleteChild(childId: string) {
+    if (!window.confirm("Удалить ребёнка? Комментарии тоже удалятся.")) return;
+    setDeletingId(childId);
+    setError(null);
+    try {
+      const res = await fetch(`/api/children/${encodeURIComponent(childId)}`, { method: "DELETE" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || "Ошибка удаления");
+      load();
+    } catch (e: any) {
+      setError(e?.message || "Ошибка");
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
+  async function importFromExcel() {
+    if (!importFile) return;
+    setImporting(true);
+    setError(null);
+    try {
+      const form = new FormData();
+      form.append("file", importFile);
+      const res = await fetch("/api/children/import", { method: "POST", body: form });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || "Ошибка импорта");
+      setImportFile(null);
+      load();
+    } catch (e: any) {
+      setError(e?.message || "Ошибка");
+    } finally {
+      setImporting(false);
+    }
+  }
+
   if (allowed === false) {
     return (
       <main className="mx-auto max-w-5xl px-4 py-8">
@@ -182,6 +252,24 @@ export default function ChildrenCommentsPage() {
           >
             <RefreshCw className="h-4 w-4" aria-hidden />
             Обновить
+          </button>
+          <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50">
+            <Upload className="h-4 w-4" aria-hidden />
+            Импорт Excel
+            <input
+              type="file"
+              accept=".xlsx,.xls"
+              className="hidden"
+              onChange={(e) => setImportFile(e.target.files?.[0] ?? null)}
+            />
+          </label>
+          <button
+            type="button"
+            onClick={importFromExcel}
+            disabled={importing || !importFile}
+            className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-3 py-2 text-sm font-medium text-white shadow-sm hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {importing ? "Загрузка…" : "Загрузить"}
           </button>
           <button
             type="button"
@@ -246,6 +334,9 @@ export default function ChildrenCommentsPage() {
                 <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-600">
                   Класс/группа
                 </th>
+                <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-slate-600">
+                  Действия
+                </th>
                 <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-600">
                   Комментарии
                 </th>
@@ -254,13 +345,13 @@ export default function ChildrenCommentsPage() {
             <tbody className="divide-y divide-slate-200">
               {loading ? (
                 <tr>
-                  <td className="px-4 py-6 text-sm text-slate-600" colSpan={3}>
+                  <td className="px-4 py-6 text-sm text-slate-600" colSpan={4}>
                     Загрузка…
                   </td>
                 </tr>
               ) : filtered.length === 0 ? (
                 <tr>
-                  <td className="px-4 py-6 text-sm text-slate-600" colSpan={3}>
+                  <td className="px-4 py-6 text-sm text-slate-600" colSpan={4}>
                     Нет совпадений.
                   </td>
                 </tr>
@@ -269,13 +360,81 @@ export default function ChildrenCommentsPage() {
                   const comments = Array.isArray(r.child_comments) ? r.child_comments : [];
                   const draft = draftByChild[r.id] ?? "";
                   const saving = savingChildId === r.id;
+                  const isEditing = editingId === r.id;
                   return (
                     <tr key={r.id} className="align-top">
                       <td className="px-4 py-4 text-sm font-medium text-slate-900 whitespace-nowrap">
-                        {r.full_name}
+                        {isEditing ? (
+                          <input
+                            value={editName}
+                            onChange={(e) => setEditName(e.target.value)}
+                            className="w-64 rounded-lg border border-slate-200 bg-white px-2 py-1 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-400/20"
+                          />
+                        ) : (
+                          r.full_name
+                        )}
                       </td>
                       <td className="px-4 py-4 text-sm text-slate-700 whitespace-nowrap">
-                        {r.class_name || "—"}
+                        {isEditing ? (
+                          <input
+                            value={editClass}
+                            onChange={(e) => setEditClass(e.target.value)}
+                            className="w-40 rounded-lg border border-slate-200 bg-white px-2 py-1 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-400/20"
+                          />
+                        ) : (
+                          r.class_name || "—"
+                        )}
+                      </td>
+                      <td className="px-4 py-4 text-right whitespace-nowrap">
+                        {isEditing ? (
+                          <div className="inline-flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => saveEdit(r.id)}
+                              disabled={savingEdit || !editName.trim()}
+                              className="inline-flex items-center gap-1 rounded-lg bg-slate-900 px-2 py-1.5 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-60"
+                            >
+                              <Check className="h-4 w-4" aria-hidden />
+                              Сохранить
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setEditingId(null);
+                                setEditName("");
+                                setEditClass("");
+                              }}
+                              className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                            >
+                              <X className="h-4 w-4" aria-hidden />
+                              Отмена
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="inline-flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setEditingId(r.id);
+                                setEditName(r.full_name);
+                                setEditClass(r.class_name ?? "");
+                              }}
+                              className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                            >
+                              <Pencil className="h-4 w-4" aria-hidden />
+                              Правка
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => deleteChild(r.id)}
+                              disabled={deletingId === r.id}
+                              className="inline-flex items-center gap-1 rounded-lg border border-red-200 bg-white px-2 py-1.5 text-sm font-medium text-red-700 hover:bg-red-50 disabled:opacity-60"
+                            >
+                              <Trash2 className="h-4 w-4" aria-hidden />
+                              {deletingId === r.id ? "Удаление…" : "Удалить"}
+                            </button>
+                          </div>
+                        )}
                       </td>
                       <td className="px-4 py-4">
                         <div className="space-y-3">

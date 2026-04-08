@@ -41,8 +41,7 @@ export async function GET() {
           author:author_id(
             id,
             username,
-            display_name,
-            email
+            display_name
           )
         )
       `

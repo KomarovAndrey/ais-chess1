@@ -35,7 +35,7 @@ export async function GET() {
         child_comments:child_comments(
           created_at,
           body,
-          author:author_id(username, display_name, email)
+          author:author_id(username, display_name)
         )
       `
     )
@@ -49,7 +49,7 @@ export async function GET() {
       const comments: any[] = Array.isArray(c.child_comments) ? c.child_comments : [];
       const joined = comments
         .map((cm) => {
-          const author = cm.author?.display_name || cm.author?.username || cm.author?.email || "—";
+          const author = cm.author?.display_name || cm.author?.username || "—";
           const dt = cm.created_at ? new Date(cm.created_at).toLocaleString("ru-RU") : "";
           const body = (cm.body ?? "").toString();
           return `${dt} — ${author}: ${body}`;

@@ -48,12 +48,18 @@ create policy children_update_teacher_admin
   using (public.is_teacher_or_admin())
   with check (public.is_teacher_or_admin());
 
+drop policy if exists children_delete_teacher_admin on public.children;
+create policy children_delete_teacher_admin
+  on public.children for delete
+  to authenticated
+  using (public.is_teacher_or_admin());
+
 -- 2) комментарии по детям (много комментариев от разных пользователей)
 create table if not exists public.child_comments (
   id uuid primary key default gen_random_uuid(),
   created_at timestamptz not null default now(),
   child_id uuid not null references public.children(id) on delete cascade,
-  author_id uuid not null references auth.users(id) on delete cascade,
+  author_id uuid not null references public.profiles(id) on delete cascade,
   body text not null check (char_length(body) <= 4000)
 );
 
