@@ -4,6 +4,8 @@ import { checkRateLimit } from "@/lib/rateLimit";
 import { createInitialBoard } from "@/lib/reversi";
 import type { Board } from "@/lib/reversi";
 
+type ReversiMove = { row: number; col: number; player: "black" | "white" };
+
 const UUID_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -14,6 +16,7 @@ type ReversiGameInsert = {
   creator_side: string;
   black_player_id: string | null;
   white_player_id: string | null;
+  moves: ReversiMove[];
 };
 
 type ReversiTableInsert = {
@@ -62,6 +65,7 @@ export async function POST(req: NextRequest) {
       creator_side: creatorSide,
       black_player_id: blackPlayerId,
       white_player_id: whitePlayerId,
+      moves: [],
     };
     const fromTable = supabase.from("reversi_games") as unknown as ReversiTableInsert;
     const { data: game, error } = await fromTable

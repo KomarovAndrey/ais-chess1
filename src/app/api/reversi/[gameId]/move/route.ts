@@ -4,6 +4,8 @@ import { checkRateLimit } from "@/lib/rateLimit";
 import { makeMove as reversiMakeMove, getWinner, getValidMoves } from "@/lib/reversi";
 import type { Board } from "@/lib/reversi";
 
+type ReversiMove = { row: number; col: number; player: "black" | "white" };
+
 type ReversiGameRow = {
   id: string;
   status: string;
@@ -11,6 +13,7 @@ type ReversiGameRow = {
   turn: string;
   black_player_id: string | null;
   white_player_id: string | null;
+  moves?: ReversiMove[];
 };
 
 type ReversiGameUpdate = {
@@ -18,6 +21,7 @@ type ReversiGameUpdate = {
   turn: "black" | "white";
   status: "active" | "finished";
   winner: "black" | "white" | "draw" | null;
+  moves: ReversiMove[];
 };
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -58,7 +62,7 @@ export async function POST(
 
     const { data, error: fetchError } = await supabase
       .from("reversi_games")
-      .select("id, status, board, turn, black_player_id, white_player_id")
+      .select("id, status, board, turn, black_player_id, white_player_id, moves")
       .eq("id", gameId)
       .single();
 
@@ -94,11 +98,15 @@ export async function POST(
       }
     }
 
+    const prevMoves = Array.isArray(game.moves) ? (game.moves as ReversiMove[]) : [];
+    const newMoves: ReversiMove[] = [...prevMoves, { row, col, player: currentTurn }];
+
     const updatePayload: ReversiGameUpdate = {
       board: finalBoard,
       turn: nextTurn,
       status: winner ? "finished" : "active",
       winner: winner ?? null,
+      moves: newMoves,
     };
     type ReversiTable = {
       update: (v: ReversiGameUpdate) => { eq: (c: string, id: string) => { select: (s: string) => { single: () => Promise<{ data: unknown; error: unknown }> } } };

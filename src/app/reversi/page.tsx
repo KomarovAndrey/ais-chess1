@@ -17,6 +17,8 @@ const BOARD_SIZE = 8;
 const CELL_SIZE = 44;
 const GRID_GAP = 2;
 const GRID_PADDING = 4;
+const LABEL_SIZE = 24;
+const COL_LABELS = ["a", "b", "c", "d", "e", "f", "g", "h"];
 const BOARD_WRAPPER_SIZE = BOARD_SIZE * CELL_SIZE + (BOARD_SIZE - 1) * GRID_GAP + 2 * GRID_PADDING + 4;
 
 export default function ReversiPage() {
@@ -185,36 +187,61 @@ export default function ReversiPage() {
           </button>
         </div>
 
-        <div
-          className="inline-block rounded-2xl border-2 border-slate-400 bg-green-800 shadow-lg"
-          style={{ width: BOARD_WRAPPER_SIZE, height: BOARD_WRAPPER_SIZE }}
-        >
-          <div
-            className="grid gap-0.5 p-1"
-            style={{ gridTemplateColumns: `repeat(${BOARD_SIZE}, ${CELL_SIZE}px)`, gridTemplateRows: `repeat(${BOARD_SIZE}, ${CELL_SIZE}px)` }}
-          >
-            {board.map((row, r) =>
-              row.map((cell, c) => {
-                const isValid = !winner && validMoves.some(([mr, mc]) => mr === r && mc === c);
-                return (
-                  <button
-                    key={`${r}-${c}`}
-                    type="button"
-                    onClick={() => handleCellClick(r, c)}
-                    disabled={!!winner || !isValid}
-                    className="flex h-11 w-11 items-center justify-center rounded-md bg-green-700 transition hover:bg-green-600 disabled:cursor-default disabled:opacity-100"
-                  >
-                    {cell === "black" && (
-                      <span className="h-8 w-8 rounded-full shadow-md" style={{ backgroundColor: "#1f2937" }} />
-                    )}
-                    {cell === "white" && (
-                      <span className="h-8 w-8 rounded-full shadow-md" style={{ backgroundColor: "#f3f4f6" }} />
-                    )}
-                    {!cell && isValid && <span className="h-2 w-2 rounded-full bg-slate-400/60" />}
-                  </button>
-                );
-              })
-            )}
+        {winner && (
+          <div className="mb-3 rounded-2xl border border-emerald-200 bg-emerald-50/80 px-4 py-3">
+            <h3 className="text-sm font-semibold text-slate-900">Итог партии</h3>
+            <p className="mt-1 text-sm text-slate-700">
+              {winner === "draw" ? "Ничья" : `Победили ${winner === "black" ? "чёрные" : "белые"}`}.
+              Ниже — итоговая позиция для просмотра.
+            </p>
+          </div>
+        )}
+
+        <div className="inline-block rounded-2xl border-2 border-slate-400 bg-green-800 p-2 shadow-lg">
+          <div className="flex flex-col gap-0.5">
+            {board.map((row, r) => (
+              <div key={r} className="flex items-center">
+                <span
+                  className="flex items-center justify-end pr-1 text-xs font-medium text-slate-200"
+                  style={{ width: LABEL_SIZE, height: CELL_SIZE }}
+                >
+                  {r + 1}
+                </span>
+                <div className="flex gap-0.5">
+                  {row.map((cell, c) => {
+                    const isValid = !winner && validMoves.some(([mr, mc]) => mr === r && mc === c);
+                    return (
+                      <button
+                        key={`${r}-${c}`}
+                        type="button"
+                        onClick={() => handleCellClick(r, c)}
+                        disabled={!!winner || !isValid}
+                        className="flex h-11 w-11 items-center justify-center rounded-md bg-green-700 transition hover:bg-green-600 disabled:cursor-default disabled:opacity-100"
+                      >
+                        {cell === "black" && (
+                          <span className="h-8 w-8 rounded-full shadow-md" style={{ backgroundColor: "#1f2937" }} />
+                        )}
+                        {cell === "white" && (
+                          <span className="h-8 w-8 rounded-full shadow-md" style={{ backgroundColor: "#f3f4f6" }} />
+                        )}
+                        {!cell && isValid && <span className="h-2 w-2 rounded-full bg-slate-400/60" />}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="flex" style={{ marginLeft: LABEL_SIZE }}>
+            {COL_LABELS.map((letter) => (
+              <span
+                key={letter}
+                className="flex items-center justify-center pt-1 text-xs font-medium text-slate-200"
+                style={{ width: CELL_SIZE }}
+              >
+                {letter}
+              </span>
+            ))}
           </div>
         </div>
 

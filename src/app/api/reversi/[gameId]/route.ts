@@ -19,7 +19,7 @@ export async function GET(
 
   const { data: game, error } = await supabase
     .from("reversi_games")
-    .select("id, status, board, turn, winner, black_player_id, white_player_id, creator_side")
+    .select("id, status, board, turn, winner, black_player_id, white_player_id, creator_side, moves")
     .eq("id", gameId)
     .single();
 

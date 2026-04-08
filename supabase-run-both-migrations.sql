@@ -72,7 +72,11 @@ create table if not exists public.reversi_games (
   black_player_id text,
   white_player_id text
 );
+alter table public.reversi_games add column if not exists moves jsonb not null default '[]';
 alter table public.reversi_games enable row level security;
 create policy reversi_select_any on public.reversi_games for select using (true);
 create policy reversi_insert_any on public.reversi_games for insert with check (true);
 create policy reversi_update_any on public.reversi_games for update using (true);
+
+-- 5. Дети + комментарии (доступ только teacher/admin)
+-- Скопируйте и выполните файл `supabase-migration-children-comments.sql` (или вставьте его сюда целиком).
