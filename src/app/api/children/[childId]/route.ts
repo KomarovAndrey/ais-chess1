@@ -35,13 +35,14 @@ export async function PATCH(
     return NextResponse.json({ error: "Invalid childId" }, { status: 400 });
   }
 
-  let body: { full_name?: string; class_name?: string | null };
+  let body: { team_name?: string | null; full_name?: string; class_name?: string | null };
   try {
     body = await req.json();
   } catch {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
+  const teamName = typeof body.team_name === "string" ? body.team_name.trim() : null;
   const fullName = typeof body.full_name === "string" ? body.full_name.trim() : "";
   const className = typeof body.class_name === "string" ? body.class_name.trim() : null;
   if (!fullName) return NextResponse.json({ error: "full_name is required" }, { status: 400 });
@@ -49,11 +50,12 @@ export async function PATCH(
   const { data, error } = await supabase
     .from("children")
     .update({
+      team_name: teamName ? teamName.slice(0, 50) : null,
       full_name: fullName.slice(0, 200),
       class_name: className ? className.slice(0, 50) : null,
     })
     .eq("id", childId)
-    .select("id, created_at, full_name, class_name")
+    .select("id, created_at, team_name, full_name, class_name")
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

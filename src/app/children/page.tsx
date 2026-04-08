@@ -2,7 +2,17 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
-import { Download, RefreshCw, Send, Upload, Pencil, Trash2, X, Check } from "lucide-react";
+import {
+  Download,
+  RefreshCw,
+  Send,
+  Upload,
+  Pencil,
+  Trash2,
+  X,
+  Check,
+  FileSpreadsheet,
+} from "lucide-react";
 
 type CommentAuthor = {
   id: string;
@@ -21,9 +31,15 @@ type ChildComment = {
 type ChildRow = {
   id: string;
   created_at: string;
+  team_name: string | null;
   full_name: string;
   class_name: string | null;
   child_comments?: ChildComment[];
+};
+
+type GroupedRows = {
+  teamName: string;
+  children: ChildRow[];
 };
 
 function formatAuthor(a?: CommentAuthor | null) {
@@ -39,9 +55,11 @@ export default function ChildrenCommentsPage() {
   const [draftByChild, setDraftByChild] = useState<Record<string, string>>({});
   const [savingChildId, setSavingChildId] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
+  const [newChildTeam, setNewChildTeam] = useState("");
   const [newChildName, setNewChildName] = useState("");
   const [newChildClass, setNewChildClass] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [editTeam, setEditTeam] = useState("");
   const [editName, setEditName] = useState("");
   const [editClass, setEditClass] = useState("");
   const [savingEdit, setSavingEdit] = useState(false);
@@ -53,8 +71,30 @@ export default function ChildrenCommentsPage() {
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return rows;
-    return rows.filter((r) => (r.full_name ?? "").toLowerCase().includes(q));
+    return rows.filter((r) =>
+      [(r.team_name ?? ""), (r.full_name ?? ""), (r.class_name ?? "")]
+        .join(" ")
+        .toLowerCase()
+        .includes(q)
+    );
   }, [rows, query]);
+
+  const groupedRows = useMemo<GroupedRows[]>(() => {
+    const map = new Map<string, ChildRow[]>();
+    for (const row of filtered) {
+      const teamName = row.team_name?.trim() || "Без команды";
+      const list = map.get(teamName) ?? [];
+      list.push(row);
+      map.set(teamName, list);
+    }
+
+    return Array.from(map.entries())
+      .sort(([a], [b]) => a.localeCompare(b, "ru"))
+      .map(([teamName, children]) => ({
+        teamName,
+        children: children.sort((a, b) => a.full_name.localeCompare(b.full_name, "ru")),
+      }));
+  }, [filtered]);
 
   const load = useCallback(async () => {
     setError(null);
@@ -129,6 +169,7 @@ export default function ChildrenCommentsPage() {
   }
 
   async function addChild() {
+    const team_name = newChildTeam.trim();
     const full_name = newChildName.trim();
     const class_name = newChildClass.trim();
     if (!full_name) return;
@@ -140,12 +181,14 @@ export default function ChildrenCommentsPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          team_name: team_name ? team_name : null,
           full_name,
           class_name: class_name ? class_name : null,
         }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.error || "Ошибка добавления");
+      setNewChildTeam("");
       setNewChildName("");
       setNewChildClass("");
       load();
@@ -160,7 +203,12 @@ export default function ChildrenCommentsPage() {
     window.location.href = "/api/children/export";
   }
 
+  function downloadTemplate() {
+    window.location.href = "/api/children/template";
+  }
+
   async function saveEdit(childId: string) {
+    const team_name = editTeam.trim();
     const full_name = editName.trim();
     const class_name = editClass.trim();
     if (!full_name) return;
@@ -172,6 +220,7 @@ export default function ChildrenCommentsPage() {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          team_name: team_name ? team_name : null,
           full_name,
           class_name: class_name ? class_name : null,
         }),
@@ -241,10 +290,10 @@ export default function ChildrenCommentsPage() {
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Дети — комментарии</h1>
           <p className="mt-1 text-sm text-slate-600">
-            Поиск по списку детей, комментарии сохраняются, обновления приходят в реальном времени.
+            Разделение по командам, поиск по команде/имени/классу, комментарии сохраняются в реальном времени.
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
             onClick={load}
@@ -252,6 +301,14 @@ export default function ChildrenCommentsPage() {
           >
             <RefreshCw className="h-4 w-4" aria-hidden />
             Обновить
+          </button>
+          <button
+            type="button"
+            onClick={downloadTemplate}
+            className="inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-800 shadow-sm hover:bg-emerald-100"
+          >
+            <FileSpreadsheet className="h-4 w-4" aria-hidden />
+            Скачать шаблон
           </button>
           <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50">
             <Upload className="h-4 w-4" aria-hidden />
@@ -282,28 +339,40 @@ export default function ChildrenCommentsPage() {
         </div>
       </div>
 
+      {importFile && (
+        <p className="mt-3 text-sm text-slate-600">
+          Выбран файл: <span className="font-medium text-slate-800">{importFile.name}</span>
+        </p>
+      )}
+
       <div className="mt-6 flex items-center gap-2">
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Поиск по имени ребёнка..."
+          placeholder="Поиск по команде, имени или классу..."
           className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 shadow-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-400/20"
         />
       </div>
 
       <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
         <div className="text-sm font-semibold text-slate-900">Добавить ребёнка</div>
-        <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+        <div className="mt-3 grid gap-2 md:grid-cols-4">
+          <input
+            value={newChildTeam}
+            onChange={(e) => setNewChildTeam(e.target.value)}
+            placeholder="Команда"
+            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 shadow-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-400/20"
+          />
           <input
             value={newChildName}
             onChange={(e) => setNewChildName(e.target.value)}
-            placeholder="ФИО ребёнка"
+            placeholder="Имя ребёнка"
             className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 shadow-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-400/20"
           />
           <input
             value={newChildClass}
             onChange={(e) => setNewChildClass(e.target.value)}
-            placeholder="Класс/группа (необязательно)"
+            placeholder="Класс / Grade"
             className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 shadow-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-400/20"
           />
           <button
@@ -323,167 +392,185 @@ export default function ChildrenCommentsPage() {
         </div>
       )}
 
-      <div className="mt-6 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-slate-200">
-            <thead className="bg-slate-50">
-              <tr>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-600">
-                  Ребёнок
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-600">
-                  Класс/группа
-                </th>
-                <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-slate-600">
-                  Действия
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-600">
-                  Комментарии
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-200">
-              {loading ? (
-                <tr>
-                  <td className="px-4 py-6 text-sm text-slate-600" colSpan={4}>
-                    Загрузка…
-                  </td>
-                </tr>
-              ) : filtered.length === 0 ? (
-                <tr>
-                  <td className="px-4 py-6 text-sm text-slate-600" colSpan={4}>
-                    Нет совпадений.
-                  </td>
-                </tr>
-              ) : (
-                filtered.map((r) => {
-                  const comments = Array.isArray(r.child_comments) ? r.child_comments : [];
-                  const draft = draftByChild[r.id] ?? "";
-                  const saving = savingChildId === r.id;
-                  const isEditing = editingId === r.id;
-                  return (
-                    <tr key={r.id} className="align-top">
-                      <td className="px-4 py-4 text-sm font-medium text-slate-900 whitespace-nowrap">
-                        {isEditing ? (
-                          <input
-                            value={editName}
-                            onChange={(e) => setEditName(e.target.value)}
-                            className="w-64 rounded-lg border border-slate-200 bg-white px-2 py-1 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-400/20"
-                          />
-                        ) : (
-                          r.full_name
-                        )}
-                      </td>
-                      <td className="px-4 py-4 text-sm text-slate-700 whitespace-nowrap">
-                        {isEditing ? (
-                          <input
-                            value={editClass}
-                            onChange={(e) => setEditClass(e.target.value)}
-                            className="w-40 rounded-lg border border-slate-200 bg-white px-2 py-1 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-400/20"
-                          />
-                        ) : (
-                          r.class_name || "—"
-                        )}
-                      </td>
-                      <td className="px-4 py-4 text-right whitespace-nowrap">
-                        {isEditing ? (
-                          <div className="inline-flex items-center gap-2">
-                            <button
-                              type="button"
-                              onClick={() => saveEdit(r.id)}
-                              disabled={savingEdit || !editName.trim()}
-                              className="inline-flex items-center gap-1 rounded-lg bg-slate-900 px-2 py-1.5 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-60"
-                            >
-                              <Check className="h-4 w-4" aria-hidden />
-                              Сохранить
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setEditingId(null);
-                                setEditName("");
-                                setEditClass("");
-                              }}
-                              className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
-                            >
-                              <X className="h-4 w-4" aria-hidden />
-                              Отмена
-                            </button>
-                          </div>
-                        ) : (
-                          <div className="inline-flex items-center gap-2">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setEditingId(r.id);
-                                setEditName(r.full_name);
-                                setEditClass(r.class_name ?? "");
-                              }}
-                              className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
-                            >
-                              <Pencil className="h-4 w-4" aria-hidden />
-                              Правка
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => deleteChild(r.id)}
-                              disabled={deletingId === r.id}
-                              className="inline-flex items-center gap-1 rounded-lg border border-red-200 bg-white px-2 py-1.5 text-sm font-medium text-red-700 hover:bg-red-50 disabled:opacity-60"
-                            >
-                              <Trash2 className="h-4 w-4" aria-hidden />
-                              {deletingId === r.id ? "Удаление…" : "Удалить"}
-                            </button>
-                          </div>
-                        )}
-                      </td>
-                      <td className="px-4 py-4">
-                        <div className="space-y-3">
-                          <div className="max-h-40 overflow-auto rounded-xl border border-slate-200 bg-slate-50 p-3">
-                            {comments.length === 0 ? (
-                              <div className="text-sm text-slate-500">Комментариев пока нет.</div>
-                            ) : (
-                              <ul className="space-y-2">
-                                {comments.map((c) => (
-                                  <li key={c.id} className="text-sm text-slate-700">
-                                    <div className="text-xs text-slate-500">
-                                      {new Date(c.created_at).toLocaleString("ru-RU")} — {formatAuthor(c.author)}
-                                    </div>
-                                    <div className="whitespace-pre-wrap">{c.body}</div>
-                                  </li>
-                                ))}
-                              </ul>
-                            )}
-                          </div>
-
-                          <div className="flex flex-col gap-2 sm:flex-row sm:items-start">
-                            <textarea
-                              value={draft}
-                              onChange={(e) =>
-                                setDraftByChild((p) => ({ ...p, [r.id]: e.target.value }))
-                              }
-                              placeholder="Оставить комментарий…"
-                              className="min-h-10 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 shadow-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-400/20"
-                            />
-                            <button
-                              type="button"
-                              onClick={() => addComment(r.id)}
-                              disabled={saving || !draft.trim()}
-                              className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-3 py-2 text-sm font-medium text-white shadow-sm hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
-                            >
-                              <Send className="h-4 w-4" aria-hidden />
-                              {saving ? "Сохранение…" : "Отправить"}
-                            </button>
-                          </div>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
+      {loading ? (
+        <div className="mt-6 rounded-2xl border border-slate-200 bg-white px-4 py-6 text-sm text-slate-600 shadow-sm">
+          Загрузка…
         </div>
-      </div>
+      ) : groupedRows.length === 0 ? (
+        <div className="mt-6 rounded-2xl border border-slate-200 bg-white px-4 py-6 text-sm text-slate-600 shadow-sm">
+          Нет совпадений.
+        </div>
+      ) : (
+        <div className="mt-6 space-y-6">
+          {groupedRows.map(({ teamName, children }) => (
+            <section key={teamName} className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+              <div className="border-b border-slate-200 bg-slate-50 px-4 py-3">
+                <div className="flex items-center justify-between gap-3">
+                  <h2 className="text-lg font-semibold text-slate-900">{teamName}</h2>
+                  <span className="text-sm text-slate-500">{children.length} чел.</span>
+                </div>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-slate-200">
+                  <thead className="bg-white">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-600">
+                        Name
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-600">
+                        Grade
+                      </th>
+                      <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-slate-600">
+                        Действия
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-600">
+                        Комментарии
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-200">
+                    {children.map((r) => {
+                      const comments = Array.isArray(r.child_comments) ? r.child_comments : [];
+                      const draft = draftByChild[r.id] ?? "";
+                      const saving = savingChildId === r.id;
+                      const isEditing = editingId === r.id;
+                      return (
+                        <tr key={r.id} className="align-top">
+                          <td className="px-4 py-4 text-sm font-medium text-slate-900 whitespace-nowrap">
+                            {isEditing ? (
+                              <div className="space-y-2">
+                                <input
+                                  value={editTeam}
+                                  onChange={(e) => setEditTeam(e.target.value)}
+                                  placeholder="Команда"
+                                  className="w-40 rounded-lg border border-slate-200 bg-white px-2 py-1 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-400/20"
+                                />
+                                <input
+                                  value={editName}
+                                  onChange={(e) => setEditName(e.target.value)}
+                                  placeholder="Имя"
+                                  className="w-64 rounded-lg border border-slate-200 bg-white px-2 py-1 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-400/20"
+                                />
+                              </div>
+                            ) : (
+                              r.full_name
+                            )}
+                          </td>
+                          <td className="px-4 py-4 text-sm text-slate-700 whitespace-nowrap">
+                            {isEditing ? (
+                              <input
+                                value={editClass}
+                                onChange={(e) => setEditClass(e.target.value)}
+                                placeholder="Grade"
+                                className="w-40 rounded-lg border border-slate-200 bg-white px-2 py-1 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-400/20"
+                              />
+                            ) : (
+                              r.class_name || "—"
+                            )}
+                          </td>
+                          <td className="px-4 py-4 text-right whitespace-nowrap">
+                            {isEditing ? (
+                              <div className="inline-flex items-center gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => saveEdit(r.id)}
+                                  disabled={savingEdit || !editName.trim()}
+                                  className="inline-flex items-center gap-1 rounded-lg bg-slate-900 px-2 py-1.5 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-60"
+                                >
+                                  <Check className="h-4 w-4" aria-hidden />
+                                  Сохранить
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setEditingId(null);
+                                    setEditTeam("");
+                                    setEditName("");
+                                    setEditClass("");
+                                  }}
+                                  className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                                >
+                                  <X className="h-4 w-4" aria-hidden />
+                                  Отмена
+                                </button>
+                              </div>
+                            ) : (
+                              <div className="inline-flex items-center gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setEditingId(r.id);
+                                    setEditTeam(r.team_name ?? "");
+                                    setEditName(r.full_name);
+                                    setEditClass(r.class_name ?? "");
+                                  }}
+                                  className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                                >
+                                  <Pencil className="h-4 w-4" aria-hidden />
+                                  Правка
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => deleteChild(r.id)}
+                                  disabled={deletingId === r.id}
+                                  className="inline-flex items-center gap-1 rounded-lg border border-red-200 bg-white px-2 py-1.5 text-sm font-medium text-red-700 hover:bg-red-50 disabled:opacity-60"
+                                >
+                                  <Trash2 className="h-4 w-4" aria-hidden />
+                                  {deletingId === r.id ? "Удаление…" : "Удалить"}
+                                </button>
+                              </div>
+                            )}
+                          </td>
+                          <td className="px-4 py-4">
+                            <div className="space-y-3">
+                              <div className="max-h-40 overflow-auto rounded-xl border border-slate-200 bg-slate-50 p-3">
+                                {comments.length === 0 ? (
+                                  <div className="text-sm text-slate-500">Комментариев пока нет.</div>
+                                ) : (
+                                  <ul className="space-y-2">
+                                    {comments.map((c) => (
+                                      <li key={c.id} className="text-sm text-slate-700">
+                                        <div className="text-xs text-slate-500">
+                                          {new Date(c.created_at).toLocaleString("ru-RU")} — {formatAuthor(c.author)}
+                                        </div>
+                                        <div className="whitespace-pre-wrap">{c.body}</div>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                )}
+                              </div>
+
+                              <div className="flex flex-col gap-2 sm:flex-row sm:items-start">
+                                <textarea
+                                  value={draft}
+                                  onChange={(e) =>
+                                    setDraftByChild((p) => ({ ...p, [r.id]: e.target.value }))
+                                  }
+                                  placeholder="Оставить комментарий…"
+                                  className="min-h-10 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 shadow-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-400/20"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => addComment(r.id)}
+                                  disabled={saving || !draft.trim()}
+                                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-3 py-2 text-sm font-medium text-white shadow-sm hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                                >
+                                  <Send className="h-4 w-4" aria-hidden />
+                                  {saving ? "Сохранение…" : "Отправить"}
+                                </button>
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          ))}
+        </div>
+      )}
     </main>
   );
 }

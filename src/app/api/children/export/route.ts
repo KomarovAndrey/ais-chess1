@@ -30,6 +30,7 @@ export async function GET() {
     .select(
       `
         id,
+        team_name,
         full_name,
         class_name,
         child_comments:child_comments(
@@ -39,6 +40,7 @@ export async function GET() {
         )
       `
     )
+    .order("team_name", { ascending: true, nullsFirst: false })
     .order("full_name", { ascending: true })
     .order("created_at", { referencedTable: "child_comments", ascending: true });
 
@@ -56,14 +58,15 @@ export async function GET() {
         })
         .join("\n");
       return {
-        "Ребёнок": c.full_name ?? "",
-        "Класс/группа": c.class_name ?? "",
+        Team: c.team_name ?? "",
+        Name: c.full_name ?? "",
+        Grade: c.class_name ?? "",
         "Комментарии": joined,
       };
     }) ?? [];
 
   const worksheet = XLSX.utils.json_to_sheet(rows);
-  worksheet["!cols"] = [{ wch: 28 }, { wch: 14 }, { wch: 80 }];
+  worksheet["!cols"] = [{ wch: 16 }, { wch: 28 }, { wch: 14 }, { wch: 80 }];
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, worksheet, "Дети");
 

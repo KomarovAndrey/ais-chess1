@@ -31,6 +31,7 @@ export async function GET() {
       `
         id,
         created_at,
+        team_name,
         full_name,
         class_name,
         child_comments:child_comments(
@@ -46,6 +47,7 @@ export async function GET() {
         )
       `
     )
+    .order("team_name", { ascending: true, nullsFirst: false })
     .order("full_name", { ascending: true })
     .order("created_at", { referencedTable: "child_comments", ascending: false });
 

@@ -61,33 +61,37 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Empty sheet" }, { status: 400 });
   }
 
-  // Accept headers: "Ребёнок"/"Ребенок"/"ФИО"/"Имя" and optional "Класс/группа"/"Класс"
-  const toInsert: { full_name: string; class_name: string | null }[] = [];
+  // Template columns: Team / Name / Grade
+  const toInsert: { team_name: string | null; full_name: string; class_name: string | null }[] = [];
   for (const r of raw) {
     const keys = Object.keys(r ?? {});
     const map = new Map(keys.map((k) => [normalizeHeader(k), k]));
 
+    const teamKey =
+      map.get("team") ||
+      map.get("команда");
+
     const nameKey =
+      map.get("name") ||
       map.get("ребёнок") ||
       map.get("ребенок") ||
       map.get("фио") ||
-      map.get("ф.и.о.") ||
-      map.get("имя") ||
-      map.get("full name") ||
-      map.get("name");
+      map.get("имя");
 
     const classKey =
+      map.get("grade") ||
       map.get("класс/группа") ||
       map.get("класс") ||
       map.get("группа") ||
-      map.get("class") ||
-      map.get("class name");
+      map.get("class");
 
+    const teamName = teamKey ? String(r[teamKey] ?? "").trim() : "";
     const fullName = nameKey ? String(r[nameKey] ?? "").trim() : "";
     const className = classKey ? String(r[classKey] ?? "").trim() : "";
 
     if (!fullName) continue;
     toInsert.push({
+      team_name: teamName ? teamName.slice(0, 50) : null,
       full_name: fullName.slice(0, 200),
       class_name: className ? className.slice(0, 50) : null,
     });
@@ -100,7 +104,7 @@ export async function POST(req: Request) {
   // Simple dedupe within file
   const seen = new Set<string>();
   const deduped = toInsert.filter((r) => {
-    const key = `${r.full_name.toLowerCase()}|${(r.class_name ?? "").toLowerCase()}`;
+    const key = `${(r.team_name ?? "").toLowerCase()}|${r.full_name.toLowerCase()}|${(r.class_name ?? "").toLowerCase()}`;
     if (seen.has(key)) return false;
     seen.add(key);
     return true;

@@ -21,11 +21,16 @@ $$;
 create table if not exists public.children (
   id uuid primary key default gen_random_uuid(),
   created_at timestamptz not null default now(),
+  team_name text,
   full_name text not null,
   class_name text
 );
 
+alter table public.children
+  add column if not exists team_name text;
+
 create index if not exists children_full_name_idx on public.children using gin (to_tsvector('simple', full_name));
+create index if not exists children_team_name_idx on public.children(team_name);
 
 alter table public.children enable row level security;
 
