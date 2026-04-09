@@ -12,6 +12,8 @@ import {
   X,
   Check,
   FileSpreadsheet,
+  ChevronDown,
+  ChevronRight,
 } from "lucide-react";
 
 type CommentAuthor = {
@@ -42,6 +44,8 @@ type GroupedRows = {
   children: ChildRow[];
 };
 
+const COLLAPSE_STATE_STORAGE_KEY = "children-page-collapse-state";
+
 function formatAuthor(a?: CommentAuthor | null) {
   return a?.display_name || a?.username || "—";
 }
@@ -66,6 +70,9 @@ export default function ChildrenCommentsPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
   const [importFile, setImportFile] = useState<File | null>(null);
+  const [collapsedTeams, setCollapsedTeams] = useState<Record<string, boolean>>({});
+  const [collapsedChildren, setCollapsedChildren] = useState<Record<string, boolean>>({});
+  const [collapseStateReady, setCollapseStateReady] = useState(false);
   const refreshTimer = useRef<number | null>(null);
 
   const filtered = useMemo(() => {
@@ -122,6 +129,66 @@ export default function ChildrenCommentsPage() {
     });
     load();
   }, [load]);
+
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(COLLAPSE_STATE_STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed?.teams && typeof parsed.teams === "object") {
+          setCollapsedTeams(parsed.teams as Record<string, boolean>);
+        }
+        if (parsed?.children && typeof parsed.children === "object") {
+          setCollapsedChildren(parsed.children as Record<string, boolean>);
+        }
+      }
+    } catch {
+      // ignore broken localStorage payload and continue with defaults
+    } finally {
+      setCollapseStateReady(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!collapseStateReady) return;
+
+    setCollapsedTeams((prev) => {
+      let changed = false;
+      const next = { ...prev };
+      for (const { teamName } of groupedRows) {
+        if (!(teamName in next)) {
+          next[teamName] = true;
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+
+    setCollapsedChildren((prev) => {
+      let changed = false;
+      const next = { ...prev };
+      for (const { children } of groupedRows) {
+        for (const child of children) {
+          if (!(child.id in next)) {
+            next[child.id] = true;
+            changed = true;
+          }
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [collapseStateReady, groupedRows]);
+
+  useEffect(() => {
+    if (!collapseStateReady) return;
+    window.localStorage.setItem(
+      COLLAPSE_STATE_STORAGE_KEY,
+      JSON.stringify({
+        teams: collapsedTeams,
+        children: collapsedChildren,
+      })
+    );
+  }, [collapseStateReady, collapsedTeams, collapsedChildren]);
 
   useEffect(() => {
     const channel = supabase
@@ -205,6 +272,14 @@ export default function ChildrenCommentsPage() {
 
   function downloadTemplate() {
     window.location.href = "/api/children/template";
+  }
+
+  function toggleTeam(teamName: string) {
+    setCollapsedTeams((prev) => ({ ...prev, [teamName]: !prev[teamName] }));
+  }
+
+  function toggleChild(childId: string) {
+    setCollapsedChildren((prev) => ({ ...prev, [childId]: !prev[childId] }));
   }
 
   async function saveEdit(childId: string) {
@@ -404,169 +479,187 @@ export default function ChildrenCommentsPage() {
         <div className="mt-6 space-y-6">
           {groupedRows.map(({ teamName, children }) => (
             <section key={teamName} className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-              <div className="border-b border-slate-200 bg-slate-50 px-4 py-3">
-                <div className="flex items-center justify-between gap-3">
+              <button
+                type="button"
+                onClick={() => toggleTeam(teamName)}
+                className="flex w-full items-center justify-between gap-3 border-b border-slate-200 bg-slate-50 px-4 py-3 text-left hover:bg-slate-100"
+              >
+                <div className="flex items-center gap-2">
+                  {collapsedTeams[teamName] ? (
+                    <ChevronRight className="h-4 w-4 text-slate-500" aria-hidden />
+                  ) : (
+                    <ChevronDown className="h-4 w-4 text-slate-500" aria-hidden />
+                  )}
                   <h2 className="text-lg font-semibold text-slate-900">{teamName}</h2>
-                  <span className="text-sm text-slate-500">{children.length} чел.</span>
                 </div>
-              </div>
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-slate-200">
-                  <thead className="bg-white">
-                    <tr>
-                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-600">
-                        Name
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-600">
-                        Grade
-                      </th>
-                      <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-slate-600">
-                        Действия
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-600">
-                        Комментарии
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-200">
-                    {children.map((r) => {
-                      const comments = Array.isArray(r.child_comments) ? r.child_comments : [];
-                      const draft = draftByChild[r.id] ?? "";
-                      const saving = savingChildId === r.id;
-                      const isEditing = editingId === r.id;
-                      return (
-                        <tr key={r.id} className="align-top">
-                          <td className="px-4 py-4 text-sm font-medium text-slate-900 whitespace-nowrap">
-                            {isEditing ? (
-                              <div className="space-y-2">
-                                <input
-                                  value={editTeam}
-                                  onChange={(e) => setEditTeam(e.target.value)}
-                                  placeholder="Команда"
-                                  className="w-40 rounded-lg border border-slate-200 bg-white px-2 py-1 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-400/20"
-                                />
-                                <input
-                                  value={editName}
-                                  onChange={(e) => setEditName(e.target.value)}
-                                  placeholder="Имя"
-                                  className="w-64 rounded-lg border border-slate-200 bg-white px-2 py-1 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-400/20"
-                                />
-                              </div>
+                <span className="text-sm text-slate-500">{children.length} чел.</span>
+              </button>
+              {!collapsedTeams[teamName] && (
+                <div className="divide-y divide-slate-200">
+                  {children.map((r) => {
+                    const comments = Array.isArray(r.child_comments) ? r.child_comments : [];
+                    const draft = draftByChild[r.id] ?? "";
+                    const saving = savingChildId === r.id;
+                    const isEditing = editingId === r.id;
+                    const isCollapsed = collapsedChildren[r.id] ?? false;
+                    return (
+                      <article key={r.id} className="bg-white">
+                        <div className="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-start sm:justify-between">
+                          <button
+                            type="button"
+                            onClick={() => toggleChild(r.id)}
+                            className="flex min-w-0 flex-1 items-start gap-3 text-left"
+                          >
+                            {isCollapsed ? (
+                              <ChevronRight className="mt-0.5 h-4 w-4 shrink-0 text-slate-500" aria-hidden />
                             ) : (
-                              r.full_name
+                              <ChevronDown className="mt-0.5 h-4 w-4 shrink-0 text-slate-500" aria-hidden />
                             )}
-                          </td>
-                          <td className="px-4 py-4 text-sm text-slate-700 whitespace-nowrap">
-                            {isEditing ? (
-                              <input
-                                value={editClass}
-                                onChange={(e) => setEditClass(e.target.value)}
-                                placeholder="Grade"
-                                className="w-40 rounded-lg border border-slate-200 bg-white px-2 py-1 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-400/20"
-                              />
-                            ) : (
-                              r.class_name || "—"
-                            )}
-                          </td>
-                          <td className="px-4 py-4 text-right whitespace-nowrap">
-                            {isEditing ? (
-                              <div className="inline-flex items-center gap-2">
-                                <button
-                                  type="button"
-                                  onClick={() => saveEdit(r.id)}
-                                  disabled={savingEdit || !editName.trim()}
-                                  className="inline-flex items-center gap-1 rounded-lg bg-slate-900 px-2 py-1.5 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-60"
-                                >
-                                  <Check className="h-4 w-4" aria-hidden />
-                                  Сохранить
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setEditingId(null);
-                                    setEditTeam("");
-                                    setEditName("");
-                                    setEditClass("");
-                                  }}
-                                  className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
-                                >
-                                  <X className="h-4 w-4" aria-hidden />
-                                  Отмена
-                                </button>
+                            <div className="min-w-0">
+                              <div className="text-sm font-semibold text-slate-900">{r.full_name}</div>
+                              <div className="mt-1 text-sm text-slate-600">
+                                Класс: {r.class_name || "—"} · Комментариев: {comments.length}
                               </div>
-                            ) : (
-                              <div className="inline-flex items-center gap-2">
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setEditingId(r.id);
-                                    setEditTeam(r.team_name ?? "");
-                                    setEditName(r.full_name);
-                                    setEditClass(r.class_name ?? "");
-                                  }}
-                                  className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
-                                >
-                                  <Pencil className="h-4 w-4" aria-hidden />
-                                  Правка
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => deleteChild(r.id)}
-                                  disabled={deletingId === r.id}
-                                  className="inline-flex items-center gap-1 rounded-lg border border-red-200 bg-white px-2 py-1.5 text-sm font-medium text-red-700 hover:bg-red-50 disabled:opacity-60"
-                                >
-                                  <Trash2 className="h-4 w-4" aria-hidden />
-                                  {deletingId === r.id ? "Удаление…" : "Удалить"}
-                                </button>
-                              </div>
-                            )}
-                          </td>
-                          <td className="px-4 py-4">
-                            <div className="space-y-3">
-                              <div className="max-h-40 overflow-auto rounded-xl border border-slate-200 bg-slate-50 p-3">
-                                {comments.length === 0 ? (
-                                  <div className="text-sm text-slate-500">Комментариев пока нет.</div>
+                            </div>
+                          </button>
+                          {!isEditing && (
+                            <div className="inline-flex items-center gap-2 self-start">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setEditingId(r.id);
+                                  setEditTeam(r.team_name ?? "");
+                                  setEditName(r.full_name);
+                                  setEditClass(r.class_name ?? "");
+                                  setCollapsedChildren((prev) => ({ ...prev, [r.id]: false }));
+                                  setCollapsedTeams((prev) => ({ ...prev, [teamName]: false }));
+                                }}
+                                className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                              >
+                                <Pencil className="h-4 w-4" aria-hidden />
+                                Правка
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => deleteChild(r.id)}
+                                disabled={deletingId === r.id}
+                                className="inline-flex items-center gap-1 rounded-lg border border-red-200 bg-white px-2 py-1.5 text-sm font-medium text-red-700 hover:bg-red-50 disabled:opacity-60"
+                              >
+                                <Trash2 className="h-4 w-4" aria-hidden />
+                                {deletingId === r.id ? "Удаление…" : "Удалить"}
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                        {!isCollapsed && (
+                          <div className="border-t border-slate-100 px-4 pb-4">
+                            <div className="grid gap-4 lg:grid-cols-[minmax(0,280px)_minmax(0,1fr)]">
+                              <div className="space-y-3 pt-4">
+                                {isEditing ? (
+                                  <>
+                                    <input
+                                      value={editTeam}
+                                      onChange={(e) => setEditTeam(e.target.value)}
+                                      placeholder="Команда"
+                                      className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-400/20"
+                                    />
+                                    <input
+                                      value={editName}
+                                      onChange={(e) => setEditName(e.target.value)}
+                                      placeholder="Имя"
+                                      className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-400/20"
+                                    />
+                                    <input
+                                      value={editClass}
+                                      onChange={(e) => setEditClass(e.target.value)}
+                                      placeholder="Класс"
+                                      className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-400/20"
+                                    />
+                                    <div className="inline-flex flex-wrap items-center gap-2">
+                                      <button
+                                        type="button"
+                                        onClick={() => saveEdit(r.id)}
+                                        disabled={savingEdit || !editName.trim()}
+                                        className="inline-flex items-center gap-1 rounded-lg bg-slate-900 px-2 py-1.5 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-60"
+                                      >
+                                        <Check className="h-4 w-4" aria-hidden />
+                                        Сохранить
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setEditingId(null);
+                                          setEditTeam("");
+                                          setEditName("");
+                                          setEditClass("");
+                                        }}
+                                        className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                                      >
+                                        <X className="h-4 w-4" aria-hidden />
+                                        Отмена
+                                      </button>
+                                    </div>
+                                  </>
                                 ) : (
-                                  <ul className="space-y-2">
-                                    {comments.map((c) => (
-                                      <li key={c.id} className="text-sm text-slate-700">
-                                        <div className="text-xs text-slate-500">
-                                          {new Date(c.created_at).toLocaleString("ru-RU")} — {formatAuthor(c.author)}
-                                        </div>
-                                        <div className="whitespace-pre-wrap">{c.body}</div>
-                                      </li>
-                                    ))}
-                                  </ul>
+                                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
+                                    <div>
+                                      <span className="font-medium text-slate-900">Команда:</span>{" "}
+                                      {r.team_name || "Без команды"}
+                                    </div>
+                                    <div className="mt-2">
+                                      <span className="font-medium text-slate-900">Класс:</span>{" "}
+                                      {r.class_name || "—"}
+                                    </div>
+                                  </div>
                                 )}
                               </div>
 
-                              <div className="flex flex-col gap-2 sm:flex-row sm:items-start">
-                                <textarea
-                                  value={draft}
-                                  onChange={(e) =>
-                                    setDraftByChild((p) => ({ ...p, [r.id]: e.target.value }))
-                                  }
-                                  placeholder="Оставить комментарий…"
-                                  className="min-h-10 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 shadow-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-400/20"
-                                />
-                                <button
-                                  type="button"
-                                  onClick={() => addComment(r.id)}
-                                  disabled={saving || !draft.trim()}
-                                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-3 py-2 text-sm font-medium text-white shadow-sm hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
-                                >
-                                  <Send className="h-4 w-4" aria-hidden />
-                                  {saving ? "Сохранение…" : "Отправить"}
-                                </button>
+                              <div className="space-y-3 pt-4">
+                                <div className="max-h-40 overflow-auto rounded-xl border border-slate-200 bg-slate-50 p-3">
+                                  {comments.length === 0 ? (
+                                    <div className="text-sm text-slate-500">Комментариев пока нет.</div>
+                                  ) : (
+                                    <ul className="space-y-2">
+                                      {comments.map((c) => (
+                                        <li key={c.id} className="text-sm text-slate-700">
+                                          <div className="text-xs text-slate-500">
+                                            {new Date(c.created_at).toLocaleString("ru-RU")} — {formatAuthor(c.author)}
+                                          </div>
+                                          <div className="whitespace-pre-wrap">{c.body}</div>
+                                        </li>
+                                      ))}
+                                    </ul>
+                                  )}
+                                </div>
+
+                                <div className="flex flex-col gap-2 sm:flex-row sm:items-start">
+                                  <textarea
+                                    value={draft}
+                                    onChange={(e) =>
+                                      setDraftByChild((p) => ({ ...p, [r.id]: e.target.value }))
+                                    }
+                                    placeholder="Оставить комментарий…"
+                                    className="min-h-10 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 shadow-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-400/20"
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => addComment(r.id)}
+                                    disabled={saving || !draft.trim()}
+                                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-3 py-2 text-sm font-medium text-white shadow-sm hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                                  >
+                                    <Send className="h-4 w-4" aria-hidden />
+                                    {saving ? "Сохранение…" : "Отправить"}
+                                  </button>
+                                </div>
                               </div>
                             </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
+                          </div>
+                        )}
+                      </article>
+                    );
+                  })}
+                </div>
+              )}
             </section>
           ))}
         </div>
