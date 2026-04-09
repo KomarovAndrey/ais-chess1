@@ -16,17 +16,23 @@ create index if not exists child_comments_child_week_created_at_idx
 create index if not exists child_comments_week_number_idx
   on public.child_comments(week_number);
 
-alter table public.soft_skills_ratings
-  add column if not exists week_number integer not null default 30;
+do $$
+begin
+  if to_regclass('public.soft_skills_ratings') is not null then
+    alter table public.soft_skills_ratings
+      add column if not exists week_number integer not null default 30;
 
-alter table public.soft_skills_ratings
-  drop constraint if exists soft_skills_ratings_week_number_check;
+    alter table public.soft_skills_ratings
+      drop constraint if exists soft_skills_ratings_week_number_check;
 
-alter table public.soft_skills_ratings
-  add constraint soft_skills_ratings_week_number_check check (week_number >= 1);
+    alter table public.soft_skills_ratings
+      add constraint soft_skills_ratings_week_number_check check (week_number >= 1);
 
-create index if not exists soft_skills_ratings_week_number_idx
-  on public.soft_skills_ratings(week_number);
+    create index if not exists soft_skills_ratings_week_number_idx
+      on public.soft_skills_ratings(week_number);
 
-create unique index if not exists soft_skills_ratings_evaluator_student_week_uidx
-  on public.soft_skills_ratings(evaluator_id, student_id, week_number);
+    create unique index if not exists soft_skills_ratings_evaluator_student_week_uidx
+      on public.soft_skills_ratings(evaluator_id, student_id, week_number);
+  end if;
+end
+$$;

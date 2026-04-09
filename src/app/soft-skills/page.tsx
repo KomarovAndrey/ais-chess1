@@ -207,6 +207,11 @@ export default function SoftSkillsPage() {
     setMessage(null);
   }
 
+  function goToPreviousWeek() {
+    setActiveWeek((prev) => Math.max(DEFAULT_ACTIVE_WEEK, prev - 1));
+    setMessage(null);
+  }
+
   if (loading) {
     return (
       <main className="min-h-screen bg-gradient-to-b from-blue-50 via-white to-orange-50 px-4 py-10">
@@ -240,6 +245,14 @@ export default function SoftSkillsPage() {
             <div className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm">
               Неделя {activeWeek}
             </div>
+            <button
+              type="button"
+              onClick={goToPreviousWeek}
+              disabled={activeWeek <= DEFAULT_ACTIVE_WEEK}
+              className="flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              Предыдущая неделя
+            </button>
             <button
               type="button"
               onClick={goToNextWeek}

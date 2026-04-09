@@ -475,6 +475,10 @@ export default function ChildrenCommentsPage() {
     setActiveWeek((prev) => prev + 1);
   }
 
+  function goToPreviousWeek() {
+    setActiveWeek((prev) => Math.max(DEFAULT_ACTIVE_WEEK, prev - 1));
+  }
+
   if (allowed === false) {
     return (
       <main className="mx-auto max-w-5xl px-4 py-8">
@@ -499,6 +503,14 @@ export default function ChildrenCommentsPage() {
           <div className="inline-flex items-center rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm">
             Неделя {activeWeek}
           </div>
+          <button
+            type="button"
+            onClick={goToPreviousWeek}
+            disabled={activeWeek <= DEFAULT_ACTIVE_WEEK}
+            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            Предыдущая неделя
+          </button>
           <button
             type="button"
             onClick={goToNextWeek}
