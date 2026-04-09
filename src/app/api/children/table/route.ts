@@ -51,6 +51,7 @@ export async function GET(req: Request) {
         ),
         child_program_ratings:child_program_ratings(
           id,
+          evaluator_id,
           week_number,
           program,
           leadership,
