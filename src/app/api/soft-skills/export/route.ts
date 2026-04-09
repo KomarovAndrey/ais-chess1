@@ -1,13 +1,16 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import * as XLSX from "xlsx";
+import { normalizeWeekNumber } from "@/lib/weekly";
 
 // GET - экспорт в Excel (только для учителей/админов)
-export async function GET() {
+export async function GET(req: Request) {
   const supabase = await createClient();
   if (!supabase) {
     return NextResponse.json({ error: "Supabase configuration error" }, { status: 500 });
   }
+  const { searchParams } = new URL(req.url);
+  const weekNumber = normalizeWeekNumber(searchParams.get("week"));
   
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) {
@@ -30,6 +33,7 @@ export async function GET() {
     .from("soft_skills_ratings")
     .select(`
       id,
+      week_number,
       leadership,
       communication,
       self_reflection,
@@ -39,6 +43,7 @@ export async function GET() {
       evaluator:evaluator_id(username, email),
       student:student_id(username, email)
     `)
+    .eq("week_number", weekNumber)
     .order("created_at", { ascending: false });
 
   if (error) {
@@ -47,6 +52,7 @@ export async function GET() {
 
   // Преобразовать данные для Excel
   const excelData = ratings?.map((r: any) => ({
+    "Неделя": r.week_number,
     "Дата оценки": new Date(r.created_at).toLocaleString("ru-RU"),
     "Оценивающий (username)": r.evaluator?.username || "-",
     "Оценивающий (email)": r.evaluator?.email || "-",
@@ -71,7 +77,7 @@ export async function GET() {
   return new NextResponse(buffer, {
     headers: {
       "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      "Content-Disposition": `attachment; filename="soft-skills-${new Date().toISOString().split("T")[0]}.xlsx"`,
+      "Content-Disposition": `attachment; filename="soft-skills-week-${weekNumber}-${new Date().toISOString().split("T")[0]}.xlsx"`,
     },
   });
 }

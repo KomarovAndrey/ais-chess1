@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAndUser } from "@/lib/apiAuth";
+import { normalizeWeekNumber } from "@/lib/weekly";
 
 async function requireTeacherOrAdmin() {
   const auth = await getSupabaseAndUser();
@@ -24,7 +25,7 @@ export async function POST(req: NextRequest) {
   if ("response" in auth) return auth.response;
   const { supabase, user } = auth;
 
-  let body: { child_id?: string; text?: string };
+  let body: { child_id?: string; text?: string; week_number?: number };
   try {
     body = await req.json();
   } catch {
@@ -33,14 +34,15 @@ export async function POST(req: NextRequest) {
 
   const childId = typeof body.child_id === "string" ? body.child_id : "";
   const text = typeof body.text === "string" ? body.text.trim() : "";
+  const weekNumber = normalizeWeekNumber(body.week_number);
 
   if (!childId) return NextResponse.json({ error: "child_id is required" }, { status: 400 });
   if (!text) return NextResponse.json({ error: "text is required" }, { status: 400 });
 
   const { data, error } = await supabase
     .from("child_comments")
-    .insert({ child_id: childId, author_id: user.id, body: text.slice(0, 4000) })
-    .select("id, created_at, body, author_id")
+    .insert({ child_id: childId, author_id: user.id, body: text.slice(0, 4000), week_number: weekNumber })
+    .select("id, created_at, body, author_id, week_number")
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

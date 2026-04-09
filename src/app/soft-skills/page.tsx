@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import { ACTIVE_WEEK_STORAGE_KEY, DEFAULT_ACTIVE_WEEK, normalizeWeekNumber } from "@/lib/weekly";
 import { Star, Download, CheckCircle } from "lucide-react";
 
 interface Profile {
@@ -31,6 +32,7 @@ export default function SoftSkillsPage() {
   const [userRole, setUserRole] = useState<string | null>(null);
   const [students, setStudents] = useState<Profile[]>([]);
   const [selectedStudent, setSelectedStudent] = useState<string>("");
+  const [activeWeek, setActiveWeek] = useState(DEFAULT_ACTIVE_WEEK);
   const [ratings, setRatings] = useState<Ratings>({
     leadership: "-",
     communication: "-",
@@ -41,10 +43,17 @@ export default function SoftSkillsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [loadingRatings, setLoadingRatings] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   useEffect(() => {
     async function init() {
+      try {
+        setActiveWeek(normalizeWeekNumber(window.localStorage.getItem(ACTIVE_WEEK_STORAGE_KEY)));
+      } catch {
+        setActiveWeek(DEFAULT_ACTIVE_WEEK);
+      }
+
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         setMessage({ type: "error", text: "Необходимо войти в систему" });
@@ -81,6 +90,53 @@ export default function SoftSkillsPage() {
     init();
   }, []);
 
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(ACTIVE_WEEK_STORAGE_KEY, String(activeWeek));
+    } catch {
+      // ignore storage issues
+    }
+  }, [activeWeek]);
+
+  useEffect(() => {
+    async function loadExistingRating() {
+      if (!selectedStudent) {
+        setRatings({
+          leadership: "-",
+          communication: "-",
+          self_reflection: "-",
+          critical_thinking: "-",
+          self_control: "-",
+        });
+        return;
+      }
+
+      setLoadingRatings(true);
+      try {
+        const res = await fetch(`/api/soft-skills/ratings?week=${activeWeek}`);
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data?.error || "Ошибка загрузки оценок");
+
+        const list = Array.isArray(data?.ratings) ? data.ratings : [];
+        const current = list.find((item: any) => item.student_id === selectedStudent);
+
+        setRatings({
+          leadership: current?.leadership || "-",
+          communication: current?.communication || "-",
+          self_reflection: current?.self_reflection || "-",
+          critical_thinking: current?.critical_thinking || "-",
+          self_control: current?.self_control || "-",
+        });
+      } catch (e: any) {
+        setMessage({ type: "error", text: e.message || "Ошибка загрузки оценок" });
+      } finally {
+        setLoadingRatings(false);
+      }
+    }
+
+    loadExistingRating();
+  }, [selectedStudent, activeWeek]);
+
   function handleStarClick(competency: keyof Ratings, star: number) {
     setRatings((prev) => ({
       ...prev,
@@ -103,6 +159,7 @@ export default function SoftSkillsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           student_id: selectedStudent,
+          week_number: activeWeek,
           ...ratings,
         }),
       });
@@ -113,14 +170,6 @@ export default function SoftSkillsPage() {
       }
 
       setMessage({ type: "success", text: "Оценка успешно сохранена!" });
-      // Сбросить форму
-      setRatings({
-        leadership: "-",
-        communication: "-",
-        self_reflection: "-",
-        critical_thinking: "-",
-        self_control: "-",
-      });
     } catch (e: any) {
       setMessage({ type: "error", text: e.message });
     } finally {
@@ -131,7 +180,7 @@ export default function SoftSkillsPage() {
   async function handleExport() {
     setExporting(true);
     try {
-      const res = await fetch("/api/soft-skills/export");
+      const res = await fetch(`/api/soft-skills/export?week=${activeWeek}`);
       if (!res.ok) {
         const data = await res.json();
         throw new Error(data.error || "Ошибка экспорта");
@@ -141,7 +190,7 @@ export default function SoftSkillsPage() {
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `soft-skills-${new Date().toISOString().split("T")[0]}.xlsx`;
+      a.download = `soft-skills-week-${activeWeek}-${new Date().toISOString().split("T")[0]}.xlsx`;
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -151,6 +200,11 @@ export default function SoftSkillsPage() {
     } finally {
       setExporting(false);
     }
+  }
+
+  function goToNextWeek() {
+    setActiveWeek((prev) => prev + 1);
+    setMessage(null);
   }
 
   if (loading) {
@@ -177,17 +231,32 @@ export default function SoftSkillsPage() {
     <main className="min-h-screen bg-gradient-to-b from-blue-50 via-white to-orange-50 px-4 py-10">
       <div className="mx-auto max-w-4xl space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-bold text-slate-900">Оценка Soft Skills</h1>
-          <button
-            type="button"
-            onClick={handleExport}
-            disabled={exporting}
-            className="flex items-center gap-2 rounded-xl border border-green-600 bg-green-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-green-500 disabled:opacity-60"
-          >
-            <Download className="h-4 w-4" />
-            {exporting ? "Загрузка..." : "Скачать Excel"}
-          </button>
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-slate-900">Оценка Soft Skills</h1>
+            <p className="mt-1 text-sm text-slate-600">Активная неделя: {activeWeek}</p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm">
+              Неделя {activeWeek}
+            </div>
+            <button
+              type="button"
+              onClick={goToNextWeek}
+              className="flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50"
+            >
+              Следующая неделя
+            </button>
+            <button
+              type="button"
+              onClick={handleExport}
+              disabled={exporting}
+              className="flex items-center gap-2 rounded-xl border border-green-600 bg-green-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-green-500 disabled:opacity-60"
+            >
+              <Download className="h-4 w-4" />
+              {exporting ? "Загрузка..." : "Скачать Excel"}
+            </button>
+          </div>
         </div>
 
         {/* Main card */}
@@ -214,9 +283,16 @@ export default function SoftSkillsPage() {
           {/* Ratings */}
           {selectedStudent && (
             <div className="space-y-6">
-              <h2 className="text-lg font-semibold text-slate-900">Компетенции</h2>
+              <h2 className="text-lg font-semibold text-slate-900">
+                Компетенции за неделю {activeWeek}
+              </h2>
 
-              {COMPETENCIES.map((comp) => (
+              {loadingRatings ? (
+                <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-6 text-sm text-slate-600">
+                  Загрузка оценок недели...
+                </div>
+              ) : (
+                COMPETENCIES.map((comp) => (
                 <div key={comp.key} className="space-y-2">
                   <p className="text-sm font-medium text-slate-700">{comp.label}</p>
                   <div className="flex items-center gap-2">
@@ -244,13 +320,14 @@ export default function SoftSkillsPage() {
                     </span>
                   </div>
                 </div>
-              ))}
+                ))
+              )}
 
               {/* Save button */}
               <button
                 type="button"
                 onClick={handleSave}
-                disabled={saving}
+                disabled={saving || loadingRatings}
                 className="flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-6 py-3.5 text-base font-semibold text-white shadow-md transition hover:bg-blue-500 disabled:opacity-60"
               >
                 <CheckCircle className="h-5 w-5" />

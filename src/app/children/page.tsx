@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import { ACTIVE_WEEK_STORAGE_KEY, DEFAULT_ACTIVE_WEEK, normalizeWeekNumber } from "@/lib/weekly";
 import {
   Download,
   RefreshCw,
@@ -114,6 +115,7 @@ export default function ChildrenCommentsPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
   const [importFile, setImportFile] = useState<File | null>(null);
+  const [activeWeek, setActiveWeek] = useState(DEFAULT_ACTIVE_WEEK);
   const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
   const [collapsedTeams, setCollapsedTeams] = useState<Record<string, boolean>>({});
   const [collapsedChildren, setCollapsedChildren] = useState<Record<string, boolean>>({});
@@ -188,7 +190,7 @@ export default function ChildrenCommentsPage() {
     setError(null);
     setLoading(true);
     try {
-      const res = await fetch("/api/children/table", { cache: "no-store" });
+      const res = await fetch(`/api/children/table?week=${activeWeek}`, { cache: "no-store" });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         setAllowed(res.status !== 403 ? null : false);
@@ -201,15 +203,31 @@ export default function ChildrenCommentsPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [activeWeek]);
 
   useEffect(() => {
     // verify logged-in early for nicer message (API still enforces)
     supabase.auth.getUser().then(({ data }) => {
       if (!data?.user) setAllowed(false);
     });
+    try {
+      setActiveWeek(normalizeWeekNumber(window.localStorage.getItem(ACTIVE_WEEK_STORAGE_KEY)));
+    } catch {
+      setActiveWeek(DEFAULT_ACTIVE_WEEK);
+    }
+  }, []);
+
+  useEffect(() => {
     load();
   }, [load]);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(ACTIVE_WEEK_STORAGE_KEY, String(activeWeek));
+    } catch {
+      // ignore localStorage issues
+    }
+  }, [activeWeek]);
 
   useEffect(() => {
     try {
@@ -322,7 +340,7 @@ export default function ChildrenCommentsPage() {
       const res = await fetch("/api/children/comments", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ child_id: childId, text }),
+        body: JSON.stringify({ child_id: childId, text, week_number: activeWeek }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.error || "Ошибка сохранения");
@@ -368,7 +386,7 @@ export default function ChildrenCommentsPage() {
   }
 
   function downloadExcel() {
-    window.location.href = "/api/children/export";
+    window.location.href = `/api/children/export?week=${activeWeek}`;
   }
 
   function downloadTemplate() {
@@ -453,6 +471,10 @@ export default function ChildrenCommentsPage() {
     }
   }
 
+  function goToNextWeek() {
+    setActiveWeek((prev) => prev + 1);
+  }
+
   if (allowed === false) {
     return (
       <main className="mx-auto max-w-5xl px-4 py-8">
@@ -470,10 +492,20 @@ export default function ChildrenCommentsPage() {
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Дети — комментарии</h1>
           <p className="mt-1 text-sm text-slate-600">
-            Разделение по командам, поиск по команде/имени/классу, комментарии сохраняются в реальном времени.
+            Неделя {activeWeek}. Разделение по командам, поиск по команде/имени/классу, комментарии и экспорт работают для активной недели.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          <div className="inline-flex items-center rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm">
+            Неделя {activeWeek}
+          </div>
+          <button
+            type="button"
+            onClick={goToNextWeek}
+            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50"
+          >
+            Следующая неделя
+          </button>
           <button
             type="button"
             onClick={load}

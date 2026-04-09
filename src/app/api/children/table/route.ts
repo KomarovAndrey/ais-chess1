@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSupabaseAndUser } from "@/lib/apiAuth";
+import { normalizeWeekNumber } from "@/lib/weekly";
 
 async function requireTeacherOrAdmin() {
   const auth = await getSupabaseAndUser();
@@ -19,10 +20,12 @@ async function requireTeacherOrAdmin() {
   return auth;
 }
 
-export async function GET() {
+export async function GET(req: Request) {
   const auth = await requireTeacherOrAdmin();
   if ("response" in auth) return auth.response;
   const { supabase } = auth;
+  const { searchParams } = new URL(req.url);
+  const weekNumber = normalizeWeekNumber(searchParams.get("week"));
 
   // One query: children + nested comments with author profile
   const { data, error } = await supabase
@@ -39,6 +42,7 @@ export async function GET() {
           created_at,
           body,
           author_id,
+          week_number,
           author:author_id(
             id,
             username,
@@ -55,6 +59,14 @@ export async function GET() {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  return NextResponse.json({ children: data ?? [] });
+  const children =
+    (data ?? []).map((child: any) => ({
+      ...child,
+      child_comments: Array.isArray(child.child_comments)
+        ? child.child_comments.filter((comment: any) => comment.week_number === weekNumber)
+        : [],
+    })) ?? [];
+
+  return NextResponse.json({ children, week_number: weekNumber });
 }
 

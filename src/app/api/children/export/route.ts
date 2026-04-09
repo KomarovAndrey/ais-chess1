@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSupabaseAndUser } from "@/lib/apiAuth";
 import * as XLSX from "xlsx";
+import { normalizeWeekNumber } from "@/lib/weekly";
 
 async function requireTeacherOrAdmin() {
   const auth = await getSupabaseAndUser();
@@ -20,10 +21,12 @@ async function requireTeacherOrAdmin() {
   return auth;
 }
 
-export async function GET() {
+export async function GET(req: Request) {
   const auth = await requireTeacherOrAdmin();
   if ("response" in auth) return auth.response;
   const { supabase } = auth;
+  const { searchParams } = new URL(req.url);
+  const weekNumber = normalizeWeekNumber(searchParams.get("week"));
 
   const { data, error } = await supabase
     .from("children")
@@ -36,6 +39,7 @@ export async function GET() {
         child_comments:child_comments(
           created_at,
           body,
+          week_number,
           author:author_id(username, display_name)
         )
       `
@@ -48,7 +52,9 @@ export async function GET() {
 
   const rows =
     (data ?? []).map((c: any) => {
-      const comments: any[] = Array.isArray(c.child_comments) ? c.child_comments : [];
+      const comments: any[] = Array.isArray(c.child_comments)
+        ? c.child_comments.filter((cm) => cm.week_number === weekNumber)
+        : [];
       const joined = comments
         .map((cm) => {
           const author = cm.author?.display_name || cm.author?.username || "—";
@@ -76,7 +82,7 @@ export async function GET() {
   return new NextResponse(buffer, {
     headers: {
       "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      "Content-Disposition": `attachment; filename="children-comments-${fileDate}.xlsx"`,
+      "Content-Disposition": `attachment; filename="children-comments-week-${weekNumber}-${fileDate}.xlsx"`,
     },
   });
 }
