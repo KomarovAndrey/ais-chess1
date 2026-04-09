@@ -149,7 +149,7 @@ export default function ChildrenCommentsPage() {
       sections.set(sectionKey, teamMap);
     }
 
-    const baseSections = GRADE_SECTIONS.map((section) => {
+    const baseSections: SectionRows[] = GRADE_SECTIONS.map((section) => {
       const teamMap = sections.get(section.key) ?? new Map<string, ChildRow[]>();
       const teams = Array.from(teamMap.entries())
         .sort(([a], [b]) => a.localeCompare(b, "ru"))
