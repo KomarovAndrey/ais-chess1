@@ -31,6 +31,17 @@ type ChildComment = {
   author?: CommentAuthor | null;
 };
 
+type ProgramRating = {
+  id: string;
+  week_number: number;
+  program: ProgramName;
+  leadership: string;
+  communication: string;
+  self_reflection: string;
+  critical_thinking: string;
+  self_control: string;
+};
+
 type ChildRow = {
   id: string;
   created_at: string;
@@ -38,6 +49,7 @@ type ChildRow = {
   full_name: string;
   class_name: string | null;
   child_comments?: ChildComment[];
+  child_program_ratings?: ProgramRating[];
 };
 
 type GroupedRows = {
@@ -52,6 +64,15 @@ type SectionRows = {
   teams: GroupedRows[];
 };
 
+type ProgramName = "Robo" | "Lumo" | "Sport" | "3D";
+type RatingMetricKey =
+  | "leadership"
+  | "communication"
+  | "self_reflection"
+  | "critical_thinking"
+  | "self_control";
+type ProgramRatingsDraft = Record<RatingMetricKey, string>;
+
 const GRADE_SECTIONS = [
   { key: "kg1-g1", label: "KG1-G1" },
   { key: "g2-g3", label: "G2-G3" },
@@ -60,6 +81,24 @@ const GRADE_SECTIONS = [
 
 const EXTRA_SECTION = { key: "other", label: "Без группы" } as const;
 const COLLAPSE_STATE_STORAGE_KEY = "children-page-collapse-state";
+const PROGRAMS: ProgramName[] = ["Robo", "Lumo", "Sport", "3D"];
+const RATING_METRICS: { key: RatingMetricKey; label: string }[] = [
+  { key: "leadership", label: "Лидер" },
+  { key: "communication", label: "Коммун" },
+  { key: "self_reflection", label: "Самореф" },
+  { key: "critical_thinking", label: "Крит мыш" },
+  { key: "self_control", label: "Самокн" },
+];
+
+function emptyProgramRatings(): ProgramRatingsDraft {
+  return {
+    leadership: "-",
+    communication: "-",
+    self_reflection: "-",
+    critical_thinking: "-",
+    self_control: "-",
+  };
+}
 
 function formatAuthor(a?: CommentAuthor | null) {
   return a?.display_name || a?.username || "—";
@@ -116,6 +155,9 @@ export default function ChildrenCommentsPage() {
   const [importing, setImporting] = useState(false);
   const [importFile, setImportFile] = useState<File | null>(null);
   const [activeWeek, setActiveWeek] = useState(DEFAULT_ACTIVE_WEEK);
+  const [selectedProgramByChild, setSelectedProgramByChild] = useState<Record<string, ProgramName>>({});
+  const [programRatingsDrafts, setProgramRatingsDrafts] = useState<Record<string, ProgramRatingsDraft>>({});
+  const [savingProgramKey, setSavingProgramKey] = useState<string | null>(null);
   const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
   const [collapsedTeams, setCollapsedTeams] = useState<Record<string, boolean>>({});
   const [collapsedChildren, setCollapsedChildren] = useState<Record<string, boolean>>({});
@@ -479,6 +521,73 @@ export default function ChildrenCommentsPage() {
     setActiveWeek((prev) => Math.max(DEFAULT_ACTIVE_WEEK, prev - 1));
   }
 
+  function getSelectedProgram(childId: string): ProgramName {
+    return selectedProgramByChild[childId] ?? "Robo";
+  }
+
+  function getProgramDraftKey(childId: string, program: ProgramName) {
+    return `${childId}::${program}::${activeWeek}`;
+  }
+
+  function selectProgram(childId: string, ratings: ProgramRating[] | undefined, program: ProgramName) {
+    setSelectedProgramByChild((prev) => ({ ...prev, [childId]: program }));
+    const existing = Array.isArray(ratings) ? ratings.find((item) => item.program === program) : null;
+    setProgramRatingsDrafts((prev) => ({
+      ...prev,
+      [getProgramDraftKey(childId, program)]: existing
+        ? {
+            leadership: existing.leadership,
+            communication: existing.communication,
+            self_reflection: existing.self_reflection,
+            critical_thinking: existing.critical_thinking,
+            self_control: existing.self_control,
+          }
+        : emptyProgramRatings(),
+    }));
+  }
+
+  function updateProgramDraft(
+    childId: string,
+    program: ProgramName,
+    metric: RatingMetricKey,
+    value: string
+  ) {
+    const draftKey = getProgramDraftKey(childId, program);
+    setProgramRatingsDrafts((prev) => ({
+      ...prev,
+      [draftKey]: {
+        ...(prev[draftKey] ?? emptyProgramRatings()),
+        [metric]: value,
+      },
+    }));
+  }
+
+  async function saveProgramRatings(childId: string, program: ProgramName) {
+    const draftKey = getProgramDraftKey(childId, program);
+    const draft = programRatingsDrafts[draftKey] ?? emptyProgramRatings();
+    setSavingProgramKey(draftKey);
+    setError(null);
+    try {
+      const res = await fetch("/api/children/ratings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          child_id: childId,
+          week_number: activeWeek,
+          program,
+          ...draft,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || "Ошибка сохранения оценки");
+      load();
+    } catch (e: any) {
+      setError(e?.message || "Ошибка");
+    } finally {
+      setSavingProgramKey(null);
+    }
+  }
+
   if (allowed === false) {
     return (
       <main className="mx-auto max-w-5xl px-4 py-8">
@@ -674,10 +783,25 @@ export default function ChildrenCommentsPage() {
                             <div className="divide-y divide-slate-200">
                               {children.map((r) => {
                                 const comments = Array.isArray(r.child_comments) ? r.child_comments : [];
+                                const programRatings = Array.isArray(r.child_program_ratings) ? r.child_program_ratings : [];
                                 const draft = draftByChild[r.id] ?? "";
                                 const saving = savingChildId === r.id;
                                 const isEditing = editingId === r.id;
                                 const isCollapsed = collapsedChildren[r.id] ?? false;
+                                const selectedProgram = getSelectedProgram(r.id);
+                                const selectedDraftKey = getProgramDraftKey(r.id, selectedProgram);
+                                const selectedDraft = programRatingsDrafts[selectedDraftKey] ?? (() => {
+                                  const existing = programRatings.find((item) => item.program === selectedProgram);
+                                  return existing
+                                    ? {
+                                        leadership: existing.leadership,
+                                        communication: existing.communication,
+                                        self_reflection: existing.self_reflection,
+                                        critical_thinking: existing.critical_thinking,
+                                        self_control: existing.self_control,
+                                      }
+                                    : emptyProgramRatings();
+                                })();
                                 return (
                                   <article key={r.id} className="bg-white">
                                     <div className="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-start sm:justify-between">
@@ -791,11 +915,9 @@ export default function ChildrenCommentsPage() {
                                             )}
                                           </div>
 
-                                          <div className="space-y-3 pt-4">
-                                            <div className="max-h-40 overflow-auto rounded-xl border border-slate-200 bg-slate-50 p-3">
-                                              {comments.length === 0 ? (
-                                                <div className="text-sm text-slate-500">Комментариев пока нет.</div>
-                                              ) : (
+                                          <div className="space-y-4 pt-4">
+                                            {comments.length > 0 && (
+                                              <div className="max-h-40 overflow-auto rounded-xl border border-slate-200 bg-slate-50 p-3">
                                                 <ul className="space-y-2">
                                                   {comments.map((c) => (
                                                     <li key={c.id} className="text-sm text-slate-700">
@@ -806,8 +928,8 @@ export default function ChildrenCommentsPage() {
                                                     </li>
                                                   ))}
                                                 </ul>
-                                              )}
-                                            </div>
+                                              </div>
+                                            )}
 
                                             <div className="flex flex-col gap-2 sm:flex-row sm:items-start">
                                               <textarea
@@ -827,6 +949,83 @@ export default function ChildrenCommentsPage() {
                                                 <Send className="h-4 w-4" aria-hidden />
                                                 {saving ? "Сохранение…" : "Отправить"}
                                               </button>
+                                            </div>
+
+                                            <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                                              <div className="flex flex-wrap gap-2">
+                                                {PROGRAMS.map((program) => (
+                                                  <button
+                                                    key={program}
+                                                    type="button"
+                                                    onClick={() => selectProgram(r.id, programRatings, program)}
+                                                    className={`rounded-lg px-3 py-1.5 text-sm font-medium transition ${
+                                                      selectedProgram === program
+                                                        ? "bg-blue-600 text-white"
+                                                        : "bg-white text-slate-700 hover:bg-slate-100"
+                                                    }`}
+                                                  >
+                                                    {program}
+                                                  </button>
+                                                ))}
+                                              </div>
+
+                                              <div className="mt-4 overflow-x-auto">
+                                                <table className="min-w-full text-sm">
+                                                  <thead>
+                                                    <tr className="text-left text-slate-600">
+                                                      {RATING_METRICS.map((metric) => (
+                                                        <th key={metric.key} className="pb-2 pr-3 font-medium">
+                                                          {metric.label}
+                                                        </th>
+                                                      ))}
+                                                    </tr>
+                                                  </thead>
+                                                  <tbody>
+                                                    <tr>
+                                                      {RATING_METRICS.map((metric) => (
+                                                        <td key={metric.key} className="pr-3 align-top">
+                                                          <div className="flex items-center gap-1">
+                                                            {[1, 2, 3, 4, 5].map((star) => {
+                                                              const value = String(star);
+                                                              const selected = selectedDraft[metric.key] === value;
+                                                              return (
+                                                                <button
+                                                                  key={star}
+                                                                  type="button"
+                                                                  onClick={() =>
+                                                                    updateProgramDraft(
+                                                                      r.id,
+                                                                      selectedProgram,
+                                                                      metric.key,
+                                                                      selected ? "-" : value
+                                                                    )
+                                                                  }
+                                                                  className={`text-xl leading-none transition ${
+                                                                    selected ? "text-yellow-400" : "text-slate-300 hover:text-slate-400"
+                                                                  }`}
+                                                                >
+                                                                  ★
+                                                                </button>
+                                                              );
+                                                            })}
+                                                          </div>
+                                                        </td>
+                                                      ))}
+                                                    </tr>
+                                                  </tbody>
+                                                </table>
+                                              </div>
+
+                                              <div className="mt-4 flex justify-end">
+                                                <button
+                                                  type="button"
+                                                  onClick={() => saveProgramRatings(r.id, selectedProgram)}
+                                                  disabled={savingProgramKey === selectedDraftKey}
+                                                  className="inline-flex items-center rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 disabled:opacity-60"
+                                                >
+                                                  {savingProgramKey === selectedDraftKey ? "Сохранение…" : "Оценить"}
+                                                </button>
+                                              </div>
                                             </div>
                                           </div>
                                         </div>

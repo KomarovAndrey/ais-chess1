@@ -48,6 +48,16 @@ export async function GET(req: Request) {
             username,
             display_name
           )
+        ),
+        child_program_ratings:child_program_ratings(
+          id,
+          week_number,
+          program,
+          leadership,
+          communication,
+          self_reflection,
+          critical_thinking,
+          self_control
         )
       `
     )
@@ -64,6 +74,9 @@ export async function GET(req: Request) {
       ...child,
       child_comments: Array.isArray(child.child_comments)
         ? child.child_comments.filter((comment: any) => comment.week_number === weekNumber)
+        : [],
+      child_program_ratings: Array.isArray(child.child_program_ratings)
+        ? child.child_program_ratings.filter((rating: any) => rating.week_number === weekNumber)
         : [],
     })) ?? [];
 
