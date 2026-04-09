@@ -549,14 +549,25 @@ export default function ChildrenCommentsPage() {
   function updateProgramDraft(
     childId: string,
     program: ProgramName,
+    ratings: ProgramRating[] | undefined,
     metric: RatingMetricKey,
     value: string
   ) {
     const draftKey = getProgramDraftKey(childId, program);
+    const existing = Array.isArray(ratings) ? ratings.find((item) => item.program === program) : null;
     setProgramRatingsDrafts((prev) => ({
       ...prev,
       [draftKey]: {
-        ...(prev[draftKey] ?? emptyProgramRatings()),
+        ...(prev[draftKey] ??
+          (existing
+            ? {
+                leadership: existing.leadership,
+                communication: existing.communication,
+                self_reflection: existing.self_reflection,
+                critical_thinking: existing.critical_thinking,
+                self_control: existing.self_control,
+              }
+            : emptyProgramRatings())),
         [metric]: value,
       },
     }));
@@ -1024,6 +1035,7 @@ export default function ChildrenCommentsPage() {
                                                                     updateProgramDraft(
                                                                       r.id,
                                                                       selectedProgram,
+                                                                      programRatings,
                                                                       metric.key,
                                                                       currentValue === star ? "-" : value
                                                                     )

@@ -23,7 +23,7 @@ async function requireTeacherOrAdmin() {
 export async function GET(req: Request) {
   const auth = await requireTeacherOrAdmin();
   if ("response" in auth) return auth.response;
-  const { supabase } = auth;
+  const { supabase, user } = auth;
   const { searchParams } = new URL(req.url);
   const weekNumber = normalizeWeekNumber(searchParams.get("week"));
 
@@ -76,7 +76,9 @@ export async function GET(req: Request) {
         ? child.child_comments.filter((comment: any) => comment.week_number === weekNumber)
         : [],
       child_program_ratings: Array.isArray(child.child_program_ratings)
-        ? child.child_program_ratings.filter((rating: any) => rating.week_number === weekNumber)
+        ? child.child_program_ratings.filter(
+            (rating: any) => rating.week_number === weekNumber && rating.evaluator_id === user.id
+          )
         : [],
     })) ?? [];
 
