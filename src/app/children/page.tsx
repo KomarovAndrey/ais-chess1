@@ -98,7 +98,6 @@ export default function ChildrenCommentsPage() {
   const [loading, setLoading] = useState(true);
   const [allowed, setAllowed] = useState<boolean | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
   const [rows, setRows] = useState<ChildRow[]>([]);
   const [query, setQuery] = useState("");
   const [draftByChild, setDraftByChild] = useState<Record<string, string>>({});
@@ -439,7 +438,6 @@ export default function ChildrenCommentsPage() {
     if (!importFile) return;
     setImporting(true);
     setError(null);
-    setNotice(null);
     try {
       const form = new FormData();
       form.append("file", importFile);
@@ -447,9 +445,6 @@ export default function ChildrenCommentsPage() {
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.error || "Ошибка импорта");
       setImportFile(null);
-      setNotice(
-        `Добавлено: ${data?.inserted ?? 0}. Уже были в базе: ${data?.skipped_existing ?? 0}. Повторы в файле: ${data?.skipped_in_file ?? 0}.`
-      );
       load();
     } catch (e: any) {
       setError(e?.message || "Ошибка");
@@ -574,12 +569,6 @@ export default function ChildrenCommentsPage() {
       {error && (
         <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
           {error}
-        </div>
-      )}
-
-      {notice && (
-        <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-          {notice}
         </div>
       )}
 
