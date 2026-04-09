@@ -580,7 +580,34 @@ export default function ChildrenCommentsPage() {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.error || "Ошибка сохранения оценки");
-      load();
+      if (data?.rating) {
+        const savedRating = data.rating as ProgramRating;
+        setRows((prev) =>
+          prev.map((row) => {
+            if (row.id !== childId) return row;
+
+            const currentRatings = Array.isArray(row.child_program_ratings) ? row.child_program_ratings : [];
+            const existingIndex = currentRatings.findIndex(
+              (item) => item.program === savedRating.program && item.week_number === savedRating.week_number
+            );
+
+            if (existingIndex === -1) {
+              return {
+                ...row,
+                child_program_ratings: [...currentRatings, savedRating],
+              };
+            }
+
+            const nextRatings = [...currentRatings];
+            nextRatings[existingIndex] = savedRating;
+
+            return {
+              ...row,
+              child_program_ratings: nextRatings,
+            };
+          })
+        );
+      }
     } catch (e: any) {
       setError(e?.message || "Ошибка");
     } finally {
