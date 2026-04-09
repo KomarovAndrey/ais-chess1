@@ -27,6 +27,10 @@ function normalizeHeader(h: unknown) {
     .replace(/\s+/g, " ");
 }
 
+function childKey(row: { team_name: string | null; full_name: string; class_name: string | null }) {
+  return `${(row.team_name ?? "").trim().toLowerCase()}|${row.full_name.trim().toLowerCase()}|${(row.class_name ?? "").trim().toLowerCase()}`;
+}
+
 export async function POST(req: Request) {
   const auth = await requireTeacherOrAdmin();
   if ("response" in auth) return auth.response;
@@ -104,15 +108,38 @@ export async function POST(req: Request) {
   // Simple dedupe within file
   const seen = new Set<string>();
   const deduped = toInsert.filter((r) => {
-    const key = `${(r.team_name ?? "").toLowerCase()}|${r.full_name.toLowerCase()}|${(r.class_name ?? "").toLowerCase()}`;
+    const key = childKey(r);
     if (seen.has(key)) return false;
     seen.add(key);
     return true;
   });
 
-  const { error } = await supabase.from("children").insert(deduped);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  const { data: existingRows, error: existingError } = await supabase
+    .from("children")
+    .select("team_name, full_name, class_name");
+  if (existingError) return NextResponse.json({ error: existingError.message }, { status: 500 });
 
-  return NextResponse.json({ inserted: deduped.length });
+  const existingKeys = new Set(
+    (existingRows ?? []).map((row) =>
+      childKey({
+        team_name: row.team_name,
+        full_name: row.full_name,
+        class_name: row.class_name,
+      })
+    )
+  );
+
+  const onlyNewRows = deduped.filter((row) => !existingKeys.has(childKey(row)));
+
+  if (onlyNewRows.length > 0) {
+    const { error } = await supabase.from("children").insert(onlyNewRows);
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  return NextResponse.json({
+    inserted: onlyNewRows.length,
+    skipped_existing: deduped.length - onlyNewRows.length,
+    skipped_in_file: toInsert.length - deduped.length,
+  });
 }
 
