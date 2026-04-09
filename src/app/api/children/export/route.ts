@@ -53,10 +53,10 @@ export async function GET(req: Request) {
   const rows =
     (data ?? []).map((c: any) => {
       const comments: any[] = Array.isArray(c.child_comments)
-        ? c.child_comments.filter((cm) => cm.week_number === weekNumber)
+        ? c.child_comments.filter((cm: any) => cm.week_number === weekNumber)
         : [];
       const joined = comments
-        .map((cm) => {
+        .map((cm: any) => {
           const author = cm.author?.display_name || cm.author?.username || "—";
           const dt = cm.created_at ? new Date(cm.created_at).toLocaleString("ru-RU") : "";
           const body = (cm.body ?? "").toString();
