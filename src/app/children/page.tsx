@@ -40,14 +40,58 @@ type ChildRow = {
 };
 
 type GroupedRows = {
+  teamKey: string;
   teamName: string;
   children: ChildRow[];
 };
 
+type SectionRows = {
+  sectionKey: string;
+  sectionLabel: string;
+  teams: GroupedRows[];
+};
+
+const GRADE_SECTIONS = [
+  { key: "kg1-g1", label: "KG1-G1" },
+  { key: "g2-g3", label: "G2-G3" },
+  { key: "g4-g6", label: "G4-G6" },
+] as const;
+
+const EXTRA_SECTION = { key: "other", label: "Без группы" } as const;
 const COLLAPSE_STATE_STORAGE_KEY = "children-page-collapse-state";
 
 function formatAuthor(a?: CommentAuthor | null) {
   return a?.display_name || a?.username || "—";
+}
+
+function normalizeClassName(value?: string | null) {
+  return (value ?? "")
+    .trim()
+    .toUpperCase()
+    .replace(/\s+/g, "")
+    .replace(/-/g, "");
+}
+
+function getSectionKey(className?: string | null) {
+  const normalized = normalizeClassName(className);
+
+  if (!normalized) return EXTRA_SECTION.key;
+  if (normalized.startsWith("KG") || normalized.startsWith("G1") || /^1/.test(normalized)) {
+    return "kg1-g1";
+  }
+  if (normalized.startsWith("G2") || normalized.startsWith("G3") || /^[23]/.test(normalized)) {
+    return "g2-g3";
+  }
+  if (
+    normalized.startsWith("G4") ||
+    normalized.startsWith("G5") ||
+    normalized.startsWith("G6") ||
+    /^[456]/.test(normalized)
+  ) {
+    return "g4-g6";
+  }
+
+  return EXTRA_SECTION.key;
 }
 
 export default function ChildrenCommentsPage() {
@@ -71,6 +115,7 @@ export default function ChildrenCommentsPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
   const [importFile, setImportFile] = useState<File | null>(null);
+  const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
   const [collapsedTeams, setCollapsedTeams] = useState<Record<string, boolean>>({});
   const [collapsedChildren, setCollapsedChildren] = useState<Record<string, boolean>>({});
   const [collapseStateReady, setCollapseStateReady] = useState(false);
@@ -87,21 +132,57 @@ export default function ChildrenCommentsPage() {
     );
   }, [rows, query]);
 
-  const groupedRows = useMemo<GroupedRows[]>(() => {
-    const map = new Map<string, ChildRow[]>();
+  const sectionedRows = useMemo<SectionRows[]>(() => {
+    const sections = new Map<string, Map<string, ChildRow[]>>();
+    for (const section of GRADE_SECTIONS) {
+      sections.set(section.key, new Map());
+    }
+    sections.set(EXTRA_SECTION.key, new Map());
+
     for (const row of filtered) {
+      const sectionKey = getSectionKey(row.class_name);
       const teamName = row.team_name?.trim() || "Без команды";
-      const list = map.get(teamName) ?? [];
+      const teamMap = sections.get(sectionKey) ?? new Map<string, ChildRow[]>();
+      const list = teamMap.get(teamName) ?? [];
       list.push(row);
-      map.set(teamName, list);
+      teamMap.set(teamName, list);
+      sections.set(sectionKey, teamMap);
     }
 
-    return Array.from(map.entries())
+    const baseSections = GRADE_SECTIONS.map((section) => {
+      const teamMap = sections.get(section.key) ?? new Map<string, ChildRow[]>();
+      const teams = Array.from(teamMap.entries())
+        .sort(([a], [b]) => a.localeCompare(b, "ru"))
+        .map(([teamName, children]) => ({
+          teamKey: `${section.key}::${teamName}`,
+          teamName,
+          children: [...children].sort((a, b) => a.full_name.localeCompare(b.full_name, "ru")),
+        }));
+
+      return {
+        sectionKey: section.key,
+        sectionLabel: section.label,
+        teams,
+      };
+    });
+
+    const extraTeams = Array.from(sections.get(EXTRA_SECTION.key)?.entries() ?? [])
       .sort(([a], [b]) => a.localeCompare(b, "ru"))
       .map(([teamName, children]) => ({
+        teamKey: `${EXTRA_SECTION.key}::${teamName}`,
         teamName,
-        children: children.sort((a, b) => a.full_name.localeCompare(b.full_name, "ru")),
+        children: [...children].sort((a, b) => a.full_name.localeCompare(b.full_name, "ru")),
       }));
+
+    if (extraTeams.length > 0) {
+      baseSections.push({
+        sectionKey: EXTRA_SECTION.key,
+        sectionLabel: EXTRA_SECTION.label,
+        teams: extraTeams,
+      });
+    }
+
+    return baseSections;
   }, [filtered]);
 
   const load = useCallback(async () => {
@@ -136,6 +217,9 @@ export default function ChildrenCommentsPage() {
       const raw = window.localStorage.getItem(COLLAPSE_STATE_STORAGE_KEY);
       if (raw) {
         const parsed = JSON.parse(raw);
+        if (parsed?.sections && typeof parsed.sections === "object") {
+          setCollapsedSections(parsed.sections as Record<string, boolean>);
+        }
         if (parsed?.teams && typeof parsed.teams === "object") {
           setCollapsedTeams(parsed.teams as Record<string, boolean>);
         }
@@ -153,13 +237,27 @@ export default function ChildrenCommentsPage() {
   useEffect(() => {
     if (!collapseStateReady) return;
 
+    setCollapsedSections((prev) => {
+      let changed = false;
+      const next = { ...prev };
+      for (const { sectionKey } of sectionedRows) {
+        if (!(sectionKey in next)) {
+          next[sectionKey] = true;
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+
     setCollapsedTeams((prev) => {
       let changed = false;
       const next = { ...prev };
-      for (const { teamName } of groupedRows) {
-        if (!(teamName in next)) {
-          next[teamName] = true;
-          changed = true;
+      for (const section of sectionedRows) {
+        for (const { teamKey } of section.teams) {
+          if (!(teamKey in next)) {
+            next[teamKey] = true;
+            changed = true;
+          }
         }
       }
       return changed ? next : prev;
@@ -168,28 +266,31 @@ export default function ChildrenCommentsPage() {
     setCollapsedChildren((prev) => {
       let changed = false;
       const next = { ...prev };
-      for (const { children } of groupedRows) {
-        for (const child of children) {
-          if (!(child.id in next)) {
-            next[child.id] = true;
-            changed = true;
+      for (const section of sectionedRows) {
+        for (const { children } of section.teams) {
+          for (const child of children) {
+            if (!(child.id in next)) {
+              next[child.id] = true;
+              changed = true;
+            }
           }
         }
       }
       return changed ? next : prev;
     });
-  }, [collapseStateReady, groupedRows]);
+  }, [collapseStateReady, sectionedRows]);
 
   useEffect(() => {
     if (!collapseStateReady) return;
     window.localStorage.setItem(
       COLLAPSE_STATE_STORAGE_KEY,
       JSON.stringify({
+        sections: collapsedSections,
         teams: collapsedTeams,
         children: collapsedChildren,
       })
     );
-  }, [collapseStateReady, collapsedTeams, collapsedChildren]);
+  }, [collapseStateReady, collapsedSections, collapsedTeams, collapsedChildren]);
 
   useEffect(() => {
     const channel = supabase
@@ -275,8 +376,12 @@ export default function ChildrenCommentsPage() {
     window.location.href = "/api/children/template";
   }
 
-  function toggleTeam(teamName: string) {
-    setCollapsedTeams((prev) => ({ ...prev, [teamName]: !prev[teamName] }));
+  function toggleSection(sectionKey: string) {
+    setCollapsedSections((prev) => ({ ...prev, [sectionKey]: !prev[sectionKey] }));
+  }
+
+  function toggleTeam(teamKey: string) {
+    setCollapsedTeams((prev) => ({ ...prev, [teamKey]: !prev[teamKey] }));
   }
 
   function toggleChild(childId: string) {
@@ -482,197 +587,231 @@ export default function ChildrenCommentsPage() {
         <div className="mt-6 rounded-2xl border border-slate-200 bg-white px-4 py-6 text-sm text-slate-600 shadow-sm">
           Загрузка…
         </div>
-      ) : groupedRows.length === 0 ? (
+      ) : filtered.length === 0 ? (
         <div className="mt-6 rounded-2xl border border-slate-200 bg-white px-4 py-6 text-sm text-slate-600 shadow-sm">
           Нет совпадений.
         </div>
       ) : (
         <div className="mt-6 space-y-6">
-          {groupedRows.map(({ teamName, children }) => (
-            <section key={teamName} className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-              <button
-                type="button"
-                onClick={() => toggleTeam(teamName)}
-                className="flex w-full items-center justify-between gap-3 border-b border-slate-200 bg-slate-50 px-4 py-3 text-left hover:bg-slate-100"
-              >
-                <div className="flex items-center gap-2">
-                  {collapsedTeams[teamName] ? (
-                    <ChevronRight className="h-4 w-4 text-slate-500" aria-hidden />
-                  ) : (
-                    <ChevronDown className="h-4 w-4 text-slate-500" aria-hidden />
-                  )}
-                  <h2 className="text-lg font-semibold text-slate-900">{teamName}</h2>
-                </div>
-                <span className="text-sm text-slate-500">{children.length} чел.</span>
-              </button>
-              {!collapsedTeams[teamName] && (
-                <div className="divide-y divide-slate-200">
-                  {children.map((r) => {
-                    const comments = Array.isArray(r.child_comments) ? r.child_comments : [];
-                    const draft = draftByChild[r.id] ?? "";
-                    const saving = savingChildId === r.id;
-                    const isEditing = editingId === r.id;
-                    const isCollapsed = collapsedChildren[r.id] ?? false;
-                    return (
-                      <article key={r.id} className="bg-white">
-                        <div className="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-start sm:justify-between">
+          {sectionedRows.map(({ sectionKey, sectionLabel, teams }) => {
+            const sectionChildrenCount = teams.reduce((sum, team) => sum + team.children.length, 0);
+            return (
+              <section key={sectionKey} className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                <button
+                  type="button"
+                  onClick={() => toggleSection(sectionKey)}
+                  className="flex w-full items-center justify-between gap-3 border-b border-slate-200 bg-slate-100 px-4 py-4 text-left hover:bg-slate-200/70"
+                >
+                  <div className="flex items-center gap-2">
+                    {collapsedSections[sectionKey] ? (
+                      <ChevronRight className="h-5 w-5 text-slate-500" aria-hidden />
+                    ) : (
+                      <ChevronDown className="h-5 w-5 text-slate-500" aria-hidden />
+                    )}
+                    <h2 className="text-xl font-semibold text-slate-900">{sectionLabel}</h2>
+                  </div>
+                  <span className="text-sm text-slate-500">{sectionChildrenCount} чел.</span>
+                </button>
+
+                {!collapsedSections[sectionKey] && (
+                  <div className="space-y-4 bg-slate-50/60 p-4">
+                    {teams.length === 0 ? (
+                      <div className="rounded-xl border border-dashed border-slate-300 bg-white px-4 py-6 text-sm text-slate-500">
+                        В этом блоке пока нет детей.
+                      </div>
+                    ) : (
+                      teams.map(({ teamKey, teamName, children }) => (
+                        <section key={teamKey} className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
                           <button
                             type="button"
-                            onClick={() => toggleChild(r.id)}
-                            className="flex min-w-0 flex-1 items-start gap-3 text-left"
+                            onClick={() => toggleTeam(teamKey)}
+                            className="flex w-full items-center justify-between gap-3 border-b border-slate-200 bg-slate-50 px-4 py-3 text-left hover:bg-slate-100"
                           >
-                            {isCollapsed ? (
-                              <ChevronRight className="mt-0.5 h-4 w-4 shrink-0 text-slate-500" aria-hidden />
-                            ) : (
-                              <ChevronDown className="mt-0.5 h-4 w-4 shrink-0 text-slate-500" aria-hidden />
-                            )}
-                            <div className="min-w-0">
-                              <div className="text-sm font-semibold text-slate-900">{r.full_name}</div>
-                              <div className="mt-1 text-sm text-slate-600">
-                                Класс: {r.class_name || "—"} · Комментариев: {comments.length}
-                              </div>
+                            <div className="flex items-center gap-2">
+                              {collapsedTeams[teamKey] ? (
+                                <ChevronRight className="h-4 w-4 text-slate-500" aria-hidden />
+                              ) : (
+                                <ChevronDown className="h-4 w-4 text-slate-500" aria-hidden />
+                              )}
+                              <h3 className="text-lg font-semibold text-slate-900">{teamName}</h3>
                             </div>
+                            <span className="text-sm text-slate-500">{children.length} чел.</span>
                           </button>
-                          {!isEditing && (
-                            <div className="inline-flex items-center gap-2 self-start">
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setEditingId(r.id);
-                                  setEditTeam(r.team_name ?? "");
-                                  setEditName(r.full_name);
-                                  setEditClass(r.class_name ?? "");
-                                  setCollapsedChildren((prev) => ({ ...prev, [r.id]: false }));
-                                  setCollapsedTeams((prev) => ({ ...prev, [teamName]: false }));
-                                }}
-                                className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
-                              >
-                                <Pencil className="h-4 w-4" aria-hidden />
-                                Правка
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => deleteChild(r.id)}
-                                disabled={deletingId === r.id}
-                                className="inline-flex items-center gap-1 rounded-lg border border-red-200 bg-white px-2 py-1.5 text-sm font-medium text-red-700 hover:bg-red-50 disabled:opacity-60"
-                              >
-                                <Trash2 className="h-4 w-4" aria-hidden />
-                                {deletingId === r.id ? "Удаление…" : "Удалить"}
-                              </button>
+                          {!collapsedTeams[teamKey] && (
+                            <div className="divide-y divide-slate-200">
+                              {children.map((r) => {
+                                const comments = Array.isArray(r.child_comments) ? r.child_comments : [];
+                                const draft = draftByChild[r.id] ?? "";
+                                const saving = savingChildId === r.id;
+                                const isEditing = editingId === r.id;
+                                const isCollapsed = collapsedChildren[r.id] ?? false;
+                                return (
+                                  <article key={r.id} className="bg-white">
+                                    <div className="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-start sm:justify-between">
+                                      <button
+                                        type="button"
+                                        onClick={() => toggleChild(r.id)}
+                                        className="flex min-w-0 flex-1 items-start gap-3 text-left"
+                                      >
+                                        {isCollapsed ? (
+                                          <ChevronRight className="mt-0.5 h-4 w-4 shrink-0 text-slate-500" aria-hidden />
+                                        ) : (
+                                          <ChevronDown className="mt-0.5 h-4 w-4 shrink-0 text-slate-500" aria-hidden />
+                                        )}
+                                        <div className="min-w-0">
+                                          <div className="text-sm font-semibold text-slate-900">{r.full_name}</div>
+                                          <div className="mt-1 text-sm text-slate-600">
+                                            Класс: {r.class_name || "—"} · Комментариев: {comments.length}
+                                          </div>
+                                        </div>
+                                      </button>
+                                      {!isEditing && (
+                                        <div className="inline-flex items-center gap-2 self-start">
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              setEditingId(r.id);
+                                              setEditTeam(r.team_name ?? "");
+                                              setEditName(r.full_name);
+                                              setEditClass(r.class_name ?? "");
+                                              setCollapsedChildren((prev) => ({ ...prev, [r.id]: false }));
+                                              setCollapsedTeams((prev) => ({ ...prev, [teamKey]: false }));
+                                              setCollapsedSections((prev) => ({ ...prev, [sectionKey]: false }));
+                                            }}
+                                            className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                                          >
+                                            <Pencil className="h-4 w-4" aria-hidden />
+                                            Правка
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={() => deleteChild(r.id)}
+                                            disabled={deletingId === r.id}
+                                            className="inline-flex items-center gap-1 rounded-lg border border-red-200 bg-white px-2 py-1.5 text-sm font-medium text-red-700 hover:bg-red-50 disabled:opacity-60"
+                                          >
+                                            <Trash2 className="h-4 w-4" aria-hidden />
+                                            {deletingId === r.id ? "Удаление…" : "Удалить"}
+                                          </button>
+                                        </div>
+                                      )}
+                                    </div>
+                                    {!isCollapsed && (
+                                      <div className="border-t border-slate-100 px-4 pb-4">
+                                        <div className="grid gap-4 lg:grid-cols-[minmax(0,280px)_minmax(0,1fr)]">
+                                          <div className="space-y-3 pt-4">
+                                            {isEditing ? (
+                                              <>
+                                                <input
+                                                  value={editTeam}
+                                                  onChange={(e) => setEditTeam(e.target.value)}
+                                                  placeholder="Команда"
+                                                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-400/20"
+                                                />
+                                                <input
+                                                  value={editName}
+                                                  onChange={(e) => setEditName(e.target.value)}
+                                                  placeholder="Имя"
+                                                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-400/20"
+                                                />
+                                                <input
+                                                  value={editClass}
+                                                  onChange={(e) => setEditClass(e.target.value)}
+                                                  placeholder="Класс"
+                                                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-400/20"
+                                                />
+                                                <div className="inline-flex flex-wrap items-center gap-2">
+                                                  <button
+                                                    type="button"
+                                                    onClick={() => saveEdit(r.id)}
+                                                    disabled={savingEdit || !editName.trim()}
+                                                    className="inline-flex items-center gap-1 rounded-lg bg-slate-900 px-2 py-1.5 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-60"
+                                                  >
+                                                    <Check className="h-4 w-4" aria-hidden />
+                                                    Сохранить
+                                                  </button>
+                                                  <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                      setEditingId(null);
+                                                      setEditTeam("");
+                                                      setEditName("");
+                                                      setEditClass("");
+                                                    }}
+                                                    className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                                                  >
+                                                    <X className="h-4 w-4" aria-hidden />
+                                                    Отмена
+                                                  </button>
+                                                </div>
+                                              </>
+                                            ) : (
+                                              <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
+                                                <div>
+                                                  <span className="font-medium text-slate-900">Команда:</span>{" "}
+                                                  {r.team_name || "Без команды"}
+                                                </div>
+                                                <div className="mt-2">
+                                                  <span className="font-medium text-slate-900">Класс:</span>{" "}
+                                                  {r.class_name || "—"}
+                                                </div>
+                                              </div>
+                                            )}
+                                          </div>
+
+                                          <div className="space-y-3 pt-4">
+                                            <div className="max-h-40 overflow-auto rounded-xl border border-slate-200 bg-slate-50 p-3">
+                                              {comments.length === 0 ? (
+                                                <div className="text-sm text-slate-500">Комментариев пока нет.</div>
+                                              ) : (
+                                                <ul className="space-y-2">
+                                                  {comments.map((c) => (
+                                                    <li key={c.id} className="text-sm text-slate-700">
+                                                      <div className="text-xs text-slate-500">
+                                                        {new Date(c.created_at).toLocaleString("ru-RU")} — {formatAuthor(c.author)}
+                                                      </div>
+                                                      <div className="whitespace-pre-wrap">{c.body}</div>
+                                                    </li>
+                                                  ))}
+                                                </ul>
+                                              )}
+                                            </div>
+
+                                            <div className="flex flex-col gap-2 sm:flex-row sm:items-start">
+                                              <textarea
+                                                value={draft}
+                                                onChange={(e) =>
+                                                  setDraftByChild((p) => ({ ...p, [r.id]: e.target.value }))
+                                                }
+                                                placeholder="Оставить комментарий…"
+                                                className="min-h-10 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 shadow-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-400/20"
+                                              />
+                                              <button
+                                                type="button"
+                                                onClick={() => addComment(r.id)}
+                                                disabled={saving || !draft.trim()}
+                                                className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-3 py-2 text-sm font-medium text-white shadow-sm hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                                              >
+                                                <Send className="h-4 w-4" aria-hidden />
+                                                {saving ? "Сохранение…" : "Отправить"}
+                                              </button>
+                                            </div>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    )}
+                                  </article>
+                                );
+                              })}
                             </div>
                           )}
-                        </div>
-                        {!isCollapsed && (
-                          <div className="border-t border-slate-100 px-4 pb-4">
-                            <div className="grid gap-4 lg:grid-cols-[minmax(0,280px)_minmax(0,1fr)]">
-                              <div className="space-y-3 pt-4">
-                                {isEditing ? (
-                                  <>
-                                    <input
-                                      value={editTeam}
-                                      onChange={(e) => setEditTeam(e.target.value)}
-                                      placeholder="Команда"
-                                      className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-400/20"
-                                    />
-                                    <input
-                                      value={editName}
-                                      onChange={(e) => setEditName(e.target.value)}
-                                      placeholder="Имя"
-                                      className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-400/20"
-                                    />
-                                    <input
-                                      value={editClass}
-                                      onChange={(e) => setEditClass(e.target.value)}
-                                      placeholder="Класс"
-                                      className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-400/20"
-                                    />
-                                    <div className="inline-flex flex-wrap items-center gap-2">
-                                      <button
-                                        type="button"
-                                        onClick={() => saveEdit(r.id)}
-                                        disabled={savingEdit || !editName.trim()}
-                                        className="inline-flex items-center gap-1 rounded-lg bg-slate-900 px-2 py-1.5 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-60"
-                                      >
-                                        <Check className="h-4 w-4" aria-hidden />
-                                        Сохранить
-                                      </button>
-                                      <button
-                                        type="button"
-                                        onClick={() => {
-                                          setEditingId(null);
-                                          setEditTeam("");
-                                          setEditName("");
-                                          setEditClass("");
-                                        }}
-                                        className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
-                                      >
-                                        <X className="h-4 w-4" aria-hidden />
-                                        Отмена
-                                      </button>
-                                    </div>
-                                  </>
-                                ) : (
-                                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
-                                    <div>
-                                      <span className="font-medium text-slate-900">Команда:</span>{" "}
-                                      {r.team_name || "Без команды"}
-                                    </div>
-                                    <div className="mt-2">
-                                      <span className="font-medium text-slate-900">Класс:</span>{" "}
-                                      {r.class_name || "—"}
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
-
-                              <div className="space-y-3 pt-4">
-                                <div className="max-h-40 overflow-auto rounded-xl border border-slate-200 bg-slate-50 p-3">
-                                  {comments.length === 0 ? (
-                                    <div className="text-sm text-slate-500">Комментариев пока нет.</div>
-                                  ) : (
-                                    <ul className="space-y-2">
-                                      {comments.map((c) => (
-                                        <li key={c.id} className="text-sm text-slate-700">
-                                          <div className="text-xs text-slate-500">
-                                            {new Date(c.created_at).toLocaleString("ru-RU")} — {formatAuthor(c.author)}
-                                          </div>
-                                          <div className="whitespace-pre-wrap">{c.body}</div>
-                                        </li>
-                                      ))}
-                                    </ul>
-                                  )}
-                                </div>
-
-                                <div className="flex flex-col gap-2 sm:flex-row sm:items-start">
-                                  <textarea
-                                    value={draft}
-                                    onChange={(e) =>
-                                      setDraftByChild((p) => ({ ...p, [r.id]: e.target.value }))
-                                    }
-                                    placeholder="Оставить комментарий…"
-                                    className="min-h-10 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 shadow-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-400/20"
-                                  />
-                                  <button
-                                    type="button"
-                                    onClick={() => addComment(r.id)}
-                                    disabled={saving || !draft.trim()}
-                                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-3 py-2 text-sm font-medium text-white shadow-sm hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
-                                  >
-                                    <Send className="h-4 w-4" aria-hidden />
-                                    {saving ? "Сохранение…" : "Отправить"}
-                                  </button>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        )}
-                      </article>
-                    );
-                  })}
-                </div>
-              )}
-            </section>
-          ))}
+                        </section>
+                      ))
+                    )}
+                  </div>
+                )}
+              </section>
+            );
+          })}
         </div>
       )}
     </main>

@@ -27,8 +27,71 @@ function normalizeHeader(h: unknown) {
     .replace(/\s+/g, " ");
 }
 
+const TEAM_HEADERS = new Set(["team", "команда"]);
+const NAME_HEADERS = new Set(["name", "ребёнок", "ребенок", "фио", "имя"]);
+const GRADE_HEADERS = new Set(["grade", "класс/группа", "класс", "группа", "class"]);
+
 function childKey(row: { team_name: string | null; full_name: string; class_name: string | null }) {
   return `${(row.team_name ?? "").trim().toLowerCase()}|${row.full_name.trim().toLowerCase()}|${(row.class_name ?? "").trim().toLowerCase()}`;
+}
+
+function extractRowsFromSheet(sheet: XLSX.WorkSheet) {
+  const matrix = XLSX.utils.sheet_to_json<(string | number | boolean | null)[]>(sheet, {
+    header: 1,
+    defval: "",
+    blankrows: false,
+  });
+
+  let headerRowIndex = -1;
+  let columnGroupStarts: number[] = [];
+
+  for (let rowIndex = 0; rowIndex < Math.min(matrix.length, 10); rowIndex += 1) {
+    const row = matrix[rowIndex] ?? [];
+    const starts: number[] = [];
+
+    for (let col = 0; col <= row.length - 3; col += 1) {
+      const first = normalizeHeader(row[col]);
+      const second = normalizeHeader(row[col + 1]);
+      const third = normalizeHeader(row[col + 2]);
+
+      if (TEAM_HEADERS.has(first) && NAME_HEADERS.has(second) && GRADE_HEADERS.has(third)) {
+        starts.push(col);
+      }
+    }
+
+    if (starts.length > 0) {
+      headerRowIndex = rowIndex;
+      columnGroupStarts = starts;
+      break;
+    }
+  }
+
+  if (headerRowIndex < 0 || columnGroupStarts.length === 0) {
+    return [];
+  }
+
+  const rows: { team_name: string | null; full_name: string; class_name: string | null }[] = [];
+
+  for (let rowIndex = headerRowIndex + 1; rowIndex < matrix.length; rowIndex += 1) {
+    const row = matrix[rowIndex] ?? [];
+
+    for (const col of columnGroupStarts) {
+      const teamName = String(row[col] ?? "").trim();
+      const fullName = String(row[col + 1] ?? "").trim();
+      const className = String(row[col + 2] ?? "").trim();
+
+      if (!teamName && !fullName && !className) continue;
+      if (!fullName) continue;
+
+      rows.push({
+        team_name: teamName ? teamName.slice(0, 50) : null,
+        full_name: fullName.slice(0, 200),
+        class_name: className ? className.slice(0, 50) : null,
+      });
+    }
+  }
+
+  return rows;
 }
 
 export async function POST(req: Request) {
@@ -60,49 +123,9 @@ export async function POST(req: Request) {
   const sheet = sheetName ? workbook.Sheets[sheetName] : null;
   if (!sheet) return NextResponse.json({ error: "No sheets found" }, { status: 400 });
 
-  const raw: any[] = XLSX.utils.sheet_to_json(sheet, { defval: "" });
-  if (!Array.isArray(raw) || raw.length === 0) {
-    return NextResponse.json({ error: "Empty sheet" }, { status: 400 });
-  }
-
-  // Template columns: Team / Name / Grade
-  const toInsert: { team_name: string | null; full_name: string; class_name: string | null }[] = [];
-  for (const r of raw) {
-    const keys = Object.keys(r ?? {});
-    const map = new Map(keys.map((k) => [normalizeHeader(k), k]));
-
-    const teamKey =
-      map.get("team") ||
-      map.get("команда");
-
-    const nameKey =
-      map.get("name") ||
-      map.get("ребёнок") ||
-      map.get("ребенок") ||
-      map.get("фио") ||
-      map.get("имя");
-
-    const classKey =
-      map.get("grade") ||
-      map.get("класс/группа") ||
-      map.get("класс") ||
-      map.get("группа") ||
-      map.get("class");
-
-    const teamName = teamKey ? String(r[teamKey] ?? "").trim() : "";
-    const fullName = nameKey ? String(r[nameKey] ?? "").trim() : "";
-    const className = classKey ? String(r[classKey] ?? "").trim() : "";
-
-    if (!fullName) continue;
-    toInsert.push({
-      team_name: teamName ? teamName.slice(0, 50) : null,
-      full_name: fullName.slice(0, 200),
-      class_name: className ? className.slice(0, 50) : null,
-    });
-  }
-
-  if (toInsert.length === 0) {
-    return NextResponse.json({ error: "No valid rows found" }, { status: 400 });
+  const toInsert = extractRowsFromSheet(sheet);
+  if (!Array.isArray(toInsert) || toInsert.length === 0) {
+    return NextResponse.json({ error: "No valid rows found. Check Team / Name / Grade columns." }, { status: 400 });
   }
 
   // Simple dedupe within file
