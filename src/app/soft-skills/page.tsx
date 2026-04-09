@@ -310,12 +310,18 @@ export default function SoftSkillsPage() {
                   <p className="text-sm font-medium text-slate-700">{comp.label}</p>
                   <div className="flex items-center gap-2">
                     {[1, 2, 3, 4, 5].map((star) => {
-                      const isSelected = ratings[comp.key] === String(star);
+                      const currentValue = Number(ratings[comp.key] || 0);
+                      const isSelected = currentValue >= star;
                       return (
                         <button
                           key={star}
                           type="button"
-                          onClick={() => handleStarClick(comp.key, star)}
+                          onClick={() =>
+                            setRatings((prev) => ({
+                              ...prev,
+                              [comp.key]: currentValue === star ? "-" : String(star),
+                            }))
+                          }
                           className="transition hover:scale-110"
                         >
                           <Star

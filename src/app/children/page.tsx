@@ -987,7 +987,8 @@ export default function ChildrenCommentsPage() {
                                                           <div className="flex items-center gap-1">
                                                             {[1, 2, 3, 4, 5].map((star) => {
                                                               const value = String(star);
-                                                              const selected = selectedDraft[metric.key] === value;
+                                                              const currentValue = Number(selectedDraft[metric.key] || 0);
+                                                              const selected = currentValue >= star;
                                                               return (
                                                                 <button
                                                                   key={star}
@@ -997,7 +998,7 @@ export default function ChildrenCommentsPage() {
                                                                       r.id,
                                                                       selectedProgram,
                                                                       metric.key,
-                                                                      selected ? "-" : value
+                                                                      currentValue === star ? "-" : value
                                                                     )
                                                                   }
                                                                   className={`text-xl leading-none transition ${
