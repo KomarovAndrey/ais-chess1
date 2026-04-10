@@ -3,6 +3,15 @@ import { getSupabaseAndUser } from "@/lib/apiAuth";
 import * as XLSX from "xlsx";
 import { normalizeWeekNumber } from "@/lib/weekly";
 
+const PROGRAMS = ["Robo", "Lumo", "Sport", "3D"] as const;
+const METRICS = [
+  ["leadership", "Лидер"],
+  ["communication", "Коммун"],
+  ["self_reflection", "Самореф"],
+  ["critical_thinking", "Крит мыш"],
+  ["self_control", "Самокн"],
+] as const;
+
 async function requireTeacherOrAdmin() {
   const auth = await getSupabaseAndUser();
   if ("response" in auth) return auth;
@@ -24,7 +33,7 @@ async function requireTeacherOrAdmin() {
 export async function GET(req: Request) {
   const auth = await requireTeacherOrAdmin();
   if ("response" in auth) return auth.response;
-  const { supabase } = auth;
+  const { supabase, user } = auth;
   const { searchParams } = new URL(req.url);
   const weekNumber = normalizeWeekNumber(searchParams.get("week"));
 
@@ -41,6 +50,16 @@ export async function GET(req: Request) {
           body,
           week_number,
           author:author_id(username, display_name)
+        ),
+        child_program_ratings:child_program_ratings(
+          evaluator_id,
+          week_number,
+          program,
+          leadership,
+          communication,
+          self_reflection,
+          critical_thinking,
+          self_control
         )
       `
     )
@@ -55,6 +74,11 @@ export async function GET(req: Request) {
       const comments: any[] = Array.isArray(c.child_comments)
         ? c.child_comments.filter((cm: any) => cm.week_number === weekNumber)
         : [];
+      const ratings: any[] = Array.isArray(c.child_program_ratings)
+        ? c.child_program_ratings.filter(
+            (rating: any) => rating.week_number === weekNumber && rating.evaluator_id === user.id
+          )
+        : [];
       const joined = comments
         .map((cm: any) => {
           const author = cm.author?.display_name || cm.author?.username || "—";
@@ -63,16 +87,34 @@ export async function GET(req: Request) {
           return `${dt} — ${author}: ${body}`;
         })
         .join("\n");
+
+      const ratingColumns = Object.fromEntries(
+        PROGRAMS.flatMap((program) => {
+          const programRating = ratings.find((item) => item.program === program);
+          return METRICS.map(([metricKey, metricLabel]) => [
+            `${program} ${metricLabel}`,
+            programRating?.[metricKey] && programRating[metricKey] !== "-" ? Number(programRating[metricKey]) : "",
+          ]);
+        })
+      );
+
       return {
         Team: c.team_name ?? "",
         Name: c.full_name ?? "",
         Grade: c.class_name ?? "",
         "Комментарии": joined,
+        ...ratingColumns,
       };
     }) ?? [];
 
   const worksheet = XLSX.utils.json_to_sheet(rows);
-  worksheet["!cols"] = [{ wch: 16 }, { wch: 28 }, { wch: 14 }, { wch: 80 }];
+  worksheet["!cols"] = [
+    { wch: 16 },
+    { wch: 28 },
+    { wch: 14 },
+    { wch: 80 },
+    ...PROGRAMS.flatMap(() => METRICS.map(() => ({ wch: 12 }))),
+  ];
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, worksheet, "Дети");
 
