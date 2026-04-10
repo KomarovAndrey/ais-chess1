@@ -40,6 +40,8 @@ type ProgramRating = {
   self_reflection: string;
   critical_thinking: string;
   self_control: string;
+  sport_result?: "win" | "lose" | null;
+  sport_goals?: number;
 };
 
 type ChildRow = {
@@ -71,7 +73,10 @@ type RatingMetricKey =
   | "self_reflection"
   | "critical_thinking"
   | "self_control";
-type ProgramRatingsDraft = Record<RatingMetricKey, string>;
+type ProgramRatingsDraft = Record<RatingMetricKey, string> & {
+  sport_result: "win" | "lose" | null;
+  sport_goals: number;
+};
 
 const GRADE_SECTIONS = [
   { key: "kg1-g1", label: "KG1-G1" },
@@ -97,6 +102,8 @@ function emptyProgramRatings(): ProgramRatingsDraft {
     self_reflection: "-",
     critical_thinking: "-",
     self_control: "-",
+    sport_result: null,
+    sport_goals: 0,
   };
 }
 
@@ -541,6 +548,8 @@ export default function ChildrenCommentsPage() {
             self_reflection: existing.self_reflection,
             critical_thinking: existing.critical_thinking,
             self_control: existing.self_control,
+            sport_result: existing.sport_result ?? null,
+            sport_goals: existing.sport_goals ?? 0,
           }
         : emptyProgramRatings(),
     }));
@@ -566,6 +575,8 @@ export default function ChildrenCommentsPage() {
                 self_reflection: existing.self_reflection,
                 critical_thinking: existing.critical_thinking,
                 self_control: existing.self_control,
+                sport_result: existing.sport_result ?? null,
+                sport_goals: existing.sport_goals ?? 0,
               }
             : emptyProgramRatings())),
         [metric]: value,
@@ -837,6 +848,8 @@ export default function ChildrenCommentsPage() {
                                         self_reflection: existing.self_reflection,
                                         critical_thinking: existing.critical_thinking,
                                         self_control: existing.self_control,
+                                        sport_result: existing.sport_result ?? null,
+                                        sport_goals: existing.sport_goals ?? 0,
                                       }
                                     : emptyProgramRatings();
                                 })();
@@ -1055,6 +1068,74 @@ export default function ChildrenCommentsPage() {
                                                   </tbody>
                                                 </table>
                                               </div>
+
+                                              {selectedProgram === "Sport" && (
+                                                <div className="mt-4 flex flex-wrap items-center gap-3">
+                                                  <div className="inline-flex overflow-hidden rounded-lg border border-slate-200 bg-white">
+                                                    <button
+                                                      type="button"
+                                                      onClick={() =>
+                                                        setProgramRatingsDrafts((prev) => ({
+                                                          ...prev,
+                                                          [selectedDraftKey]: {
+                                                            ...selectedDraft,
+                                                            sport_result:
+                                                              selectedDraft.sport_result === "win" ? null : "win",
+                                                          },
+                                                        }))
+                                                      }
+                                                      className={`px-3 py-1.5 text-sm font-medium ${
+                                                        selectedDraft.sport_result === "win"
+                                                          ? "bg-emerald-600 text-white"
+                                                          : "text-slate-700 hover:bg-slate-50"
+                                                      }`}
+                                                    >
+                                                      Win
+                                                    </button>
+                                                    <button
+                                                      type="button"
+                                                      onClick={() =>
+                                                        setProgramRatingsDrafts((prev) => ({
+                                                          ...prev,
+                                                          [selectedDraftKey]: {
+                                                            ...selectedDraft,
+                                                            sport_result:
+                                                              selectedDraft.sport_result === "lose" ? null : "lose",
+                                                          },
+                                                        }))
+                                                      }
+                                                      className={`border-l border-slate-200 px-3 py-1.5 text-sm font-medium ${
+                                                        selectedDraft.sport_result === "lose"
+                                                          ? "bg-rose-600 text-white"
+                                                          : "text-slate-700 hover:bg-slate-50"
+                                                      }`}
+                                                    >
+                                                      Lose
+                                                    </button>
+                                                  </div>
+
+                                                  <div className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5">
+                                                    <span className="text-sm font-medium text-slate-700">
+                                                      Голы: {selectedDraft.sport_goals}
+                                                    </span>
+                                                    <button
+                                                      type="button"
+                                                      onClick={() =>
+                                                        setProgramRatingsDrafts((prev) => ({
+                                                          ...prev,
+                                                          [selectedDraftKey]: {
+                                                            ...selectedDraft,
+                                                            sport_goals: Math.max(0, selectedDraft.sport_goals + 1),
+                                                          },
+                                                        }))
+                                                      }
+                                                      className="rounded-md bg-blue-600 px-2 py-0.5 text-sm font-semibold text-white hover:bg-blue-700"
+                                                    >
+                                                      +
+                                                    </button>
+                                                  </div>
+                                                </div>
+                                              )}
 
                                               <div className="mt-4 flex justify-end">
                                                 <button

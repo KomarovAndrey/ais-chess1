@@ -13,8 +13,30 @@ create table if not exists public.child_program_ratings (
   communication text not null default '-' check (communication in ('1', '2', '3', '4', '5', '-')),
   self_reflection text not null default '-' check (self_reflection in ('1', '2', '3', '4', '5', '-')),
   critical_thinking text not null default '-' check (critical_thinking in ('1', '2', '3', '4', '5', '-')),
-  self_control text not null default '-' check (self_control in ('1', '2', '3', '4', '5', '-'))
+  self_control text not null default '-' check (self_control in ('1', '2', '3', '4', '5', '-')),
+  sport_result text check (sport_result in ('win', 'lose') or sport_result is null),
+  sport_goals integer not null default 0 check (sport_goals >= 0)
 );
+
+alter table public.child_program_ratings
+  add column if not exists sport_result text;
+
+alter table public.child_program_ratings
+  add column if not exists sport_goals integer not null default 0;
+
+alter table public.child_program_ratings
+  drop constraint if exists child_program_ratings_sport_result_check;
+
+alter table public.child_program_ratings
+  add constraint child_program_ratings_sport_result_check
+  check (sport_result in ('win', 'lose') or sport_result is null);
+
+alter table public.child_program_ratings
+  drop constraint if exists child_program_ratings_sport_goals_check;
+
+alter table public.child_program_ratings
+  add constraint child_program_ratings_sport_goals_check
+  check (sport_goals >= 0);
 
 create unique index if not exists child_program_ratings_unique_idx
   on public.child_program_ratings(child_id, evaluator_id, week_number, program);

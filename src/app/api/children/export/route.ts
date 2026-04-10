@@ -59,7 +59,9 @@ export async function GET(req: Request) {
           communication,
           self_reflection,
           critical_thinking,
-          self_control
+          self_control,
+          sport_result,
+          sport_goals
         )
       `
     )
@@ -91,10 +93,18 @@ export async function GET(req: Request) {
       const ratingColumns = Object.fromEntries(
         PROGRAMS.flatMap((program) => {
           const programRating = ratings.find((item) => item.program === program);
-          return METRICS.map(([metricKey, metricLabel]) => [
+          const metricColumns = METRICS.map(([metricKey, metricLabel]) => [
             `${program} ${metricLabel}`,
             programRating?.[metricKey] && programRating[metricKey] !== "-" ? Number(programRating[metricKey]) : "",
           ]);
+
+          if (program !== "Sport") return metricColumns;
+
+          return [
+            ...metricColumns,
+            ["Sport Result", programRating?.sport_result === "win" ? "Win" : programRating?.sport_result === "lose" ? "Lose" : ""],
+            ["Sport Goals", Number.isFinite(Number(programRating?.sport_goals)) ? Number(programRating?.sport_goals) : 0],
+          ];
         })
       );
 
@@ -113,7 +123,11 @@ export async function GET(req: Request) {
     { wch: 28 },
     { wch: 14 },
     { wch: 80 },
-    ...PROGRAMS.flatMap(() => METRICS.map(() => ({ wch: 12 }))),
+    ...PROGRAMS.flatMap((program) =>
+      program === "Sport"
+        ? [...METRICS.map(() => ({ wch: 12 })), { wch: 12 }, { wch: 12 }]
+        : METRICS.map(() => ({ wch: 12 }))
+    ),
   ];
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, worksheet, "Дети");

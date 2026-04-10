@@ -58,7 +58,9 @@ export async function GET(req: Request) {
           communication,
           self_reflection,
           critical_thinking,
-          self_control
+          self_control,
+          sport_result,
+          sport_goals
         )
       `
     )

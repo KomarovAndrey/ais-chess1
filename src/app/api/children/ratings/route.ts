@@ -41,6 +41,8 @@ export async function POST(req: NextRequest) {
     self_reflection?: string;
     critical_thinking?: string;
     self_control?: string;
+    sport_result?: string | null;
+    sport_goals?: number;
   };
 
   try {
@@ -66,6 +68,8 @@ export async function POST(req: NextRequest) {
     self_reflection: normalizeScore(body.self_reflection),
     critical_thinking: normalizeScore(body.critical_thinking),
     self_control: normalizeScore(body.self_control),
+    sport_result: body.sport_result === "win" || body.sport_result === "lose" ? body.sport_result : null,
+    sport_goals: Number.isFinite(Number(body.sport_goals)) ? Math.max(0, Math.trunc(Number(body.sport_goals))) : 0,
   };
 
   const { data, error } = await supabase
