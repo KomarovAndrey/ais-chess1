@@ -2,7 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
-import { ACTIVE_WEEK_STORAGE_KEY, DEFAULT_ACTIVE_WEEK, normalizeWeekNumber } from "@/lib/weekly";
+import {
+  ACTIVE_WEEK_STORAGE_KEY,
+  DEFAULT_ACTIVE_WEEK,
+  MAX_ACTIVE_WEEK,
+  MIN_ACTIVE_WEEK,
+  normalizeWeekNumber,
+} from "@/lib/weekly";
 import { Star, Download, CheckCircle } from "lucide-react";
 
 interface Profile {
@@ -203,12 +209,12 @@ export default function SoftSkillsPage() {
   }
 
   function goToNextWeek() {
-    setActiveWeek((prev) => prev + 1);
+    setActiveWeek((prev) => Math.min(MAX_ACTIVE_WEEK, prev + 1));
     setMessage(null);
   }
 
   function goToPreviousWeek() {
-    setActiveWeek((prev) => Math.max(DEFAULT_ACTIVE_WEEK, prev - 1));
+    setActiveWeek((prev) => Math.max(MIN_ACTIVE_WEEK, prev - 1));
     setMessage(null);
   }
 
@@ -248,7 +254,7 @@ export default function SoftSkillsPage() {
             <button
               type="button"
               onClick={goToPreviousWeek}
-              disabled={activeWeek <= DEFAULT_ACTIVE_WEEK}
+              disabled={activeWeek <= MIN_ACTIVE_WEEK}
               className="flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
             >
               Предыдущая неделя
@@ -256,7 +262,8 @@ export default function SoftSkillsPage() {
             <button
               type="button"
               onClick={goToNextWeek}
-              className="flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50"
+              disabled={activeWeek >= MAX_ACTIVE_WEEK}
+              className="flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
             >
               Следующая неделя
             </button>

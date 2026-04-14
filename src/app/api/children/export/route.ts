@@ -1,16 +1,13 @@
 import { NextResponse } from "next/server";
 import { getSupabaseAndUser } from "@/lib/apiAuth";
 import * as XLSX from "xlsx";
-import { normalizeWeekNumber } from "@/lib/weekly";
+import { MAX_ACTIVE_WEEK, MIN_ACTIVE_WEEK, unitLabelForWeek, weeksExportRange } from "@/lib/weekly";
 
-const PROGRAMS = ["Robo", "Lumo", "Sport", "3D"] as const;
-const METRICS = [
-  ["leadership", "Лидер"],
-  ["communication", "Коммун"],
-  ["self_reflection", "Самореф"],
-  ["critical_thinking", "Крит мыш"],
-  ["self_control", "Самокн"],
-] as const;
+function winLoseLabel(v: string | null | undefined) {
+  if (v === "win") return "Win";
+  if (v === "lose") return "Lose";
+  return "";
+}
 
 async function requireTeacherOrAdmin() {
   const auth = await getSupabaseAndUser();
@@ -30,41 +27,13 @@ async function requireTeacherOrAdmin() {
   return auth;
 }
 
-function baseTeacherLabel(rating: any) {
-  const ev = rating?.evaluator;
-  const s = (ev?.display_name || ev?.username || "").trim();
-  return s || "—";
-}
-
-function uniqueEvaluatorSuffixes(
-  entries: { id: string; baseLabel: string }[]
-): Map<string, string> {
-  const byBase = new Map<string, string[]>();
-  for (const { id, baseLabel } of entries) {
-    const list = byBase.get(baseLabel) ?? [];
-    list.push(id);
-    byBase.set(baseLabel, list);
-  }
-  const out = new Map<string, string>();
-  for (const [, ids] of byBase) {
-    if (ids.length === 1) {
-      out.set(ids[0], entries.find((e) => e.id === ids[0])!.baseLabel);
-    } else {
-      for (const id of ids) {
-        const base = entries.find((e) => e.id === id)!.baseLabel;
-        out.set(id, `${base} (${id.slice(0, 8)})`);
-      }
-    }
-  }
-  return out;
-}
-
-export async function GET(req: Request) {
+/** Общая выгрузка: по одной строке на (ребёнок × неделя 31–40), колонки как в отчётной таблице. */
+export async function GET() {
   const auth = await requireTeacherOrAdmin();
   if ("response" in auth) return auth.response;
   const { supabase } = auth;
-  const { searchParams } = new URL(req.url);
-  const weekNumber = normalizeWeekNumber(searchParams.get("week"));
+
+  const weeks = weeksExportRange();
 
   const { data, error } = await supabase
     .from("children")
@@ -81,7 +50,6 @@ export async function GET(req: Request) {
           author:author_id(username, display_name)
         ),
         child_program_ratings:child_program_ratings(
-          evaluator_id,
           week_number,
           program,
           leadership,
@@ -93,7 +61,12 @@ export async function GET(req: Request) {
           sport_goals,
           sport_errors,
           queue_order,
-          evaluator:evaluator_id(display_name, username)
+          lumo_numeric_result,
+          lumo_errors,
+          robo_duration_text,
+          d3_team_time,
+          d3_participant_time,
+          program_comment
         )
       `
     )
@@ -103,117 +76,93 @@ export async function GET(req: Request) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  const evaluatorBase = new Map<string, string>();
+  const rows: Record<string, string | number>[] = [];
+
   for (const c of data ?? []) {
-    const rs: any[] = Array.isArray(c.child_program_ratings) ? c.child_program_ratings : [];
-    for (const r of rs) {
-      if (r.week_number !== weekNumber) continue;
-      if (!evaluatorBase.has(r.evaluator_id)) {
-        evaluatorBase.set(r.evaluator_id, baseTeacherLabel(r));
-      }
-    }
-  }
+    const allComments: any[] = Array.isArray(c.child_comments) ? c.child_comments : [];
+    const allRatings: any[] = Array.isArray(c.child_program_ratings) ? c.child_program_ratings : [];
 
-  const evalEntries = [...evaluatorBase.entries()].map(([id, baseLabel]) => ({ id, baseLabel }));
-  const suffixById = uniqueEvaluatorSuffixes(evalEntries);
-  const evaluatorsSorted = [...evaluatorBase.keys()].sort((a, b) => {
-    const sa = suffixById.get(a) ?? a;
-    const sb = suffixById.get(b) ?? b;
-    return sa.localeCompare(sb, "ru") || a.localeCompare(b);
-  });
+    for (const week of weeks) {
+      const comments = allComments.filter((cm: any) => cm.week_number === week);
+      const ratings = allRatings.filter((r: any) => r.week_number === week);
 
-  type ColPick = { header: string; pick: (ratings: any[]) => string | number };
-  const dynamicParts: ColPick[] = [];
-
-  for (const eid of evaluatorsSorted) {
-    const suffix = ` · ${suffixById.get(eid)}`;
-    for (const program of PROGRAMS) {
-      for (const [metricKey, metricLabel] of METRICS) {
-        dynamicParts.push({
-          header: `${program} ${metricLabel}${suffix}`,
-          pick: (ratings) => {
-            const pr = ratings.find((r) => r.program === program && r.evaluator_id === eid);
-            return pr?.[metricKey] && pr[metricKey] !== "-" ? Number(pr[metricKey]) : "";
-          },
-        });
-      }
-
-      if (program === "Sport") {
-        dynamicParts.push({
-          header: `Sport Result${suffix}`,
-          pick: (ratings) => {
-            const pr = ratings.find((r) => r.program === program && r.evaluator_id === eid);
-            return pr?.sport_result === "win" ? "Win" : pr?.sport_result === "lose" ? "Lose" : "";
-          },
-        });
-        dynamicParts.push({
-          header: `Sport Goals${suffix}`,
-          pick: (ratings) => {
-            const pr = ratings.find((r) => r.program === program && r.evaluator_id === eid);
-            return Number.isFinite(Number(pr?.sport_goals)) ? Number(pr?.sport_goals) : "";
-          },
-        });
-        dynamicParts.push({
-          header: `Sport Errors${suffix}`,
-          pick: (ratings) => {
-            const pr = ratings.find((r) => r.program === program && r.evaluator_id === eid);
-            return Number.isFinite(Number(pr?.sport_errors)) ? Number(pr?.sport_errors) : "";
-          },
-        });
-      }
-
-      if (program === "Robo" || program === "Lumo") {
-        dynamicParts.push({
-          header: `${program} Очередность${suffix}`,
-          pick: (ratings) => {
-            const pr = ratings.find((r) => r.program === program && r.evaluator_id === eid);
-            const q = pr?.queue_order;
-            return q !== null && q !== undefined && Number.isFinite(Number(q)) ? Number(q) : "";
-          },
-        });
-      }
-    }
-  }
-
-  const rows =
-    (data ?? []).map((c: any) => {
-      const comments: any[] = Array.isArray(c.child_comments)
-        ? c.child_comments.filter((cm: any) => cm.week_number === weekNumber)
-        : [];
-      const ratings: any[] = Array.isArray(c.child_program_ratings)
-        ? c.child_program_ratings.filter((rating: any) => rating.week_number === weekNumber)
-        : [];
       const joined = comments
         .map((cm: any) => {
           const author = cm.author?.display_name || cm.author?.username || "—";
           const dt = cm.created_at ? new Date(cm.created_at).toLocaleString("ru-RU") : "";
-          const body = (cm.body ?? "").toString();
-          return `${dt} — ${author}: ${body}`;
+          return `${dt} — ${author}: ${(cm.body ?? "").toString()}`;
         })
         .join("\n");
 
-      const row: Record<string, string | number> = {
-        Team: c.team_name ?? "",
-        Name: c.full_name ?? "",
+      const pick = (program: string) => ratings.find((r: any) => r.program === program) ?? null;
+
+      const lumo = pick("Lumo");
+      const robo = pick("Robo");
+      const sport = pick("Sport");
+      const d3 = pick("3D");
+
+      const metricNum = (row: any, key: string) =>
+        row?.[key] && row[key] !== "-" ? Number(row[key]) : "";
+
+      rows.push({
+        ФИ: c.full_name ?? "",
+        Unit: unitLabelForWeek(week),
+        "Количество пропусков за 2 юнит": "",
         Grade: c.class_name ?? "",
-        "Комментарии": joined,
-      };
+        Неделя: week,
+        "Комментарии (чат)": joined,
 
-      for (const part of dynamicParts) {
-        row[part.header] = part.pick(ratings);
-      }
+        LUMO: winLoseLabel(lumo?.sport_result),
+        "LUMO Результат":
+          lumo?.lumo_numeric_result !== null && lumo?.lumo_numeric_result !== undefined
+            ? Number(lumo.lumo_numeric_result)
+            : "",
+        "LUMO Очередь":
+          lumo?.queue_order !== null && lumo?.queue_order !== undefined ? Number(lumo.queue_order) : "",
+        "LUMO Ошибки": Number.isFinite(Number(lumo?.lumo_errors)) ? Number(lumo.lumo_errors) : "",
+        "LUMO Комментарий": (lumo?.program_comment ?? "").toString(),
+        "LUMO Лидер": metricNum(lumo, "leadership"),
+        "LUMO Коммун": metricNum(lumo, "communication"),
+        "LUMO Самореф": metricNum(lumo, "self_reflection"),
+        "LUMO Крит мыш": metricNum(lumo, "critical_thinking"),
+        "LUMO Самокн": metricNum(lumo, "self_control"),
 
-      return row;
-    }) ?? [];
+        Robo: winLoseLabel(robo?.sport_result),
+        "Robo Время": (robo?.robo_duration_text ?? "").toString(),
+        "Robo Очередь":
+          robo?.queue_order !== null && robo?.queue_order !== undefined ? Number(robo.queue_order) : "",
+        "Robo Комментарий": (robo?.program_comment ?? "").toString(),
+        "Robo Лидер": metricNum(robo, "leadership"),
+        "Robo Коммун": metricNum(robo, "communication"),
+        "Robo Самореф": metricNum(robo, "self_reflection"),
+        "Robo Крит мыш": metricNum(robo, "critical_thinking"),
+        "Robo Самокн": metricNum(robo, "self_control"),
+
+        SPORT: winLoseLabel(sport?.sport_result),
+        "SPORT Голы": Number.isFinite(Number(sport?.sport_goals)) ? Number(sport.sport_goals) : "",
+        "SPORT Ошибки": Number.isFinite(Number(sport?.sport_errors)) ? Number(sport.sport_errors) : "",
+        "SPORT Комментарий": (sport?.program_comment ?? "").toString(),
+        "SPORT Лидер": metricNum(sport, "leadership"),
+        "SPORT Коммун": metricNum(sport, "communication"),
+        "SPORT Самореф": metricNum(sport, "self_reflection"),
+        "SPORT Крит мыш": metricNum(sport, "critical_thinking"),
+        "SPORT Самокн": metricNum(sport, "self_control"),
+
+        "3D": winLoseLabel(d3?.sport_result),
+        "3D Время команды": (d3?.d3_team_time ?? "").toString(),
+        "3D Время участника": (d3?.d3_participant_time ?? "").toString(),
+        "3D Комментарий": (d3?.program_comment ?? "").toString(),
+        "3D Лидер": metricNum(d3, "leadership"),
+        "3D Коммун": metricNum(d3, "communication"),
+        "3D Самореф": metricNum(d3, "self_reflection"),
+        "3D Крит мыш": metricNum(d3, "critical_thinking"),
+        "3D Самокн": metricNum(d3, "self_control"),
+      });
+    }
+  }
 
   const worksheet = XLSX.utils.json_to_sheet(rows);
-  worksheet["!cols"] = [
-    { wch: 16 },
-    { wch: 28 },
-    { wch: 14 },
-    { wch: 80 },
-    ...dynamicParts.map(() => ({ wch: 11 })),
-  ];
+  worksheet["!cols"] = Array(rows[0] ? Object.keys(rows[0]).length : 40).fill({ wch: 14 });
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, worksheet, "Дети");
 
@@ -223,7 +172,7 @@ export async function GET(req: Request) {
   return new NextResponse(buffer, {
     headers: {
       "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      "Content-Disposition": `attachment; filename="children-comments-week-${weekNumber}-${fileDate}.xlsx"`,
+      "Content-Disposition": `attachment; filename="children-weeks-${MIN_ACTIVE_WEEK}-${MAX_ACTIVE_WEEK}-${fileDate}.xlsx"`,
     },
   });
 }

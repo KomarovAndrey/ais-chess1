@@ -23,11 +23,10 @@ async function requireTeacherOrAdmin() {
 export async function GET(req: Request) {
   const auth = await requireTeacherOrAdmin();
   if ("response" in auth) return auth.response;
-  const { supabase, user } = auth;
+  const { supabase } = auth;
   const { searchParams } = new URL(req.url);
   const weekNumber = normalizeWeekNumber(searchParams.get("week"));
 
-  // One query: children + nested comments with author profile
   const { data, error } = await supabase
     .from("children")
     .select(
@@ -62,7 +61,13 @@ export async function GET(req: Request) {
           sport_result,
           sport_goals,
           sport_errors,
-          queue_order
+          queue_order,
+          lumo_numeric_result,
+          lumo_errors,
+          robo_duration_text,
+          d3_team_time,
+          d3_participant_time,
+          program_comment
         )
       `
     )
@@ -81,12 +86,9 @@ export async function GET(req: Request) {
         ? child.child_comments.filter((comment: any) => comment.week_number === weekNumber)
         : [],
       child_program_ratings: Array.isArray(child.child_program_ratings)
-        ? child.child_program_ratings.filter(
-            (rating: any) => rating.week_number === weekNumber && rating.evaluator_id === user.id
-          )
+        ? child.child_program_ratings.filter((rating: any) => rating.week_number === weekNumber)
         : [],
     })) ?? [];
 
   return NextResponse.json({ children, week_number: weekNumber });
 }
-

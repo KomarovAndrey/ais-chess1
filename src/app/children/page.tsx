@@ -2,7 +2,13 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
-import { ACTIVE_WEEK_STORAGE_KEY, DEFAULT_ACTIVE_WEEK, normalizeWeekNumber } from "@/lib/weekly";
+import {
+  ACTIVE_WEEK_STORAGE_KEY,
+  DEFAULT_ACTIVE_WEEK,
+  MAX_ACTIVE_WEEK,
+  MIN_ACTIVE_WEEK,
+  normalizeWeekNumber,
+} from "@/lib/weekly";
 import {
   Download,
   RefreshCw,
@@ -44,6 +50,12 @@ type ProgramRating = {
   sport_goals?: number;
   sport_errors?: number;
   queue_order?: number | null;
+  lumo_numeric_result?: number | null;
+  lumo_errors?: number;
+  robo_duration_text?: string | null;
+  d3_team_time?: string | null;
+  d3_participant_time?: string | null;
+  program_comment?: string | null;
 };
 
 type ChildRow = {
@@ -80,6 +92,12 @@ type ProgramRatingsDraft = Record<RatingMetricKey, string> & {
   sport_goals: number;
   sport_errors: number;
   queue_order: number | null;
+  lumo_numeric_text: string;
+  lumo_errors: number;
+  robo_duration_text: string;
+  d3_team_time: string;
+  d3_participant_time: string;
+  program_comment: string;
 };
 
 const GRADE_SECTIONS = [
@@ -90,7 +108,7 @@ const GRADE_SECTIONS = [
 
 const EXTRA_SECTION = { key: "other", label: "Без группы" } as const;
 const COLLAPSE_STATE_STORAGE_KEY = "children-page-collapse-state";
-const PROGRAMS: ProgramName[] = ["Robo", "Lumo", "Sport", "3D"];
+const PROGRAMS: ProgramName[] = ["Lumo", "Robo", "Sport", "3D"];
 const RATING_METRICS: { key: RatingMetricKey; label: string }[] = [
   { key: "leadership", label: "Лидер" },
   { key: "communication", label: "Коммун" },
@@ -110,6 +128,60 @@ function emptyProgramRatings(): ProgramRatingsDraft {
     sport_goals: 0,
     sport_errors: 0,
     queue_order: null,
+    lumo_numeric_text: "",
+    lumo_errors: 0,
+    robo_duration_text: "",
+    d3_team_time: "",
+    d3_participant_time: "",
+    program_comment: "",
+  };
+}
+
+function draftFromRating(existing: ProgramRating | null | undefined): ProgramRatingsDraft {
+  if (!existing) return emptyProgramRatings();
+  return {
+    leadership: existing.leadership,
+    communication: existing.communication,
+    self_reflection: existing.self_reflection,
+    critical_thinking: existing.critical_thinking,
+    self_control: existing.self_control,
+    sport_result: existing.sport_result ?? null,
+    sport_goals: existing.sport_goals ?? 0,
+    sport_errors: existing.sport_errors ?? 0,
+    queue_order:
+      existing.queue_order !== null && existing.queue_order !== undefined && Number.isFinite(Number(existing.queue_order))
+        ? Math.trunc(Number(existing.queue_order))
+        : null,
+    lumo_numeric_text:
+      existing.lumo_numeric_result !== null && existing.lumo_numeric_result !== undefined
+        ? String(existing.lumo_numeric_result)
+        : "",
+    lumo_errors: existing.lumo_errors ?? 0,
+    robo_duration_text: existing.robo_duration_text ?? "",
+    d3_team_time: existing.d3_team_time ?? "",
+    d3_participant_time: existing.d3_participant_time ?? "",
+    program_comment: existing.program_comment ?? "",
+  };
+}
+
+function draftToApiBody(draft: ProgramRatingsDraft) {
+  const lumoTrim = draft.lumo_numeric_text.trim();
+  return {
+    leadership: draft.leadership,
+    communication: draft.communication,
+    self_reflection: draft.self_reflection,
+    critical_thinking: draft.critical_thinking,
+    self_control: draft.self_control,
+    sport_result: draft.sport_result,
+    sport_goals: draft.sport_goals,
+    sport_errors: draft.sport_errors,
+    queue_order: draft.queue_order,
+    lumo_numeric_result: lumoTrim === "" ? null : Number(lumoTrim),
+    lumo_errors: draft.lumo_errors,
+    robo_duration_text: draft.robo_duration_text.trim() || null,
+    d3_team_time: draft.d3_team_time.trim() || null,
+    d3_participant_time: draft.d3_participant_time.trim() || null,
+    program_comment: draft.program_comment.trim() || null,
   };
 }
 
@@ -366,12 +438,21 @@ export default function ChildrenCommentsPage() {
 
   useEffect(() => {
     const channel = supabase
-      .channel("children-comments")
+      .channel("children-live")
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "child_comments" },
         () => {
-          // debounce refresh bursts when multiple users write
+          if (refreshTimer.current) window.clearTimeout(refreshTimer.current);
+          refreshTimer.current = window.setTimeout(() => {
+            load();
+          }, 250);
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "child_program_ratings" },
+        () => {
           if (refreshTimer.current) window.clearTimeout(refreshTimer.current);
           refreshTimer.current = window.setTimeout(() => {
             load();
@@ -441,7 +522,7 @@ export default function ChildrenCommentsPage() {
   }
 
   function downloadExcel() {
-    window.location.href = `/api/children/export?week=${activeWeek}`;
+    window.location.href = "/api/children/export";
   }
 
   function downloadTemplate() {
@@ -527,15 +608,15 @@ export default function ChildrenCommentsPage() {
   }
 
   function goToNextWeek() {
-    setActiveWeek((prev) => prev + 1);
+    setActiveWeek((prev) => Math.min(MAX_ACTIVE_WEEK, prev + 1));
   }
 
   function goToPreviousWeek() {
-    setActiveWeek((prev) => Math.max(DEFAULT_ACTIVE_WEEK, prev - 1));
+    setActiveWeek((prev) => Math.max(MIN_ACTIVE_WEEK, prev - 1));
   }
 
   function getSelectedProgram(childId: string): ProgramName {
-    return selectedProgramByChild[childId] ?? "Robo";
+    return selectedProgramByChild[childId] ?? "Lumo";
   }
 
   function getProgramDraftKey(childId: string, program: ProgramName) {
@@ -547,22 +628,7 @@ export default function ChildrenCommentsPage() {
     const existing = Array.isArray(ratings) ? ratings.find((item) => item.program === program) : null;
     setProgramRatingsDrafts((prev) => ({
       ...prev,
-      [getProgramDraftKey(childId, program)]: existing
-        ? {
-            leadership: existing.leadership,
-            communication: existing.communication,
-            self_reflection: existing.self_reflection,
-            critical_thinking: existing.critical_thinking,
-            self_control: existing.self_control,
-            sport_result: existing.sport_result ?? null,
-            sport_goals: existing.sport_goals ?? 0,
-            sport_errors: existing.sport_errors ?? 0,
-            queue_order:
-              existing.queue_order !== null && existing.queue_order !== undefined && Number.isFinite(Number(existing.queue_order))
-                ? Math.trunc(Number(existing.queue_order))
-                : null,
-          }
-        : emptyProgramRatings(),
+      [getProgramDraftKey(childId, program)]: draftFromRating(existing),
     }));
   }
 
@@ -578,23 +644,7 @@ export default function ChildrenCommentsPage() {
     setProgramRatingsDrafts((prev) => ({
       ...prev,
       [draftKey]: {
-        ...(prev[draftKey] ??
-          (existing
-            ? {
-                leadership: existing.leadership,
-                communication: existing.communication,
-                self_reflection: existing.self_reflection,
-                critical_thinking: existing.critical_thinking,
-                self_control: existing.self_control,
-                sport_result: existing.sport_result ?? null,
-                sport_goals: existing.sport_goals ?? 0,
-                sport_errors: existing.sport_errors ?? 0,
-                queue_order:
-                  existing.queue_order !== null && existing.queue_order !== undefined && Number.isFinite(Number(existing.queue_order))
-                    ? Math.trunc(Number(existing.queue_order))
-                    : null,
-              }
-            : emptyProgramRatings())),
+        ...(prev[draftKey] ?? draftFromRating(existing)),
         [metric]: value,
       },
     }));
@@ -613,7 +663,7 @@ export default function ChildrenCommentsPage() {
           child_id: childId,
           week_number: activeWeek,
           program,
-          ...draft,
+          ...draftToApiBody(draft),
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -670,7 +720,7 @@ export default function ChildrenCommentsPage() {
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Дети — комментарии</h1>
           <p className="mt-1 text-sm text-slate-600">
-            Неделя {activeWeek}. Разделение по командам, поиск по команде/имени/классу, комментарии и экспорт работают для активной недели. Оценки Robo/Lumo/Sport/3D на карточке видны только вам (у каждого учителя своя запись); в Excel за эту неделю попадают оценки всех учителей — столбцы подписаны именем.
+            Недели {MIN_ACTIVE_WEEK}–{MAX_ACTIVE_WEEK}. Оценки по программам общие для всех учителей: изменения синхронизируются между устройствами. Excel — одна выгрузка по всем неделям и детям (формат отчётной таблицы).
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -680,7 +730,7 @@ export default function ChildrenCommentsPage() {
           <button
             type="button"
             onClick={goToPreviousWeek}
-            disabled={activeWeek <= DEFAULT_ACTIVE_WEEK}
+            disabled={activeWeek <= MIN_ACTIVE_WEEK}
             className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
           >
             Предыдущая неделя
@@ -688,7 +738,8 @@ export default function ChildrenCommentsPage() {
           <button
             type="button"
             onClick={goToNextWeek}
-            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50"
+            disabled={activeWeek >= MAX_ACTIVE_WEEK}
+            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
           >
             Следующая неделя
           </button>
@@ -855,27 +906,9 @@ export default function ChildrenCommentsPage() {
                                 const isCollapsed = collapsedChildren[r.id] ?? false;
                                 const selectedProgram = getSelectedProgram(r.id);
                                 const selectedDraftKey = getProgramDraftKey(r.id, selectedProgram);
-                                const selectedDraft = programRatingsDrafts[selectedDraftKey] ?? (() => {
-                                  const existing = programRatings.find((item) => item.program === selectedProgram);
-                                  return existing
-                                    ? {
-                                        leadership: existing.leadership,
-                                        communication: existing.communication,
-                                        self_reflection: existing.self_reflection,
-                                        critical_thinking: existing.critical_thinking,
-                                        self_control: existing.self_control,
-                                        sport_result: existing.sport_result ?? null,
-                                        sport_goals: existing.sport_goals ?? 0,
-                                        sport_errors: existing.sport_errors ?? 0,
-                                        queue_order:
-                                          existing.queue_order !== null &&
-                                          existing.queue_order !== undefined &&
-                                          Number.isFinite(Number(existing.queue_order))
-                                            ? Math.trunc(Number(existing.queue_order))
-                                            : null,
-                                      }
-                                    : emptyProgramRatings();
-                                })();
+                                const selectedDraft =
+                                  programRatingsDrafts[selectedDraftKey] ??
+                                  draftFromRating(programRatings.find((item) => item.program === selectedProgram));
                                 return (
                                   <article key={r.id} className="bg-white">
                                     <div className="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-start sm:justify-between">
@@ -1092,85 +1125,231 @@ export default function ChildrenCommentsPage() {
                                                 </table>
                                               </div>
 
-                                              {(selectedProgram === "Robo" || selectedProgram === "Lumo") && (
-                                                <div className="mt-4 flex flex-wrap items-center gap-2">
-                                                  <label className="text-sm font-medium text-slate-700" htmlFor={`queue-${selectedDraftKey}`}>
-                                                    Очередность
-                                                  </label>
-                                                  <select
-                                                    id={`queue-${selectedDraftKey}`}
-                                                    value={
-                                                      selectedDraft.queue_order === null || selectedDraft.queue_order === undefined
-                                                        ? ""
-                                                        : String(selectedDraft.queue_order)
-                                                    }
-                                                    onChange={(e) => {
-                                                      const v = e.target.value;
+                                              <div className="mt-4 flex flex-wrap items-center gap-3">
+                                                <span className="text-sm font-medium text-slate-700">Win / Lose</span>
+                                                <div className="inline-flex overflow-hidden rounded-lg border border-slate-200 bg-white">
+                                                  <button
+                                                    type="button"
+                                                    onClick={() =>
                                                       setProgramRatingsDrafts((prev) => ({
                                                         ...prev,
                                                         [selectedDraftKey]: {
                                                           ...selectedDraft,
-                                                          queue_order: v === "" ? null : Math.trunc(Number(v)),
+                                                          sport_result:
+                                                            selectedDraft.sport_result === "win" ? null : "win",
                                                         },
-                                                      }));
-                                                    }}
-                                                    className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm text-slate-800 shadow-sm"
+                                                      }))
+                                                    }
+                                                    className={`px-3 py-1.5 text-sm font-medium ${
+                                                      selectedDraft.sport_result === "win"
+                                                        ? "bg-emerald-600 text-white"
+                                                        : "text-slate-700 hover:bg-slate-50"
+                                                    }`}
                                                   >
-                                                    <option value="">—</option>
-                                                    {[1, 2, 3, 4, 5].map((n) => (
-                                                      <option key={n} value={n}>
-                                                        {n}
-                                                      </option>
-                                                    ))}
-                                                  </select>
+                                                    Win
+                                                  </button>
+                                                  <button
+                                                    type="button"
+                                                    onClick={() =>
+                                                      setProgramRatingsDrafts((prev) => ({
+                                                        ...prev,
+                                                        [selectedDraftKey]: {
+                                                          ...selectedDraft,
+                                                          sport_result:
+                                                            selectedDraft.sport_result === "lose" ? null : "lose",
+                                                        },
+                                                      }))
+                                                    }
+                                                    className={`border-l border-slate-200 px-3 py-1.5 text-sm font-medium ${
+                                                      selectedDraft.sport_result === "lose"
+                                                        ? "bg-rose-600 text-white"
+                                                        : "text-slate-700 hover:bg-slate-50"
+                                                    }`}
+                                                  >
+                                                    Lose
+                                                  </button>
+                                                </div>
+                                              </div>
+
+                                              {selectedProgram === "Lumo" && (
+                                                <div className="mt-4 space-y-3 rounded-xl border border-amber-100 bg-amber-50/50 p-3">
+                                                  <div>
+                                                    <label className="text-sm font-medium text-slate-700" htmlFor={`lumo-res-${selectedDraftKey}`}>
+                                                      Результат (число)
+                                                    </label>
+                                                    <input
+                                                      id={`lumo-res-${selectedDraftKey}`}
+                                                      type="text"
+                                                      inputMode="numeric"
+                                                      value={selectedDraft.lumo_numeric_text}
+                                                      onChange={(e) =>
+                                                        setProgramRatingsDrafts((prev) => ({
+                                                          ...prev,
+                                                          [selectedDraftKey]: {
+                                                            ...selectedDraft,
+                                                            lumo_numeric_text: e.target.value,
+                                                          },
+                                                        }))
+                                                      }
+                                                      className="mt-1 w-full max-w-xs rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm outline-none focus:border-blue-400"
+                                                      placeholder="Напр. 11750"
+                                                    />
+                                                  </div>
+                                                  <div className="flex flex-wrap items-center gap-2">
+                                                    <label className="text-sm font-medium text-slate-700" htmlFor={`queue-${selectedDraftKey}`}>
+                                                      Очередность
+                                                    </label>
+                                                    <select
+                                                      id={`queue-${selectedDraftKey}`}
+                                                      value={
+                                                        selectedDraft.queue_order === null || selectedDraft.queue_order === undefined
+                                                          ? ""
+                                                          : String(selectedDraft.queue_order)
+                                                      }
+                                                      onChange={(e) => {
+                                                        const v = e.target.value;
+                                                        setProgramRatingsDrafts((prev) => ({
+                                                          ...prev,
+                                                          [selectedDraftKey]: {
+                                                            ...selectedDraft,
+                                                            queue_order: v === "" ? null : Math.trunc(Number(v)),
+                                                          },
+                                                        }));
+                                                      }}
+                                                      className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm text-slate-800 shadow-sm"
+                                                    >
+                                                      <option value="">—</option>
+                                                      {[1, 2, 3, 4, 5].map((n) => (
+                                                        <option key={n} value={n}>
+                                                          {n}
+                                                        </option>
+                                                      ))}
+                                                    </select>
+                                                  </div>
+                                                  <div className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5">
+                                                    <span className="text-sm font-medium text-slate-700">
+                                                      Ошибки: {selectedDraft.lumo_errors}
+                                                    </span>
+                                                    <button
+                                                      type="button"
+                                                      onClick={() =>
+                                                        setProgramRatingsDrafts((prev) => ({
+                                                          ...prev,
+                                                          [selectedDraftKey]: {
+                                                            ...selectedDraft,
+                                                            lumo_errors: Math.max(0, selectedDraft.lumo_errors + 1),
+                                                          },
+                                                        }))
+                                                      }
+                                                      className="rounded-md bg-blue-600 px-2 py-0.5 text-sm font-semibold text-white hover:bg-blue-700"
+                                                    >
+                                                      +
+                                                    </button>
+                                                  </div>
+                                                  <div>
+                                                    <label className="text-sm font-medium text-slate-700" htmlFor={`lumo-cm-${selectedDraftKey}`}>
+                                                      Комментарий
+                                                    </label>
+                                                    <textarea
+                                                      id={`lumo-cm-${selectedDraftKey}`}
+                                                      value={selectedDraft.program_comment}
+                                                      onChange={(e) =>
+                                                        setProgramRatingsDrafts((prev) => ({
+                                                          ...prev,
+                                                          [selectedDraftKey]: {
+                                                            ...selectedDraft,
+                                                            program_comment: e.target.value,
+                                                          },
+                                                        }))
+                                                      }
+                                                      rows={2}
+                                                      className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm outline-none focus:border-blue-400"
+                                                      placeholder="Комментарий по Lumo за неделю"
+                                                    />
+                                                  </div>
+                                                </div>
+                                              )}
+
+                                              {selectedProgram === "Robo" && (
+                                                <div className="mt-4 space-y-3 rounded-xl border border-sky-100 bg-sky-50/50 p-3">
+                                                  <div>
+                                                    <label className="text-sm font-medium text-slate-700" htmlFor={`robo-t-${selectedDraftKey}`}>
+                                                      Время
+                                                    </label>
+                                                    <input
+                                                      id={`robo-t-${selectedDraftKey}`}
+                                                      type="text"
+                                                      value={selectedDraft.robo_duration_text}
+                                                      onChange={(e) =>
+                                                        setProgramRatingsDrafts((prev) => ({
+                                                          ...prev,
+                                                          [selectedDraftKey]: {
+                                                            ...selectedDraft,
+                                                            robo_duration_text: e.target.value,
+                                                          },
+                                                        }))
+                                                      }
+                                                      className="mt-1 w-full max-w-xs rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm outline-none focus:border-blue-400"
+                                                      placeholder="Напр. 5:00 или 1:25"
+                                                    />
+                                                  </div>
+                                                  <div className="flex flex-wrap items-center gap-2">
+                                                    <label className="text-sm font-medium text-slate-700" htmlFor={`queue-r-${selectedDraftKey}`}>
+                                                      Очередность
+                                                    </label>
+                                                    <select
+                                                      id={`queue-r-${selectedDraftKey}`}
+                                                      value={
+                                                        selectedDraft.queue_order === null || selectedDraft.queue_order === undefined
+                                                          ? ""
+                                                          : String(selectedDraft.queue_order)
+                                                      }
+                                                      onChange={(e) => {
+                                                        const v = e.target.value;
+                                                        setProgramRatingsDrafts((prev) => ({
+                                                          ...prev,
+                                                          [selectedDraftKey]: {
+                                                            ...selectedDraft,
+                                                            queue_order: v === "" ? null : Math.trunc(Number(v)),
+                                                          },
+                                                        }));
+                                                      }}
+                                                      className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm text-slate-800 shadow-sm"
+                                                    >
+                                                      <option value="">—</option>
+                                                      {[1, 2, 3, 4, 5].map((n) => (
+                                                        <option key={n} value={n}>
+                                                          {n}
+                                                        </option>
+                                                      ))}
+                                                    </select>
+                                                  </div>
+                                                  <div>
+                                                    <label className="text-sm font-medium text-slate-700" htmlFor={`robo-cm-${selectedDraftKey}`}>
+                                                      Комментарий
+                                                    </label>
+                                                    <textarea
+                                                      id={`robo-cm-${selectedDraftKey}`}
+                                                      value={selectedDraft.program_comment}
+                                                      onChange={(e) =>
+                                                        setProgramRatingsDrafts((prev) => ({
+                                                          ...prev,
+                                                          [selectedDraftKey]: {
+                                                            ...selectedDraft,
+                                                            program_comment: e.target.value,
+                                                          },
+                                                        }))
+                                                      }
+                                                      rows={2}
+                                                      className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm outline-none focus:border-blue-400"
+                                                      placeholder="Комментарий по Robo за неделю"
+                                                    />
+                                                  </div>
                                                 </div>
                                               )}
 
                                               {selectedProgram === "Sport" && (
-                                                <div className="mt-4 flex flex-wrap items-center gap-3">
-                                                  <div className="inline-flex overflow-hidden rounded-lg border border-slate-200 bg-white">
-                                                    <button
-                                                      type="button"
-                                                      onClick={() =>
-                                                        setProgramRatingsDrafts((prev) => ({
-                                                          ...prev,
-                                                          [selectedDraftKey]: {
-                                                            ...selectedDraft,
-                                                            sport_result:
-                                                              selectedDraft.sport_result === "win" ? null : "win",
-                                                          },
-                                                        }))
-                                                      }
-                                                      className={`px-3 py-1.5 text-sm font-medium ${
-                                                        selectedDraft.sport_result === "win"
-                                                          ? "bg-emerald-600 text-white"
-                                                          : "text-slate-700 hover:bg-slate-50"
-                                                      }`}
-                                                    >
-                                                      Win
-                                                    </button>
-                                                    <button
-                                                      type="button"
-                                                      onClick={() =>
-                                                        setProgramRatingsDrafts((prev) => ({
-                                                          ...prev,
-                                                          [selectedDraftKey]: {
-                                                            ...selectedDraft,
-                                                            sport_result:
-                                                              selectedDraft.sport_result === "lose" ? null : "lose",
-                                                          },
-                                                        }))
-                                                      }
-                                                      className={`border-l border-slate-200 px-3 py-1.5 text-sm font-medium ${
-                                                        selectedDraft.sport_result === "lose"
-                                                          ? "bg-rose-600 text-white"
-                                                          : "text-slate-700 hover:bg-slate-50"
-                                                      }`}
-                                                    >
-                                                      Lose
-                                                    </button>
-                                                  </div>
-
+                                                <div className="mt-4 flex flex-wrap items-center gap-3 rounded-xl border border-cyan-100 bg-cyan-50/40 p-3">
                                                   <div className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5">
                                                     <span className="text-sm font-medium text-slate-700">
                                                       Голы: {selectedDraft.sport_goals}
@@ -1191,7 +1370,6 @@ export default function ChildrenCommentsPage() {
                                                       +
                                                     </button>
                                                   </div>
-
                                                   <div className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5">
                                                     <span className="text-sm font-medium text-slate-700">
                                                       Ошибки: {selectedDraft.sport_errors}
@@ -1211,6 +1389,95 @@ export default function ChildrenCommentsPage() {
                                                     >
                                                       +
                                                     </button>
+                                                  </div>
+                                                  <div className="w-full min-w-[200px] flex-1">
+                                                    <label className="text-sm font-medium text-slate-700" htmlFor={`sport-cm-${selectedDraftKey}`}>
+                                                      Комментарий
+                                                    </label>
+                                                    <textarea
+                                                      id={`sport-cm-${selectedDraftKey}`}
+                                                      value={selectedDraft.program_comment}
+                                                      onChange={(e) =>
+                                                        setProgramRatingsDrafts((prev) => ({
+                                                          ...prev,
+                                                          [selectedDraftKey]: {
+                                                            ...selectedDraft,
+                                                            program_comment: e.target.value,
+                                                          },
+                                                        }))
+                                                      }
+                                                      rows={2}
+                                                      className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm outline-none focus:border-blue-400"
+                                                      placeholder="Комментарий по спорту за неделю"
+                                                    />
+                                                  </div>
+                                                </div>
+                                              )}
+
+                                              {selectedProgram === "3D" && (
+                                                <div className="mt-4 space-y-3 rounded-xl border border-emerald-100 bg-emerald-50/40 p-3">
+                                                  <div>
+                                                    <label className="text-sm font-medium text-slate-700" htmlFor={`d3-team-${selectedDraftKey}`}>
+                                                      Время команды
+                                                    </label>
+                                                    <input
+                                                      id={`d3-team-${selectedDraftKey}`}
+                                                      type="text"
+                                                      value={selectedDraft.d3_team_time}
+                                                      onChange={(e) =>
+                                                        setProgramRatingsDrafts((prev) => ({
+                                                          ...prev,
+                                                          [selectedDraftKey]: {
+                                                            ...selectedDraft,
+                                                            d3_team_time: e.target.value,
+                                                          },
+                                                        }))
+                                                      }
+                                                      className="mt-1 w-full max-w-xs rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm outline-none focus:border-blue-400"
+                                                      placeholder="Напр. 3:50"
+                                                    />
+                                                  </div>
+                                                  <div>
+                                                    <label className="text-sm font-medium text-slate-700" htmlFor={`d3-part-${selectedDraftKey}`}>
+                                                      Время участника
+                                                    </label>
+                                                    <input
+                                                      id={`d3-part-${selectedDraftKey}`}
+                                                      type="text"
+                                                      value={selectedDraft.d3_participant_time}
+                                                      onChange={(e) =>
+                                                        setProgramRatingsDrafts((prev) => ({
+                                                          ...prev,
+                                                          [selectedDraftKey]: {
+                                                            ...selectedDraft,
+                                                            d3_participant_time: e.target.value,
+                                                          },
+                                                        }))
+                                                      }
+                                                      className="mt-1 w-full max-w-xs rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm outline-none focus:border-blue-400"
+                                                      placeholder="—"
+                                                    />
+                                                  </div>
+                                                  <div>
+                                                    <label className="text-sm font-medium text-slate-700" htmlFor={`d3-cm-${selectedDraftKey}`}>
+                                                      Комментарий
+                                                    </label>
+                                                    <textarea
+                                                      id={`d3-cm-${selectedDraftKey}`}
+                                                      value={selectedDraft.program_comment}
+                                                      onChange={(e) =>
+                                                        setProgramRatingsDrafts((prev) => ({
+                                                          ...prev,
+                                                          [selectedDraftKey]: {
+                                                            ...selectedDraft,
+                                                            program_comment: e.target.value,
+                                                          },
+                                                        }))
+                                                      }
+                                                      rows={2}
+                                                      className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm outline-none focus:border-blue-400"
+                                                      placeholder="Комментарий по 3D за неделю"
+                                                    />
                                                   </div>
                                                 </div>
                                               )}

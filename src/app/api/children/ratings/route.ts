@@ -37,6 +37,24 @@ function normalizeQueueOrder(program: string, value: unknown): number | null {
   return null;
 }
 
+function numOrNull(value: unknown): number | null {
+  if (value === null || value === undefined || value === "") return null;
+  const n = Number(value);
+  if (!Number.isFinite(n)) return null;
+  return Math.trunc(n);
+}
+
+function trimStr(value: unknown): string | null {
+  if (value === null || value === undefined) return null;
+  const s = String(value).trim();
+  return s === "" ? null : s;
+}
+
+function nonNegInt(value: unknown, fallback = 0) {
+  if (!Number.isFinite(Number(value))) return fallback;
+  return Math.max(0, Math.trunc(Number(value)));
+}
+
 export async function POST(req: NextRequest) {
   const auth = await requireTeacherOrAdmin();
   if ("response" in auth) return auth.response;
@@ -55,6 +73,12 @@ export async function POST(req: NextRequest) {
     sport_goals?: number;
     sport_errors?: number;
     queue_order?: number | null;
+    lumo_numeric_result?: number | null;
+    lumo_errors?: number;
+    robo_duration_text?: string | null;
+    d3_team_time?: string | null;
+    d3_participant_time?: string | null;
+    program_comment?: string | null;
   };
 
   try {
@@ -70,6 +94,9 @@ export async function POST(req: NextRequest) {
   if (!childId) return NextResponse.json({ error: "child_id is required" }, { status: 400 });
   if (!PROGRAMS.has(program)) return NextResponse.json({ error: "program is invalid" }, { status: 400 });
 
+  const outcome =
+    body.sport_result === "win" || body.sport_result === "lose" ? body.sport_result : null;
+
   const payload = {
     child_id: childId,
     evaluator_id: user.id,
@@ -80,15 +107,21 @@ export async function POST(req: NextRequest) {
     self_reflection: normalizeScore(body.self_reflection),
     critical_thinking: normalizeScore(body.critical_thinking),
     self_control: normalizeScore(body.self_control),
-    sport_result: body.sport_result === "win" || body.sport_result === "lose" ? body.sport_result : null,
-    sport_goals: Number.isFinite(Number(body.sport_goals)) ? Math.max(0, Math.trunc(Number(body.sport_goals))) : 0,
-    sport_errors: Number.isFinite(Number(body.sport_errors)) ? Math.max(0, Math.trunc(Number(body.sport_errors))) : 0,
+    sport_result: outcome,
+    sport_goals: program === "Sport" ? nonNegInt(body.sport_goals) : 0,
+    sport_errors: program === "Sport" ? nonNegInt(body.sport_errors) : 0,
     queue_order: normalizeQueueOrder(program, body.queue_order),
+    lumo_numeric_result: program === "Lumo" ? numOrNull(body.lumo_numeric_result) : null,
+    lumo_errors: program === "Lumo" ? nonNegInt(body.lumo_errors) : 0,
+    robo_duration_text: program === "Robo" ? trimStr(body.robo_duration_text) : null,
+    d3_team_time: program === "3D" ? trimStr(body.d3_team_time) : null,
+    d3_participant_time: program === "3D" ? trimStr(body.d3_participant_time) : null,
+    program_comment: trimStr(body.program_comment),
   };
 
   const { data, error } = await supabase
     .from("child_program_ratings")
-    .upsert(payload, { onConflict: "child_id,evaluator_id,week_number,program" })
+    .upsert(payload, { onConflict: "child_id,week_number,program" })
     .select()
     .single();
 
