@@ -42,6 +42,8 @@ type ProgramRating = {
   self_control: string;
   sport_result?: "win" | "lose" | null;
   sport_goals?: number;
+  sport_errors?: number;
+  queue_order?: number | null;
 };
 
 type ChildRow = {
@@ -76,6 +78,8 @@ type RatingMetricKey =
 type ProgramRatingsDraft = Record<RatingMetricKey, string> & {
   sport_result: "win" | "lose" | null;
   sport_goals: number;
+  sport_errors: number;
+  queue_order: number | null;
 };
 
 const GRADE_SECTIONS = [
@@ -104,6 +108,8 @@ function emptyProgramRatings(): ProgramRatingsDraft {
     self_control: "-",
     sport_result: null,
     sport_goals: 0,
+    sport_errors: 0,
+    queue_order: null,
   };
 }
 
@@ -550,6 +556,11 @@ export default function ChildrenCommentsPage() {
             self_control: existing.self_control,
             sport_result: existing.sport_result ?? null,
             sport_goals: existing.sport_goals ?? 0,
+            sport_errors: existing.sport_errors ?? 0,
+            queue_order:
+              existing.queue_order !== null && existing.queue_order !== undefined && Number.isFinite(Number(existing.queue_order))
+                ? Math.trunc(Number(existing.queue_order))
+                : null,
           }
         : emptyProgramRatings(),
     }));
@@ -577,6 +588,11 @@ export default function ChildrenCommentsPage() {
                 self_control: existing.self_control,
                 sport_result: existing.sport_result ?? null,
                 sport_goals: existing.sport_goals ?? 0,
+                sport_errors: existing.sport_errors ?? 0,
+                queue_order:
+                  existing.queue_order !== null && existing.queue_order !== undefined && Number.isFinite(Number(existing.queue_order))
+                    ? Math.trunc(Number(existing.queue_order))
+                    : null,
               }
             : emptyProgramRatings())),
         [metric]: value,
@@ -850,6 +866,13 @@ export default function ChildrenCommentsPage() {
                                         self_control: existing.self_control,
                                         sport_result: existing.sport_result ?? null,
                                         sport_goals: existing.sport_goals ?? 0,
+                                        sport_errors: existing.sport_errors ?? 0,
+                                        queue_order:
+                                          existing.queue_order !== null &&
+                                          existing.queue_order !== undefined &&
+                                          Number.isFinite(Number(existing.queue_order))
+                                            ? Math.trunc(Number(existing.queue_order))
+                                            : null,
                                       }
                                     : emptyProgramRatings();
                                 })();
@@ -1069,6 +1092,40 @@ export default function ChildrenCommentsPage() {
                                                 </table>
                                               </div>
 
+                                              {(selectedProgram === "Robo" || selectedProgram === "Lumo") && (
+                                                <div className="mt-4 flex flex-wrap items-center gap-2">
+                                                  <label className="text-sm font-medium text-slate-700" htmlFor={`queue-${selectedDraftKey}`}>
+                                                    Очередность
+                                                  </label>
+                                                  <select
+                                                    id={`queue-${selectedDraftKey}`}
+                                                    value={
+                                                      selectedDraft.queue_order === null || selectedDraft.queue_order === undefined
+                                                        ? ""
+                                                        : String(selectedDraft.queue_order)
+                                                    }
+                                                    onChange={(e) => {
+                                                      const v = e.target.value;
+                                                      setProgramRatingsDrafts((prev) => ({
+                                                        ...prev,
+                                                        [selectedDraftKey]: {
+                                                          ...selectedDraft,
+                                                          queue_order: v === "" ? null : Math.trunc(Number(v)),
+                                                        },
+                                                      }));
+                                                    }}
+                                                    className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm text-slate-800 shadow-sm"
+                                                  >
+                                                    <option value="">—</option>
+                                                    {[1, 2, 3, 4, 5].map((n) => (
+                                                      <option key={n} value={n}>
+                                                        {n}
+                                                      </option>
+                                                    ))}
+                                                  </select>
+                                                </div>
+                                              )}
+
                                               {selectedProgram === "Sport" && (
                                                 <div className="mt-4 flex flex-wrap items-center gap-3">
                                                   <div className="inline-flex overflow-hidden rounded-lg border border-slate-200 bg-white">
@@ -1126,6 +1183,27 @@ export default function ChildrenCommentsPage() {
                                                           [selectedDraftKey]: {
                                                             ...selectedDraft,
                                                             sport_goals: Math.max(0, selectedDraft.sport_goals + 1),
+                                                          },
+                                                        }))
+                                                      }
+                                                      className="rounded-md bg-blue-600 px-2 py-0.5 text-sm font-semibold text-white hover:bg-blue-700"
+                                                    >
+                                                      +
+                                                    </button>
+                                                  </div>
+
+                                                  <div className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5">
+                                                    <span className="text-sm font-medium text-slate-700">
+                                                      Ошибки: {selectedDraft.sport_errors}
+                                                    </span>
+                                                    <button
+                                                      type="button"
+                                                      onClick={() =>
+                                                        setProgramRatingsDrafts((prev) => ({
+                                                          ...prev,
+                                                          [selectedDraftKey]: {
+                                                            ...selectedDraft,
+                                                            sport_errors: Math.max(0, selectedDraft.sport_errors + 1),
                                                           },
                                                         }))
                                                       }

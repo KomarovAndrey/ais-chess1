@@ -61,7 +61,9 @@ export async function GET(req: Request) {
           critical_thinking,
           self_control,
           sport_result,
-          sport_goals
+          sport_goals,
+          sport_errors,
+          queue_order
         )
       `
     )
@@ -98,13 +100,24 @@ export async function GET(req: Request) {
             programRating?.[metricKey] && programRating[metricKey] !== "-" ? Number(programRating[metricKey]) : "",
           ]);
 
-          if (program !== "Sport") return metricColumns;
+          if (program === "Sport") {
+            return [
+              ...metricColumns,
+              ["Sport Result", programRating?.sport_result === "win" ? "Win" : programRating?.sport_result === "lose" ? "Lose" : ""],
+              ["Sport Goals", Number.isFinite(Number(programRating?.sport_goals)) ? Number(programRating?.sport_goals) : 0],
+              ["Sport Errors", Number.isFinite(Number(programRating?.sport_errors)) ? Number(programRating?.sport_errors) : 0],
+            ];
+          }
 
-          return [
-            ...metricColumns,
-            ["Sport Result", programRating?.sport_result === "win" ? "Win" : programRating?.sport_result === "lose" ? "Lose" : ""],
-            ["Sport Goals", Number.isFinite(Number(programRating?.sport_goals)) ? Number(programRating?.sport_goals) : 0],
-          ];
+          if (program === "Robo" || program === "Lumo") {
+            const q = programRating?.queue_order;
+            return [
+              ...metricColumns,
+              [`${program} Очередность`, q !== null && q !== undefined && Number.isFinite(Number(q)) ? Number(q) : ""],
+            ];
+          }
+
+          return metricColumns;
         })
       );
 
@@ -125,8 +138,10 @@ export async function GET(req: Request) {
     { wch: 80 },
     ...PROGRAMS.flatMap((program) =>
       program === "Sport"
-        ? [...METRICS.map(() => ({ wch: 12 })), { wch: 12 }, { wch: 12 }]
-        : METRICS.map(() => ({ wch: 12 }))
+        ? [...METRICS.map(() => ({ wch: 12 })), { wch: 12 }, { wch: 12 }, { wch: 12 }]
+        : program === "Robo" || program === "Lumo"
+          ? [...METRICS.map(() => ({ wch: 12 })), { wch: 12 }]
+          : METRICS.map(() => ({ wch: 12 }))
     ),
   ];
   const workbook = XLSX.utils.book_new();

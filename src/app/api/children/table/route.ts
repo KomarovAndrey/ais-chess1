@@ -60,7 +60,9 @@ export async function GET(req: Request) {
           critical_thinking,
           self_control,
           sport_result,
-          sport_goals
+          sport_goals,
+          sport_errors,
+          queue_order
         )
       `
     )

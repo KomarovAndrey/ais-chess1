@@ -27,6 +27,16 @@ function normalizeScore(value: unknown) {
   return ["1", "2", "3", "4", "5", "-"].includes(normalized) ? normalized : "-";
 }
 
+function normalizeQueueOrder(program: string, value: unknown): number | null {
+  if (program !== "Robo" && program !== "Lumo") return null;
+  if (value === null || value === undefined || value === "") return null;
+  const n = Number(value);
+  if (!Number.isFinite(n)) return null;
+  const t = Math.trunc(n);
+  if (t >= 1 && t <= 5) return t;
+  return null;
+}
+
 export async function POST(req: NextRequest) {
   const auth = await requireTeacherOrAdmin();
   if ("response" in auth) return auth.response;
@@ -43,6 +53,8 @@ export async function POST(req: NextRequest) {
     self_control?: string;
     sport_result?: string | null;
     sport_goals?: number;
+    sport_errors?: number;
+    queue_order?: number | null;
   };
 
   try {
@@ -70,6 +82,8 @@ export async function POST(req: NextRequest) {
     self_control: normalizeScore(body.self_control),
     sport_result: body.sport_result === "win" || body.sport_result === "lose" ? body.sport_result : null,
     sport_goals: Number.isFinite(Number(body.sport_goals)) ? Math.max(0, Math.trunc(Number(body.sport_goals))) : 0,
+    sport_errors: Number.isFinite(Number(body.sport_errors)) ? Math.max(0, Math.trunc(Number(body.sport_errors))) : 0,
+    queue_order: normalizeQueueOrder(program, body.queue_order),
   };
 
   const { data, error } = await supabase
