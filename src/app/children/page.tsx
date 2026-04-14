@@ -708,9 +708,9 @@ export default function ChildrenCommentsPage() {
   if (allowed === false) {
     return (
       <main className="mx-auto max-w-5xl px-4 py-8">
-        <h1 className="text-2xl font-bold text-slate-900">Дети — комментарии</h1>
+        <h1 className="text-2xl font-bold text-slate-900">Soft Skills</h1>
         <p className="mt-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          Доступ запрещён. Эта вкладка доступна только определённым пользователям (роль teacher/admin).
+          Доступ запрещён. Раздел доступен только пользователям с ролью teacher или admin.
         </p>
       </main>
     );
@@ -720,7 +720,7 @@ export default function ChildrenCommentsPage() {
     <main className="mx-auto max-w-5xl px-4 py-8">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Дети — комментарии</h1>
+          <h1 className="text-2xl font-bold text-slate-900">Soft Skills</h1>
           <p className="mt-1 text-sm text-slate-600">
             Недели {MIN_ACTIVE_WEEK}–{MAX_ACTIVE_WEEK}. Оценки по программам общие для всех учителей: изменения синхронизируются между устройствами. Excel — одна выгрузка по всем неделям и детям (формат отчётной таблицы).
           </p>
