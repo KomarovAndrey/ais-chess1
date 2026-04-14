@@ -116,6 +116,8 @@ const RATING_METRICS: { key: RatingMetricKey; label: string }[] = [
   { key: "critical_thinking", label: "Крит мыш" },
   { key: "self_control", label: "Самокн" },
 ];
+const QUEUE_OPTIONS_LUMO = [1, 2, 3, 4, 5];
+const QUEUE_OPTIONS_ROBO = [1, 2, 3, 4, 5, 6, 7];
 
 function emptyProgramRatings(): ProgramRatingsDraft {
   return {
@@ -1219,7 +1221,7 @@ export default function ChildrenCommentsPage() {
                                                       className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm text-slate-800 shadow-sm"
                                                     >
                                                       <option value="">—</option>
-                                                      {[1, 2, 3, 4, 5].map((n) => (
+                                                      {QUEUE_OPTIONS_LUMO.map((n) => (
                                                         <option key={n} value={n}>
                                                           {n}
                                                         </option>
@@ -1317,7 +1319,7 @@ export default function ChildrenCommentsPage() {
                                                       className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm text-slate-800 shadow-sm"
                                                     >
                                                       <option value="">—</option>
-                                                      {[1, 2, 3, 4, 5].map((n) => (
+                                                      {QUEUE_OPTIONS_ROBO.map((n) => (
                                                         <option key={n} value={n}>
                                                           {n}
                                                         </option>

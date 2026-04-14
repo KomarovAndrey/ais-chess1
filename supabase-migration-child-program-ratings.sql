@@ -17,7 +17,7 @@ create table if not exists public.child_program_ratings (
   sport_result text check (sport_result in ('win', 'lose') or sport_result is null),
   sport_goals integer not null default 0 check (sport_goals >= 0),
   sport_errors integer not null default 0 check (sport_errors >= 0),
-  queue_order integer check (queue_order is null or (queue_order >= 1 and queue_order <= 5))
+  queue_order integer check (queue_order is null or (queue_order >= 1 and queue_order <= 7))
 );
 
 alter table public.child_program_ratings
@@ -58,7 +58,7 @@ alter table public.child_program_ratings
 
 alter table public.child_program_ratings
   add constraint child_program_ratings_queue_order_check
-  check (queue_order is null or (queue_order >= 1 and queue_order <= 5));
+  check (queue_order is null or (queue_order >= 1 and queue_order <= 7));
 
 create unique index if not exists child_program_ratings_unique_idx
   on public.child_program_ratings(child_id, evaluator_id, week_number, program);

@@ -33,7 +33,8 @@ function normalizeQueueOrder(program: string, value: unknown): number | null {
   const n = Number(value);
   if (!Number.isFinite(n)) return null;
   const t = Math.trunc(n);
-  if (t >= 1 && t <= 5) return t;
+  const max = program === "Robo" ? 7 : 5;
+  if (t >= 1 && t <= max) return t;
   return null;
 }
 
