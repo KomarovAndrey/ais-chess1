@@ -12,7 +12,6 @@ import {
 import {
   Download,
   RefreshCw,
-  Send,
   Upload,
   Pencil,
   Trash2,
@@ -22,20 +21,6 @@ import {
   ChevronDown,
   ChevronRight,
 } from "lucide-react";
-
-type CommentAuthor = {
-  id: string;
-  username: string | null;
-  display_name: string | null;
-};
-
-type ChildComment = {
-  id: string;
-  created_at: string;
-  body: string;
-  author_id: string;
-  author?: CommentAuthor | null;
-};
 
 type ProgramRating = {
   id: string;
@@ -64,7 +49,6 @@ type ChildRow = {
   team_name: string | null;
   full_name: string;
   class_name: string | null;
-  child_comments?: ChildComment[];
   child_program_ratings?: ProgramRating[];
 };
 
@@ -187,10 +171,6 @@ function draftToApiBody(draft: ProgramRatingsDraft) {
   };
 }
 
-function formatAuthor(a?: CommentAuthor | null) {
-  return a?.display_name || a?.username || "—";
-}
-
 function normalizeClassName(value?: string | null) {
   return (value ?? "")
     .trim()
@@ -227,8 +207,6 @@ export default function ChildrenCommentsPage() {
   const [error, setError] = useState<string | null>(null);
   const [rows, setRows] = useState<ChildRow[]>([]);
   const [query, setQuery] = useState("");
-  const [draftByChild, setDraftByChild] = useState<Record<string, string>>({});
-  const [savingChildId, setSavingChildId] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
   const [newChildTeam, setNewChildTeam] = useState("");
   const [newChildName, setNewChildName] = useState("");
@@ -443,16 +421,6 @@ export default function ChildrenCommentsPage() {
       .channel("children-live")
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "child_comments" },
-        () => {
-          if (refreshTimer.current) window.clearTimeout(refreshTimer.current);
-          refreshTimer.current = window.setTimeout(() => {
-            load();
-          }, 250);
-        }
-      )
-      .on(
-        "postgres_changes",
         { event: "*", schema: "public", table: "child_program_ratings" },
         () => {
           if (refreshTimer.current) window.clearTimeout(refreshTimer.current);
@@ -468,29 +436,6 @@ export default function ChildrenCommentsPage() {
       supabase.removeChannel(channel);
     };
   }, [load]);
-
-  async function addComment(childId: string) {
-    const text = (draftByChild[childId] ?? "").trim();
-    if (!text) return;
-    setSavingChildId(childId);
-    setError(null);
-    try {
-      const res = await fetch("/api/children/comments", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ child_id: childId, text, week_number: activeWeek }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data?.error || "Ошибка сохранения");
-      setDraftByChild((p) => ({ ...p, [childId]: "" }));
-      // realtime will refresh; but do fast refresh if realtime is off
-      load();
-    } catch (e: any) {
-      setError(e?.message || "Ошибка");
-    } finally {
-      setSavingChildId(null);
-    }
-  }
 
   async function addChild() {
     const team_name = newChildTeam.trim();
@@ -575,7 +520,7 @@ export default function ChildrenCommentsPage() {
   }
 
   async function deleteChild(childId: string) {
-    if (!window.confirm("Удалить ребёнка? Комментарии тоже удалятся.")) return;
+    if (!window.confirm("Удалить ребёнка?")) return;
     setDeletingId(childId);
     setError(null);
     try {
@@ -900,10 +845,7 @@ export default function ChildrenCommentsPage() {
                           {!collapsedTeams[teamKey] && (
                             <div className="divide-y divide-slate-200">
                               {children.map((r) => {
-                                const comments = Array.isArray(r.child_comments) ? r.child_comments : [];
                                 const programRatings = Array.isArray(r.child_program_ratings) ? r.child_program_ratings : [];
-                                const draft = draftByChild[r.id] ?? "";
-                                const saving = savingChildId === r.id;
                                 const isEditing = editingId === r.id;
                                 const isCollapsed = collapsedChildren[r.id] ?? false;
                                 const selectedProgram = getSelectedProgram(r.id);
@@ -927,7 +869,7 @@ export default function ChildrenCommentsPage() {
                                         <div className="min-w-0">
                                           <div className="text-sm font-semibold text-slate-900">{r.full_name}</div>
                                           <div className="mt-1 text-sm text-slate-600">
-                                            Класс: {r.class_name || "—"} · Комментариев: {comments.length}
+                                            Класс: {r.class_name || "—"}
                                           </div>
                                         </div>
                                       </button>
@@ -1025,41 +967,6 @@ export default function ChildrenCommentsPage() {
                                           </div>
 
                                           <div className="space-y-4 pt-4">
-                                            {comments.length > 0 && (
-                                              <div className="max-h-40 overflow-auto rounded-xl border border-slate-200 bg-slate-50 p-3">
-                                                <ul className="space-y-2">
-                                                  {comments.map((c) => (
-                                                    <li key={c.id} className="text-sm text-slate-700">
-                                                      <div className="text-xs text-slate-500">
-                                                        {new Date(c.created_at).toLocaleString("ru-RU")} — {formatAuthor(c.author)}
-                                                      </div>
-                                                      <div className="whitespace-pre-wrap">{c.body}</div>
-                                                    </li>
-                                                  ))}
-                                                </ul>
-                                              </div>
-                                            )}
-
-                                            <div className="flex flex-col gap-2 sm:flex-row sm:items-start">
-                                              <textarea
-                                                value={draft}
-                                                onChange={(e) =>
-                                                  setDraftByChild((p) => ({ ...p, [r.id]: e.target.value }))
-                                                }
-                                                placeholder="Оставить комментарий…"
-                                                className="min-h-10 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 shadow-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-400/20"
-                                              />
-                                              <button
-                                                type="button"
-                                                onClick={() => addComment(r.id)}
-                                                disabled={saving || !draft.trim()}
-                                                className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-3 py-2 text-sm font-medium text-white shadow-sm hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
-                                              >
-                                                <Send className="h-4 w-4" aria-hidden />
-                                                {saving ? "Сохранение…" : "Отправить"}
-                                              </button>
-                                            </div>
-
                                             <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
                                               <div className="flex flex-wrap gap-2">
                                                 {PROGRAMS.map((program) => (

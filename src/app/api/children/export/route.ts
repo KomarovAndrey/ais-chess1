@@ -43,12 +43,6 @@ export async function GET() {
         team_name,
         full_name,
         class_name,
-        child_comments:child_comments(
-          created_at,
-          body,
-          week_number,
-          author:author_id(username, display_name)
-        ),
         child_program_ratings:child_program_ratings(
           week_number,
           program,
@@ -72,27 +66,17 @@ export async function GET() {
     )
     .order("team_name", { ascending: true, nullsFirst: false })
     .order("full_name", { ascending: true })
-    .order("created_at", { referencedTable: "child_comments", ascending: true });
+    ;
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   const rows: Record<string, string | number>[] = [];
 
   for (const c of data ?? []) {
-    const allComments: any[] = Array.isArray(c.child_comments) ? c.child_comments : [];
     const allRatings: any[] = Array.isArray(c.child_program_ratings) ? c.child_program_ratings : [];
 
     for (const week of weeks) {
-      const comments = allComments.filter((cm: any) => cm.week_number === week);
       const ratings = allRatings.filter((r: any) => r.week_number === week);
-
-      const joined = comments
-        .map((cm: any) => {
-          const author = cm.author?.display_name || cm.author?.username || "—";
-          const dt = cm.created_at ? new Date(cm.created_at).toLocaleString("ru-RU") : "";
-          return `${dt} — ${author}: ${(cm.body ?? "").toString()}`;
-        })
-        .join("\n");
 
       const pick = (program: string) => ratings.find((r: any) => r.program === program) ?? null;
 
@@ -110,7 +94,6 @@ export async function GET() {
         "Количество пропусков за 2 юнит": "",
         Grade: c.class_name ?? "",
         Неделя: week,
-        "Комментарии (чат)": joined,
 
         LUMO: winLoseLabel(lumo?.sport_result),
         "LUMO Результат":

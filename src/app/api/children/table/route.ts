@@ -36,18 +36,6 @@ export async function GET(req: Request) {
         team_name,
         full_name,
         class_name,
-        child_comments:child_comments(
-          id,
-          created_at,
-          body,
-          author_id,
-          week_number,
-          author:author_id(
-            id,
-            username,
-            display_name
-          )
-        ),
         child_program_ratings:child_program_ratings(
           id,
           evaluator_id,
@@ -72,8 +60,7 @@ export async function GET(req: Request) {
       `
     )
     .order("team_name", { ascending: true, nullsFirst: false })
-    .order("full_name", { ascending: true })
-    .order("created_at", { referencedTable: "child_comments", ascending: false });
+    .order("full_name", { ascending: true });
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
@@ -82,9 +69,6 @@ export async function GET(req: Request) {
   const children =
     (data ?? []).map((child: any) => ({
       ...child,
-      child_comments: Array.isArray(child.child_comments)
-        ? child.child_comments.filter((comment: any) => comment.week_number === weekNumber)
-        : [],
       child_program_ratings: Array.isArray(child.child_program_ratings)
         ? child.child_program_ratings.filter((rating: any) => rating.week_number === weekNumber)
         : [],

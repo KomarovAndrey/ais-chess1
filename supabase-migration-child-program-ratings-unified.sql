@@ -20,6 +20,7 @@ alter table public.child_program_ratings
 alter table public.child_program_ratings
   add column if not exists d3_participant_time text;
 
+-- Per-discipline comment (Lumo/Robo/Sport/3D) for the selected week.
 alter table public.child_program_ratings
   add column if not exists program_comment text;
 

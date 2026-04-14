@@ -180,6 +180,41 @@ export default function ReversiPlayClient({
     [gameId, playerId, game, mySide]
   );
 
+  const replayBoards = useMemo(() => {
+    const moves = game?.moves ?? [];
+    const boards: Board[] = [INITIAL_BOARD];
+    let b: Board = INITIAL_BOARD.map((row) => row.slice()) as Board;
+    for (const m of moves) {
+      const next = makeMove(b, m.row, m.col, m.player);
+      if (next) {
+        b = next;
+        boards.push(b.map((row) => row.slice()) as Board);
+      }
+    }
+    return boards;
+  }, [game?.moves]);
+
+  const isReplay = game?.status === "finished" && replayBoards.length > 0;
+  const effectiveReplayStep = isReplay
+    ? Math.min(Math.max(0, replayStep), replayBoards.length - 1)
+    : 0;
+
+  const wasFinishedRef = useRef(false);
+  useEffect(() => {
+    if (game?.status === "finished" && replayBoards.length > 0) {
+      if (!wasFinishedRef.current) {
+        wasFinishedRef.current = true;
+        setReplayStep(replayBoards.length - 1);
+      }
+    } else {
+      wasFinishedRef.current = false;
+    }
+  }, [game?.status, replayBoards.length]);
+
+  useEffect(() => {
+    if (isReplay && replayStep >= replayBoards.length) setReplayStep(replayBoards.length - 1);
+  }, [isReplay, replayBoards.length, replayStep]);
+
   if (joining || !playerId) {
     return (
       <div className="flex min-h-screen items-center justify-center">
@@ -198,37 +233,6 @@ export default function ReversiPlayClient({
       </div>
     );
   }
-
-  const moves = game?.moves ?? [];
-  const replayBoards = useMemo(() => {
-    const boards: Board[] = [INITIAL_BOARD];
-    let b: Board = INITIAL_BOARD.map((row) => row.slice()) as Board;
-    for (const m of moves) {
-      const next = makeMove(b, m.row, m.col, m.player);
-      if (next) {
-        b = next;
-        boards.push(b.map((row) => row.slice()) as Board);
-      }
-    }
-    return boards;
-  }, [moves]);
-
-  const isReplay = game?.status === "finished" && replayBoards.length > 0;
-  const effectiveReplayStep = isReplay ? Math.min(Math.max(0, replayStep), replayBoards.length - 1) : 0;
-  const wasFinishedRef = useRef(false);
-  useEffect(() => {
-    if (game?.status === "finished" && replayBoards.length > 0) {
-      if (!wasFinishedRef.current) {
-        wasFinishedRef.current = true;
-        setReplayStep(replayBoards.length - 1);
-      }
-    } else {
-      wasFinishedRef.current = false;
-    }
-  }, [game?.status, replayBoards.length]);
-  useEffect(() => {
-    if (isReplay && replayStep >= replayBoards.length) setReplayStep(replayBoards.length - 1);
-  }, [isReplay, replayBoards.length, replayStep]);
 
   const displayBoard = isReplay ? replayBoards[effectiveReplayStep] : (game?.board ?? INITIAL_BOARD);
   const board = game?.board ?? INITIAL_BOARD;
