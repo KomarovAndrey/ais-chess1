@@ -30,10 +30,39 @@ async function requireTeacherOrAdmin() {
   return auth;
 }
 
+function baseTeacherLabel(rating: any) {
+  const ev = rating?.evaluator;
+  const s = (ev?.display_name || ev?.username || "").trim();
+  return s || "—";
+}
+
+function uniqueEvaluatorSuffixes(
+  entries: { id: string; baseLabel: string }[]
+): Map<string, string> {
+  const byBase = new Map<string, string[]>();
+  for (const { id, baseLabel } of entries) {
+    const list = byBase.get(baseLabel) ?? [];
+    list.push(id);
+    byBase.set(baseLabel, list);
+  }
+  const out = new Map<string, string>();
+  for (const [, ids] of byBase) {
+    if (ids.length === 1) {
+      out.set(ids[0], entries.find((e) => e.id === ids[0])!.baseLabel);
+    } else {
+      for (const id of ids) {
+        const base = entries.find((e) => e.id === id)!.baseLabel;
+        out.set(id, `${base} (${id.slice(0, 8)})`);
+      }
+    }
+  }
+  return out;
+}
+
 export async function GET(req: Request) {
   const auth = await requireTeacherOrAdmin();
   if ("response" in auth) return auth.response;
-  const { supabase, user } = auth;
+  const { supabase } = auth;
   const { searchParams } = new URL(req.url);
   const weekNumber = normalizeWeekNumber(searchParams.get("week"));
 
@@ -63,7 +92,8 @@ export async function GET(req: Request) {
           sport_result,
           sport_goals,
           sport_errors,
-          queue_order
+          queue_order,
+          evaluator:evaluator_id(display_name, username)
         )
       `
     )
@@ -73,15 +103,85 @@ export async function GET(req: Request) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
+  const evaluatorBase = new Map<string, string>();
+  for (const c of data ?? []) {
+    const rs: any[] = Array.isArray(c.child_program_ratings) ? c.child_program_ratings : [];
+    for (const r of rs) {
+      if (r.week_number !== weekNumber) continue;
+      if (!evaluatorBase.has(r.evaluator_id)) {
+        evaluatorBase.set(r.evaluator_id, baseTeacherLabel(r));
+      }
+    }
+  }
+
+  const evalEntries = [...evaluatorBase.entries()].map(([id, baseLabel]) => ({ id, baseLabel }));
+  const suffixById = uniqueEvaluatorSuffixes(evalEntries);
+  const evaluatorsSorted = [...evaluatorBase.keys()].sort((a, b) => {
+    const sa = suffixById.get(a) ?? a;
+    const sb = suffixById.get(b) ?? b;
+    return sa.localeCompare(sb, "ru") || a.localeCompare(b);
+  });
+
+  type ColPick = { header: string; pick: (ratings: any[]) => string | number };
+  const dynamicParts: ColPick[] = [];
+
+  for (const eid of evaluatorsSorted) {
+    const suffix = ` · ${suffixById.get(eid)}`;
+    for (const program of PROGRAMS) {
+      for (const [metricKey, metricLabel] of METRICS) {
+        dynamicParts.push({
+          header: `${program} ${metricLabel}${suffix}`,
+          pick: (ratings) => {
+            const pr = ratings.find((r) => r.program === program && r.evaluator_id === eid);
+            return pr?.[metricKey] && pr[metricKey] !== "-" ? Number(pr[metricKey]) : "";
+          },
+        });
+      }
+
+      if (program === "Sport") {
+        dynamicParts.push({
+          header: `Sport Result${suffix}`,
+          pick: (ratings) => {
+            const pr = ratings.find((r) => r.program === program && r.evaluator_id === eid);
+            return pr?.sport_result === "win" ? "Win" : pr?.sport_result === "lose" ? "Lose" : "";
+          },
+        });
+        dynamicParts.push({
+          header: `Sport Goals${suffix}`,
+          pick: (ratings) => {
+            const pr = ratings.find((r) => r.program === program && r.evaluator_id === eid);
+            return Number.isFinite(Number(pr?.sport_goals)) ? Number(pr?.sport_goals) : "";
+          },
+        });
+        dynamicParts.push({
+          header: `Sport Errors${suffix}`,
+          pick: (ratings) => {
+            const pr = ratings.find((r) => r.program === program && r.evaluator_id === eid);
+            return Number.isFinite(Number(pr?.sport_errors)) ? Number(pr?.sport_errors) : "";
+          },
+        });
+      }
+
+      if (program === "Robo" || program === "Lumo") {
+        dynamicParts.push({
+          header: `${program} Очередность${suffix}`,
+          pick: (ratings) => {
+            const pr = ratings.find((r) => r.program === program && r.evaluator_id === eid);
+            const q = pr?.queue_order;
+            return q !== null && q !== undefined && Number.isFinite(Number(q)) ? Number(q) : "";
+          },
+        });
+      }
+    }
+  }
+
   const rows =
     (data ?? []).map((c: any) => {
       const comments: any[] = Array.isArray(c.child_comments)
         ? c.child_comments.filter((cm: any) => cm.week_number === weekNumber)
         : [];
       const ratings: any[] = Array.isArray(c.child_program_ratings)
-        ? c.child_program_ratings.filter(
-            (rating: any) => rating.week_number === weekNumber && rating.evaluator_id === user.id
-          )
+        ? c.child_program_ratings.filter((rating: any) => rating.week_number === weekNumber)
         : [];
       const joined = comments
         .map((cm: any) => {
@@ -92,42 +192,18 @@ export async function GET(req: Request) {
         })
         .join("\n");
 
-      const ratingColumns = Object.fromEntries(
-        PROGRAMS.flatMap((program) => {
-          const programRating = ratings.find((item) => item.program === program);
-          const metricColumns = METRICS.map(([metricKey, metricLabel]) => [
-            `${program} ${metricLabel}`,
-            programRating?.[metricKey] && programRating[metricKey] !== "-" ? Number(programRating[metricKey]) : "",
-          ]);
-
-          if (program === "Sport") {
-            return [
-              ...metricColumns,
-              ["Sport Result", programRating?.sport_result === "win" ? "Win" : programRating?.sport_result === "lose" ? "Lose" : ""],
-              ["Sport Goals", Number.isFinite(Number(programRating?.sport_goals)) ? Number(programRating?.sport_goals) : 0],
-              ["Sport Errors", Number.isFinite(Number(programRating?.sport_errors)) ? Number(programRating?.sport_errors) : 0],
-            ];
-          }
-
-          if (program === "Robo" || program === "Lumo") {
-            const q = programRating?.queue_order;
-            return [
-              ...metricColumns,
-              [`${program} Очередность`, q !== null && q !== undefined && Number.isFinite(Number(q)) ? Number(q) : ""],
-            ];
-          }
-
-          return metricColumns;
-        })
-      );
-
-      return {
+      const row: Record<string, string | number> = {
         Team: c.team_name ?? "",
         Name: c.full_name ?? "",
         Grade: c.class_name ?? "",
         "Комментарии": joined,
-        ...ratingColumns,
       };
+
+      for (const part of dynamicParts) {
+        row[part.header] = part.pick(ratings);
+      }
+
+      return row;
     }) ?? [];
 
   const worksheet = XLSX.utils.json_to_sheet(rows);
@@ -136,13 +212,7 @@ export async function GET(req: Request) {
     { wch: 28 },
     { wch: 14 },
     { wch: 80 },
-    ...PROGRAMS.flatMap((program) =>
-      program === "Sport"
-        ? [...METRICS.map(() => ({ wch: 12 })), { wch: 12 }, { wch: 12 }, { wch: 12 }]
-        : program === "Robo" || program === "Lumo"
-          ? [...METRICS.map(() => ({ wch: 12 })), { wch: 12 }]
-          : METRICS.map(() => ({ wch: 12 }))
-    ),
+    ...dynamicParts.map(() => ({ wch: 11 })),
   ];
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, worksheet, "Дети");
@@ -157,4 +227,3 @@ export async function GET(req: Request) {
     },
   });
 }
-

@@ -670,7 +670,7 @@ export default function ChildrenCommentsPage() {
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Дети — комментарии</h1>
           <p className="mt-1 text-sm text-slate-600">
-            Неделя {activeWeek}. Разделение по командам, поиск по команде/имени/классу, комментарии и экспорт работают для активной недели.
+            Неделя {activeWeek}. Разделение по командам, поиск по команде/имени/классу, комментарии и экспорт работают для активной недели. Оценки Robo/Lumo/Sport/3D на карточке видны только вам (у каждого учителя своя запись); в Excel за эту неделю попадают оценки всех учителей — столбцы подписаны именем.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
