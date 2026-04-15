@@ -293,7 +293,10 @@ export default function ChildrenCommentsPage() {
     return baseSections;
   }, [filtered]);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (opts?: { preserveScroll?: boolean }) => {
+    const preserveScroll = opts?.preserveScroll ?? false;
+    const scrollY = preserveScroll ? window.scrollY : null;
+
     setError(null);
     setLoading(true);
     try {
@@ -309,6 +312,12 @@ export default function ChildrenCommentsPage() {
       setError(e?.message || "Ошибка");
     } finally {
       setLoading(false);
+
+      if (scrollY !== null) {
+        requestAnimationFrame(() => {
+          window.scrollTo({ top: scrollY, behavior: "instant" as ScrollBehavior });
+        });
+      }
     }
   }, [activeWeek]);
 
@@ -425,7 +434,8 @@ export default function ChildrenCommentsPage() {
         () => {
           if (refreshTimer.current) window.clearTimeout(refreshTimer.current);
           refreshTimer.current = window.setTimeout(() => {
-            load();
+            // Preserve scroll for other people's realtime updates.
+            load({ preserveScroll: true });
           }, 250);
         }
       )
