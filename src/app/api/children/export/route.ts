@@ -70,6 +70,59 @@ export async function GET() {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
+  const headers = [
+    "ФИ",
+    "Unit",
+    "Количество пропусков за 2 юнит",
+    "Grade",
+    "Неделя",
+
+    "LUMO",
+    "LUMO Результат",
+    "LUMO Очередь",
+    "LUMO Ошибки",
+    "LUMO Комментарий",
+
+    "Robo",
+    "Robo Время",
+    "Robo Очередь",
+    "Robo Комментарий",
+
+    "SPORT",
+    "SPORT Голы",
+    "SPORT Ошибки",
+    "SPORT Комментарий",
+
+    "3D",
+    "3D Время команды",
+    "3D Время участника",
+    "3D Комментарий",
+
+    "Lumo Лидер",
+    "Lumo Коммун",
+    "Lumo Самореф",
+    "Lumo Крит мыш",
+    "Lumo Самокн",
+
+    "Robo Лидер",
+    "Robo Коммун",
+    "Robo Самореф",
+    "Robo Крит мыш",
+    "Robo Самокн",
+
+    "Sport Лидер",
+    "Sport Коммун",
+    "Sport Самореф",
+    "Sport Крит мыш",
+    "Sport Самокн",
+
+    "3D Лидер",
+    "3D Коммун",
+    "3D Самореф",
+    "3D Крит мыш",
+    "3D Самокн",
+  ] as const;
+
   const rows: Record<string, string | number>[] = [];
 
   for (const c of data ?? []) {
@@ -152,8 +205,20 @@ export async function GET() {
     }
   }
 
-  const worksheet = XLSX.utils.json_to_sheet(rows);
-  const colsCount = rows[0] ? Object.keys(rows[0]).length : 40;
+  // Явно фиксируем порядок колонок, чтобы Excel не создавал "вторую таблицу"
+  // из-за разного порядка ключей/заголовков.
+  const aoa: (string | number)[][] = [
+    [...headers],
+    ...rows.map((row) =>
+      headers.map((key) => {
+        const value = row[key];
+        return value === undefined || value === null ? "" : (value as any);
+      })
+    ),
+  ];
+
+  const worksheet = XLSX.utils.aoa_to_sheet(aoa);
+  const colsCount = headers.length;
   worksheet["!cols"] = Array(colsCount).fill({ wch: 14 });
 
   const workbook = XLSX.utils.book_new();
