@@ -458,7 +458,7 @@ export default function ChildrenCommentsPage() {
   }
 
   function downloadExcel() {
-    window.location.href = "/api/children/export";
+    window.location.href = `/api/children/export?week=${activeWeek}`;
   }
 
   function downloadTemplate() {

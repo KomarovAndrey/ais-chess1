@@ -1,7 +1,13 @@
 import { NextResponse } from "next/server";
 import { getSupabaseAndUser } from "@/lib/apiAuth";
 import * as XLSX from "xlsx";
-import { MAX_ACTIVE_WEEK, MIN_ACTIVE_WEEK, unitLabelForWeek, weeksExportRange } from "@/lib/weekly";
+import {
+  MAX_ACTIVE_WEEK,
+  MIN_ACTIVE_WEEK,
+  normalizeWeekNumber,
+  unitLabelForWeek,
+  weeksExportRange,
+} from "@/lib/weekly";
 
 function winLoseLabel(v: string | null | undefined) {
   if (v === "win") return "Win";
@@ -28,12 +34,15 @@ async function requireTeacherOrAdmin() {
 }
 
 /** Общая выгрузка: по одной строке на (ребёнок × неделя 31–40), колонки как в отчётной таблице. */
-export async function GET() {
+export async function GET(req: Request) {
   const auth = await requireTeacherOrAdmin();
   if ("response" in auth) return auth.response;
   const { supabase } = auth;
 
-  const weeks = weeksExportRange();
+  const { searchParams } = new URL(req.url);
+  const weekParam = searchParams.get("week");
+  const weekNumber = weekParam ? normalizeWeekNumber(weekParam) : null;
+  const weeks = weekNumber ? [weekNumber] : weeksExportRange();
 
   const { data, error } = await supabase
     .from("children")
@@ -226,11 +235,12 @@ export async function GET() {
 
   const buffer = XLSX.write(workbook, { type: "buffer", bookType: "xlsx" });
   const fileDate = new Date().toISOString().split("T")[0];
+  const fileWeekSuffix = weekNumber ? `week-${weekNumber}` : `weeks-${MIN_ACTIVE_WEEK}-${MAX_ACTIVE_WEEK}`;
 
   return new NextResponse(buffer, {
     headers: {
       "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      "Content-Disposition": `attachment; filename="children-weeks-${MIN_ACTIVE_WEEK}-${MAX_ACTIVE_WEEK}-${fileDate}.xlsx"`,
+      "Content-Disposition": `attachment; filename="children-${fileWeekSuffix}-${fileDate}.xlsx"`,
     },
   });
 }
