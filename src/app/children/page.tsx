@@ -227,7 +227,6 @@ export default function ChildrenCommentsPage() {
   const [collapsedTeams, setCollapsedTeams] = useState<Record<string, boolean>>({});
   const [collapsedChildren, setCollapsedChildren] = useState<Record<string, boolean>>({});
   const [collapseStateReady, setCollapseStateReady] = useState(false);
-  const refreshTimer = useRef<number | null>(null);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -425,27 +424,7 @@ export default function ChildrenCommentsPage() {
     );
   }, [collapseStateReady, collapsedSections, collapsedTeams, collapsedChildren]);
 
-  useEffect(() => {
-    const channel = supabase
-      .channel("children-live")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "child_program_ratings" },
-        () => {
-          if (refreshTimer.current) window.clearTimeout(refreshTimer.current);
-          refreshTimer.current = window.setTimeout(() => {
-            // Preserve scroll for other people's realtime updates.
-            load({ preserveScroll: true });
-          }, 250);
-        }
-      )
-      .subscribe();
-
-    return () => {
-      if (refreshTimer.current) window.clearTimeout(refreshTimer.current);
-      supabase.removeChannel(channel);
-    };
-  }, [load]);
+  // Realtime sync intentionally disabled (teachers should not be interrupted by other users' saves).
 
   async function addChild() {
     const team_name = newChildTeam.trim();
