@@ -70,8 +70,7 @@ export async function GET() {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  const rowsMain: Record<string, string | number>[] = [];
-  const rowsCompetencies: Record<string, string | number>[] = [];
+  const rows: Record<string, string | number>[] = [];
 
   for (const c of data ?? []) {
     const allRatings: any[] = Array.isArray(c.child_program_ratings) ? c.child_program_ratings : [];
@@ -97,8 +96,8 @@ export async function GET() {
         Неделя: week,
       } as const;
 
-      // Таблица 1: как в отчётной (на фото)
-      rowsMain.push({
+      // Одна таблица: сначала "как на фото", затем компетенции
+      rows.push({
         ...base,
         LUMO: winLoseLabel(lumo?.sport_result),
         "LUMO Результат":
@@ -125,11 +124,7 @@ export async function GET() {
         "3D Время команды": (d3?.d3_team_time ?? "").toString(),
         "3D Время участника": (d3?.d3_participant_time ?? "").toString(),
         "3D Комментарий": (d3?.program_comment ?? "").toString(),
-      });
 
-      // Таблица 2: компетенции 1–5 по программам
-      rowsCompetencies.push({
-        ...base,
         "Lumo Лидер": metricNum(lumo, "leadership"),
         "Lumo Коммун": metricNum(lumo, "communication"),
         "Lumo Самореф": metricNum(lumo, "self_reflection"),
@@ -157,18 +152,9 @@ export async function GET() {
     }
   }
 
-  const worksheet = XLSX.utils.json_to_sheet(rowsMain);
-  const mainColsCount = rowsMain[0] ? Object.keys(rowsMain[0]).length : 40;
-  worksheet["!cols"] = Array(mainColsCount).fill({ wch: 14 });
-
-  // Вторая таблица — ниже отдельным блоком
-  XLSX.utils.sheet_add_json(
-    worksheet,
-    [{ "": "Компетенции (1–5) по программам" }],
-    { origin: -1, skipHeader: true }
-  );
-  XLSX.utils.sheet_add_json(worksheet, [{}, {}], { origin: -1, skipHeader: true });
-  XLSX.utils.sheet_add_json(worksheet, rowsCompetencies, { origin: -1 });
+  const worksheet = XLSX.utils.json_to_sheet(rows);
+  const colsCount = rows[0] ? Object.keys(rows[0]).length : 40;
+  worksheet["!cols"] = Array(colsCount).fill({ wch: 14 });
 
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, worksheet, "Дети");
