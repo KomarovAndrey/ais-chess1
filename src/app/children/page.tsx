@@ -461,6 +461,10 @@ export default function ChildrenCommentsPage() {
     window.location.href = `/api/children/export?week=${activeWeek}`;
   }
 
+  function downloadExcelAllWeeks() {
+    window.location.href = "/api/children/export";
+  }
+
   function downloadTemplate() {
     window.location.href = "/api/children/template";
   }
@@ -719,7 +723,15 @@ export default function ChildrenCommentsPage() {
             className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-3 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700"
           >
             <Download className="h-4 w-4" aria-hidden />
-            Скачать Excel
+            Excel (неделя)
+          </button>
+          <button
+            type="button"
+            onClick={downloadExcelAllWeeks}
+            className="inline-flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-medium text-blue-800 shadow-sm hover:bg-blue-100"
+          >
+            <Download className="h-4 w-4" aria-hidden />
+            Excel (все недели)
           </button>
         </div>
       </div>
