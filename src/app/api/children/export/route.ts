@@ -70,7 +70,8 @@ export async function GET() {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  const rows: Record<string, string | number>[] = [];
+  const rowsMain: Record<string, string | number>[] = [];
+  const rowsCompetencies: Record<string, string | number>[] = [];
 
   for (const c of data ?? []) {
     const allRatings: any[] = Array.isArray(c.child_program_ratings) ? c.child_program_ratings : [];
@@ -88,13 +89,17 @@ export async function GET() {
       const metricNum = (row: any, key: string) =>
         row?.[key] && row[key] !== "-" ? Number(row[key]) : "";
 
-      rows.push({
+      const base = {
         ФИ: c.full_name ?? "",
         Unit: unitLabelForWeek(week),
         "Количество пропусков за 2 юнит": "",
         Grade: c.class_name ?? "",
         Неделя: week,
+      } as const;
 
+      // Таблица 1: как в отчётной (на фото)
+      rowsMain.push({
+        ...base,
         LUMO: winLoseLabel(lumo?.sport_result),
         "LUMO Результат":
           lumo?.lumo_numeric_result !== null && lumo?.lumo_numeric_result !== undefined
@@ -104,37 +109,45 @@ export async function GET() {
           lumo?.queue_order !== null && lumo?.queue_order !== undefined ? Number(lumo.queue_order) : "",
         "LUMO Ошибки": Number.isFinite(Number(lumo?.lumo_errors)) ? Number(lumo.lumo_errors) : "",
         "LUMO Комментарий": (lumo?.program_comment ?? "").toString(),
-        "LUMO Лидер": metricNum(lumo, "leadership"),
-        "LUMO Коммун": metricNum(lumo, "communication"),
-        "LUMO Самореф": metricNum(lumo, "self_reflection"),
-        "LUMO Крит мыш": metricNum(lumo, "critical_thinking"),
-        "LUMO Самокн": metricNum(lumo, "self_control"),
 
         Robo: winLoseLabel(robo?.sport_result),
         "Robo Время": (robo?.robo_duration_text ?? "").toString(),
         "Robo Очередь":
           robo?.queue_order !== null && robo?.queue_order !== undefined ? Number(robo.queue_order) : "",
         "Robo Комментарий": (robo?.program_comment ?? "").toString(),
+
+        SPORT: winLoseLabel(sport?.sport_result),
+        "SPORT Голы": Number.isFinite(Number(sport?.sport_goals)) ? Number(sport.sport_goals) : "",
+        "SPORT Ошибки": Number.isFinite(Number(sport?.sport_errors)) ? Number(sport.sport_errors) : "",
+        "SPORT Комментарий": (sport?.program_comment ?? "").toString(),
+
+        "3D": winLoseLabel(d3?.sport_result),
+        "3D Время команды": (d3?.d3_team_time ?? "").toString(),
+        "3D Время участника": (d3?.d3_participant_time ?? "").toString(),
+        "3D Комментарий": (d3?.program_comment ?? "").toString(),
+      });
+
+      // Таблица 2: компетенции 1–5 по программам
+      rowsCompetencies.push({
+        ...base,
+        "Lumo Лидер": metricNum(lumo, "leadership"),
+        "Lumo Коммун": metricNum(lumo, "communication"),
+        "Lumo Самореф": metricNum(lumo, "self_reflection"),
+        "Lumo Крит мыш": metricNum(lumo, "critical_thinking"),
+        "Lumo Самокн": metricNum(lumo, "self_control"),
+
         "Robo Лидер": metricNum(robo, "leadership"),
         "Robo Коммун": metricNum(robo, "communication"),
         "Robo Самореф": metricNum(robo, "self_reflection"),
         "Robo Крит мыш": metricNum(robo, "critical_thinking"),
         "Robo Самокн": metricNum(robo, "self_control"),
 
-        SPORT: winLoseLabel(sport?.sport_result),
-        "SPORT Голы": Number.isFinite(Number(sport?.sport_goals)) ? Number(sport.sport_goals) : "",
-        "SPORT Ошибки": Number.isFinite(Number(sport?.sport_errors)) ? Number(sport.sport_errors) : "",
-        "SPORT Комментарий": (sport?.program_comment ?? "").toString(),
-        "SPORT Лидер": metricNum(sport, "leadership"),
-        "SPORT Коммун": metricNum(sport, "communication"),
-        "SPORT Самореф": metricNum(sport, "self_reflection"),
-        "SPORT Крит мыш": metricNum(sport, "critical_thinking"),
-        "SPORT Самокн": metricNum(sport, "self_control"),
+        "Sport Лидер": metricNum(sport, "leadership"),
+        "Sport Коммун": metricNum(sport, "communication"),
+        "Sport Самореф": metricNum(sport, "self_reflection"),
+        "Sport Крит мыш": metricNum(sport, "critical_thinking"),
+        "Sport Самокн": metricNum(sport, "self_control"),
 
-        "3D": winLoseLabel(d3?.sport_result),
-        "3D Время команды": (d3?.d3_team_time ?? "").toString(),
-        "3D Время участника": (d3?.d3_participant_time ?? "").toString(),
-        "3D Комментарий": (d3?.program_comment ?? "").toString(),
         "3D Лидер": metricNum(d3, "leadership"),
         "3D Коммун": metricNum(d3, "communication"),
         "3D Самореф": metricNum(d3, "self_reflection"),
@@ -144,8 +157,19 @@ export async function GET() {
     }
   }
 
-  const worksheet = XLSX.utils.json_to_sheet(rows);
-  worksheet["!cols"] = Array(rows[0] ? Object.keys(rows[0]).length : 40).fill({ wch: 14 });
+  const worksheet = XLSX.utils.json_to_sheet(rowsMain);
+  const mainColsCount = rowsMain[0] ? Object.keys(rowsMain[0]).length : 40;
+  worksheet["!cols"] = Array(mainColsCount).fill({ wch: 14 });
+
+  // Вторая таблица — ниже отдельным блоком
+  XLSX.utils.sheet_add_json(
+    worksheet,
+    [{ "": "Компетенции (1–5) по программам" }],
+    { origin: -1, skipHeader: true }
+  );
+  XLSX.utils.sheet_add_json(worksheet, [{}, {}], { origin: -1, skipHeader: true });
+  XLSX.utils.sheet_add_json(worksheet, rowsCompetencies, { origin: -1 });
+
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, worksheet, "Дети");
 
