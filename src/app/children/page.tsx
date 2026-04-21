@@ -88,6 +88,7 @@ const GRADE_SECTIONS = [
   { key: "kg1-g1", label: "KG1-G1" },
   { key: "g2-g3", label: "G2-G3" },
   { key: "g4-g6", label: "G4-G6" },
+  { key: "g7-g10", label: "G7-G10" },
 ] as const;
 
 const EXTRA_SECTION = { key: "other", label: "Без группы" } as const;
@@ -197,8 +198,25 @@ function getSectionKey(className?: string | null) {
   ) {
     return "g4-g6";
   }
+  if (
+    normalized.startsWith("G7") ||
+    normalized.startsWith("G8") ||
+    normalized.startsWith("G9") ||
+    normalized.startsWith("G10") ||
+    /^7/.test(normalized) ||
+    /^8/.test(normalized) ||
+    /^9/.test(normalized) ||
+    /^10/.test(normalized)
+  ) {
+    return "g7-g10";
+  }
 
   return EXTRA_SECTION.key;
+}
+
+function programsForSection(sectionKey: string): ProgramName[] {
+  if (sectionKey === "g7-g10") return ["Sport"];
+  return PROGRAMS;
 }
 
 export default function ChildrenCommentsPage() {
@@ -555,8 +573,10 @@ export default function ChildrenCommentsPage() {
     setActiveWeek((prev) => Math.max(MIN_ACTIVE_WEEK, prev - 1));
   }
 
-  function getSelectedProgram(childId: string): ProgramName {
-    return selectedProgramByChild[childId] ?? "Lumo";
+  function getSelectedProgram(childId: string, sectionKey: string): ProgramName {
+    const available = programsForSection(sectionKey);
+    const current = selectedProgramByChild[childId] ?? available[0] ?? "Sport";
+    return available.includes(current) ? current : (available[0] ?? "Sport");
   }
 
   function getProgramDraftKey(childId: string, program: ProgramName) {
@@ -849,11 +869,13 @@ export default function ChildrenCommentsPage() {
                                 const programRatings = Array.isArray(r.child_program_ratings) ? r.child_program_ratings : [];
                                 const isEditing = editingId === r.id;
                                 const isCollapsed = collapsedChildren[r.id] ?? false;
-                                const selectedProgram = getSelectedProgram(r.id);
+                                const selectedProgram = getSelectedProgram(r.id, sectionKey);
                                 const selectedDraftKey = getProgramDraftKey(r.id, selectedProgram);
                                 const selectedDraft =
                                   programRatingsDrafts[selectedDraftKey] ??
                                   draftFromRating(programRatings.find((item) => item.program === selectedProgram));
+                                const availablePrograms = programsForSection(sectionKey);
+                                const isG7toG10 = sectionKey === "g7-g10";
                                 return (
                                   <article key={r.id} className="bg-white">
                                     <div className="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-start sm:justify-between">
@@ -970,7 +992,7 @@ export default function ChildrenCommentsPage() {
                                           <div className="space-y-4 pt-4">
                                             <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
                                               <div className="flex flex-wrap gap-2">
-                                                {PROGRAMS.map((program) => (
+                                                {availablePrograms.map((program) => (
                                                   <button
                                                     key={program}
                                                     type="button"
@@ -1259,69 +1281,74 @@ export default function ChildrenCommentsPage() {
                                               )}
 
                                               {selectedProgram === "Sport" && (
-                                                <div className="mt-4 flex flex-wrap items-center gap-3 rounded-xl border border-cyan-100 bg-cyan-50/40 p-3">
-                                                  <div className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5">
-                                                    <span className="text-sm font-medium text-slate-700">
-                                                      Голы: {selectedDraft.sport_goals}
-                                                    </span>
-                                                    <button
-                                                      type="button"
-                                                      onClick={() =>
-                                                        setProgramRatingsDrafts((prev) => ({
-                                                          ...prev,
-                                                          [selectedDraftKey]: {
-                                                            ...selectedDraft,
-                                                            sport_goals: Math.max(0, selectedDraft.sport_goals + 1),
-                                                          },
-                                                        }))
-                                                      }
-                                                      className="rounded-md bg-blue-600 px-2 py-0.5 text-sm font-semibold text-white hover:bg-blue-700"
-                                                    >
-                                                      +
-                                                    </button>
+                                                !isG7toG10 && (
+                                                  <div className="mt-4 flex flex-wrap items-center gap-3 rounded-xl border border-cyan-100 bg-cyan-50/40 p-3">
+                                                    <div className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5">
+                                                      <span className="text-sm font-medium text-slate-700">
+                                                        Голы: {selectedDraft.sport_goals}
+                                                      </span>
+                                                      <button
+                                                        type="button"
+                                                        onClick={() =>
+                                                          setProgramRatingsDrafts((prev) => ({
+                                                            ...prev,
+                                                            [selectedDraftKey]: {
+                                                              ...selectedDraft,
+                                                              sport_goals: Math.max(0, selectedDraft.sport_goals + 1),
+                                                            },
+                                                          }))
+                                                        }
+                                                        className="rounded-md bg-blue-600 px-2 py-0.5 text-sm font-semibold text-white hover:bg-blue-700"
+                                                      >
+                                                        +
+                                                      </button>
+                                                    </div>
+                                                    <div className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5">
+                                                      <span className="text-sm font-medium text-slate-700">
+                                                        Ошибки: {selectedDraft.sport_errors}
+                                                      </span>
+                                                      <button
+                                                        type="button"
+                                                        onClick={() =>
+                                                          setProgramRatingsDrafts((prev) => ({
+                                                            ...prev,
+                                                            [selectedDraftKey]: {
+                                                              ...selectedDraft,
+                                                              sport_errors: Math.max(0, selectedDraft.sport_errors + 1),
+                                                            },
+                                                          }))
+                                                        }
+                                                        className="rounded-md bg-blue-600 px-2 py-0.5 text-sm font-semibold text-white hover:bg-blue-700"
+                                                      >
+                                                        +
+                                                      </button>
+                                                    </div>
+                                                    <div className="w-full min-w-[200px] flex-1">
+                                                      <label
+                                                        className="text-sm font-medium text-slate-700"
+                                                        htmlFor={`sport-cm-${selectedDraftKey}`}
+                                                      >
+                                                        Комментарий
+                                                      </label>
+                                                      <textarea
+                                                        id={`sport-cm-${selectedDraftKey}`}
+                                                        value={selectedDraft.program_comment}
+                                                        onChange={(e) =>
+                                                          setProgramRatingsDrafts((prev) => ({
+                                                            ...prev,
+                                                            [selectedDraftKey]: {
+                                                              ...selectedDraft,
+                                                              program_comment: e.target.value,
+                                                            },
+                                                          }))
+                                                        }
+                                                        rows={2}
+                                                        className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm outline-none focus:border-blue-400"
+                                                        placeholder="Комментарий по спорту за неделю"
+                                                      />
+                                                    </div>
                                                   </div>
-                                                  <div className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5">
-                                                    <span className="text-sm font-medium text-slate-700">
-                                                      Ошибки: {selectedDraft.sport_errors}
-                                                    </span>
-                                                    <button
-                                                      type="button"
-                                                      onClick={() =>
-                                                        setProgramRatingsDrafts((prev) => ({
-                                                          ...prev,
-                                                          [selectedDraftKey]: {
-                                                            ...selectedDraft,
-                                                            sport_errors: Math.max(0, selectedDraft.sport_errors + 1),
-                                                          },
-                                                        }))
-                                                      }
-                                                      className="rounded-md bg-blue-600 px-2 py-0.5 text-sm font-semibold text-white hover:bg-blue-700"
-                                                    >
-                                                      +
-                                                    </button>
-                                                  </div>
-                                                  <div className="w-full min-w-[200px] flex-1">
-                                                    <label className="text-sm font-medium text-slate-700" htmlFor={`sport-cm-${selectedDraftKey}`}>
-                                                      Комментарий
-                                                    </label>
-                                                    <textarea
-                                                      id={`sport-cm-${selectedDraftKey}`}
-                                                      value={selectedDraft.program_comment}
-                                                      onChange={(e) =>
-                                                        setProgramRatingsDrafts((prev) => ({
-                                                          ...prev,
-                                                          [selectedDraftKey]: {
-                                                            ...selectedDraft,
-                                                            program_comment: e.target.value,
-                                                          },
-                                                        }))
-                                                      }
-                                                      rows={2}
-                                                      className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm outline-none focus:border-blue-400"
-                                                      placeholder="Комментарий по спорту за неделю"
-                                                    />
-                                                  </div>
-                                                </div>
+                                                )
                                               )}
 
                                               {selectedProgram === "3D" && (
