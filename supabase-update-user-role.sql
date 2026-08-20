@@ -1,5 +1,4 @@
 -- Назначить роль admin пользователю komarov_a
--- Администраторы имеют полный доступ к Soft Skills (оценка и экспорт)
 
 UPDATE profiles
 SET role = 'admin'
