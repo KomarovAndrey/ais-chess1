@@ -77,7 +77,3 @@ alter table public.reversi_games enable row level security;
 create policy reversi_select_any on public.reversi_games for select using (true);
 create policy reversi_insert_any on public.reversi_games for insert with check (true);
 create policy reversi_update_any on public.reversi_games for update using (true);
-
--- 5. Дети + комментарии (доступ только teacher/admin)
--- Скопируйте и выполните файл `supabase-migration-children-comments.sql` (только таблица children + политики).
--- Общие комментарии по ребёнку удалены: комментарии ведутся внутри дисциплин (child_program_ratings.program_comment).
