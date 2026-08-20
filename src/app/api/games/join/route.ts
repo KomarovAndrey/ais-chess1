@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getSupabaseOptionalUser } from "@/lib/apiAuth";
 import { checkRateLimit } from "@/lib/rateLimit";
+import { getGameWriteClient } from "@/lib/games/integrity";
 import { joinGameSchema } from "@/lib/validations/games";
 
 const UUID_REGEX =
@@ -54,6 +55,7 @@ export async function POST(req: NextRequest) {
   const auth = await getSupabaseOptionalUser();
   if ("response" in auth) return auth.response;
   const { supabase, user } = auth;
+  const writeClient = getGameWriteClient(supabase);
 
   try {
     const body = await req.json();
@@ -80,7 +82,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { data: game, error: gameError } = await supabase
+    const { data: game, error: gameError } = await writeClient
       .from("games")
       .select("*")
       .eq("id", gameId)
@@ -93,7 +95,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { data: players, error: playersError } = await supabase
+    const { data: players, error: playersError } = await writeClient
       .from("game_players")
       .select("*")
       .eq("game_id", gameId);
@@ -144,7 +146,7 @@ export async function POST(req: NextRequest) {
       side = "black";
     }
 
-    const { data: player, error: insertError } = await supabase
+    const { data: player, error: insertError } = await writeClient
       .from("game_players")
       .insert({
         game_id: gameId,
@@ -164,14 +166,15 @@ export async function POST(req: NextRequest) {
 
     const totalPlayers = (players?.length ?? 0) + 1;
     if (totalPlayers >= 2 && game.status === "waiting") {
-      await supabase
+      await writeClient
         .from("games")
         .update({
           status: "active",
           started_at: new Date().toISOString(),
           last_move_at: new Date().toISOString()
         })
-        .eq("id", gameId);
+        .eq("id", gameId)
+        .eq("status", "waiting");
     }
 
     const allPlayers = [...(players ?? []), player];

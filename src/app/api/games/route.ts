@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseOptionalUser } from "@/lib/apiAuth";
 import { checkRateLimit } from "@/lib/rateLimit";
+import { getGameWriteClient } from "@/lib/games/integrity";
 import { createGameSchema } from "@/lib/validations/games";
 
 const UUID_REGEX =
@@ -10,6 +11,7 @@ export async function POST(req: NextRequest) {
   const auth = await getSupabaseOptionalUser();
   if ("response" in auth) return auth.response;
   const { supabase, user } = auth;
+  const writeClient = getGameWriteClient(supabase);
 
   try {
     const body = await req.json();
@@ -39,7 +41,7 @@ export async function POST(req: NextRequest) {
     const whiteInitial = timeControlSeconds * 1000;
     const blackInitial = timeControlSeconds * 1000;
 
-    const { data: game, error: gameError } = await supabase
+    const { data: game, error: gameError } = await writeClient
       .from("games")
       .insert({
         status: "waiting",
@@ -69,7 +71,7 @@ export async function POST(req: NextRequest) {
     let playerRecord = null;
 
     if (side) {
-      const { data: player, error: playerError } = await supabase
+      const { data: player, error: playerError } = await writeClient
         .from("game_players")
         .insert({
           game_id: game.id,

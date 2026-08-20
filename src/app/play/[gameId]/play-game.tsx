@@ -132,6 +132,7 @@ export default function PlayGame({ initialGame }: PlayGameProps) {
 
   // Игнорировать устаревшие Realtime/poll, чтобы ход не откатывался
   const lastMoveAtRef = useRef<string | null>(initialGame.last_move_at ?? null);
+  const timeoutClaimedRef = useRef(false);
 
   const isMyTurn = useMemo(() => {
     if (!player) return false;
@@ -304,6 +305,7 @@ export default function PlayGame({ initialGame }: PlayGameProps) {
   // Local ticking of clocks: чья очередь хода — те часы и идут
   useEffect(() => {
     if (gameRow.status !== "active" || !gameRow.last_move_at) return;
+    timeoutClaimedRef.current = false;
 
     const lastMoveAt = new Date(gameRow.last_move_at).getTime();
 
@@ -311,15 +313,59 @@ export default function PlayGame({ initialGame }: PlayGameProps) {
       const now = Date.now();
       const elapsed = now - lastMoveAt;
 
+      let nextWhite = gameRow.white_time_left;
+      let nextBlack = gameRow.black_time_left;
       if (gameRow.active_color === "w") {
-        setWhiteTime(gameRow.white_time_left - elapsed);
+        nextWhite = gameRow.white_time_left - elapsed;
+        setWhiteTime(nextWhite);
       } else {
-        setBlackTime(gameRow.black_time_left - elapsed);
+        nextBlack = gameRow.black_time_left - elapsed;
+        setBlackTime(nextBlack);
+      }
+
+      if ((nextWhite <= 0 || nextBlack <= 0) && !timeoutClaimedRef.current && playerId) {
+        timeoutClaimedRef.current = true;
+        fetch(`/api/games/${gameId}/timeout`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ playerId }),
+        })
+          .then(async (res) => {
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) {
+              timeoutClaimedRef.current = false;
+              return;
+            }
+            const updated = (data as { game: GameRow }).game;
+            lastMoveAtRef.current = updated.last_move_at;
+            setGameRow(updated);
+            setWhiteTime(updated.white_time_left);
+            setBlackTime(updated.black_time_left);
+            if (updated.fen && updated.fen !== "startpos") {
+              try {
+                game.load(updated.fen);
+              } catch {
+                /* ignore */
+              }
+            }
+          })
+          .catch(() => {
+            timeoutClaimedRef.current = false;
+          });
       }
     }, 250);
 
     return () => clearInterval(interval);
-  }, [gameRow.status, gameRow.last_move_at, gameRow.active_color, gameRow.white_time_left, gameRow.black_time_left]);
+  }, [
+    gameRow.status,
+    gameRow.last_move_at,
+    gameRow.active_color,
+    gameRow.white_time_left,
+    gameRow.black_time_left,
+    playerId,
+    gameId,
+    game,
+  ]);
 
   const boardOrientation: "white" | "black" = player?.side ?? "white";
   const topSide: "white" | "black" = boardOrientation === "white" ? "black" : "white";
@@ -343,20 +389,9 @@ export default function PlayGame({ initialGame }: PlayGameProps) {
   const drawOfferedToMe =
     !!gameRow.draw_offer_from && !!playerId && gameRow.draw_offer_from !== playerId;
 
-  /** Send move (UCI) or legacy payload (e.g. time's up). Returns server game state on 200; throws on error. */
-  async function sendUpdate(
-    opts:
-      | { uci: string }
-      | {
-          fen: string;
-          activeColor: "w" | "b";
-          whiteTimeLeft: number;
-          blackTimeLeft: number;
-          status: GameStatus;
-          winner?: "white" | "black" | "draw" | null;
-        }
-  ): Promise<{ game: GameRow }> {
-    const body = playerId ? { ...opts, playerId } : opts;
+  /** Send a UCI move. Returns server game state on 200; throws on error. */
+  async function sendMove(uci: string): Promise<{ game: GameRow }> {
+    const body = playerId ? { uci, playerId } : { uci };
     const res = await fetch(`/api/games/${gameId}/move`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -365,6 +400,20 @@ export default function PlayGame({ initialGame }: PlayGameProps) {
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
       throw new Error((data as { error?: string }).error || "Ход не принят");
+    }
+    return data as { game: GameRow };
+  }
+
+  async function claimTimeout(): Promise<{ game: GameRow }> {
+    const body = playerId ? { playerId } : {};
+    const res = await fetch(`/api/games/${gameId}/timeout`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body)
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error((data as { error?: string }).error || "Не удалось зафиксировать время");
     }
     return data as { game: GameRow };
   }
@@ -386,16 +435,7 @@ export default function PlayGame({ initialGame }: PlayGameProps) {
     }
 
     if (currentWhite <= 0 || currentBlack <= 0) {
-      const loser = currentWhite <= 0 ? "white" : "black";
-      const winner = loser === "white" ? "black" : "white";
-      sendUpdate({
-        fen: gameRow.fen,
-        activeColor: gameRow.active_color,
-        whiteTimeLeft: Math.max(currentWhite, 0),
-        blackTimeLeft: Math.max(currentBlack, 0),
-        status: "finished",
-        winner
-      })
+      claimTimeout()
         .then((data) => {
           setGameRow(data.game);
           setWhiteTime(data.game.white_time_left);
@@ -432,7 +472,7 @@ export default function PlayGame({ initialGame }: PlayGameProps) {
     setWhiteTime(currentWhite);
     setBlackTime(currentBlack);
 
-    sendUpdate({ uci: move.lan })
+    sendMove(move.lan)
       .then((data) => {
         lastMoveAtRef.current = data.game.last_move_at;
         setGameRow(data.game);
@@ -451,7 +491,7 @@ export default function PlayGame({ initialGame }: PlayGameProps) {
     return true;
   };
 
-  async function sendDrawAction(action: "offer" | "decline") {
+  async function sendDrawAction(action: "offer" | "decline" | "accept") {
     if (!playerId) return;
     try {
       const res = await fetch(`/api/games/${gameId}/draw`, {
@@ -463,9 +503,23 @@ export default function PlayGame({ initialGame }: PlayGameProps) {
       if (!res.ok) {
         throw new Error((data as { error?: string }).error || "Ошибка обработки ничьей");
       }
-      if ((data as any).game) {
-        const g = (data as any).game as GameRow;
-        setGameRow((prev) => ({ ...prev, draw_offer_from: g.draw_offer_from }));
+      if ((data as { game?: GameRow }).game) {
+        const g = (data as { game: GameRow }).game;
+        setGameRow((prev) => ({
+          ...prev,
+          ...g,
+          draw_offer_from: g.draw_offer_from ?? null,
+        }));
+        if (g.white_time_left != null) setWhiteTime(g.white_time_left);
+        if (g.black_time_left != null) setBlackTime(g.black_time_left);
+        if (g.last_move_at) lastMoveAtRef.current = g.last_move_at;
+        if (g.fen && g.fen !== "startpos") {
+          try {
+            game.load(g.fen);
+          } catch {
+            /* ignore */
+          }
+        }
       }
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Ошибка обработки ничьей");
@@ -473,41 +527,22 @@ export default function PlayGame({ initialGame }: PlayGameProps) {
   }
 
   async function handleAcceptDraw() {
-    try {
-      const { game: updated } = await sendUpdate({
-        fen: gameRow.fen,
-        activeColor: gameRow.active_color,
-        whiteTimeLeft: whiteTime,
-        blackTimeLeft: blackTime,
-        status: "finished",
-        winner: "draw"
-      });
-      lastMoveAtRef.current = updated.last_move_at;
-      setGameRow(updated);
-      setWhiteTime(updated.white_time_left);
-      setBlackTime(updated.black_time_left);
-      setError(null);
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Не удалось завершить партию");
-    } finally {
-      // Очистить предложение ничьей на всякий случай
-      sendDrawAction("decline").catch(() => {});
-    }
+    await sendDrawAction("accept");
   }
 
   async function handleResign() {
-    if (!player || gameRow.status !== "active") return;
-    const loserSide = player.side;
-    const winnerSide = loserSide === "white" ? "black" : "white";
+    if (!player || gameRow.status !== "active" || !playerId) return;
     try {
-      const { game: updated } = await sendUpdate({
-        fen: gameRow.fen,
-        activeColor: gameRow.active_color,
-        whiteTimeLeft: whiteTime,
-        blackTimeLeft: blackTime,
-        status: "finished",
-        winner: winnerSide
+      const res = await fetch(`/api/games/${gameId}/resign`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ playerId })
       });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error((data as { error?: string }).error || "Не удалось сдаться");
+      }
+      const updated = (data as { game: GameRow }).game;
       lastMoveAtRef.current = updated.last_move_at;
       setGameRow(updated);
       setWhiteTime(updated.white_time_left);

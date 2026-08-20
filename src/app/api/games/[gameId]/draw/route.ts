@@ -1,7 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseOptionalUser } from "@/lib/apiAuth";
+import { checkRateLimit } from "@/lib/rateLimit";
+import {
+  computeClocksAfterElapsed,
+  findPlayer,
+  finishActiveGame,
+  getGameWriteClient,
+  type GamePlayerRow,
+} from "@/lib/games/integrity";
 
 type GameStatus = "waiting" | "active" | "finished";
+
+const UUID_REGEX =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 export async function POST(
   req: NextRequest,
@@ -10,10 +21,14 @@ export async function POST(
   const auth = await getSupabaseOptionalUser();
   if ("response" in auth) return auth.response;
   const { supabase, user } = auth;
+  const writeClient = getGameWriteClient(supabase);
 
   const { gameId } = await params;
+  if (!UUID_REGEX.test(gameId)) {
+    return NextResponse.json({ error: "Invalid game id" }, { status: 400 });
+  }
 
-  let body: { action?: "offer" | "decline"; playerId?: string };
+  let body: { action?: "offer" | "decline" | "accept"; playerId?: string };
   try {
     body = await req.json();
   } catch {
@@ -29,9 +44,15 @@ export async function POST(
     );
   }
 
-  const { data, error: gameError } = await supabase
+  if (!checkRateLimit(effectivePlayerId)) {
+    return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+  }
+
+  const { data, error: gameError } = await writeClient
     .from("games")
-    .select("id, status, draw_offer_from")
+    .select(
+      "id, status, fen, active_color, white_time_left, black_time_left, last_move_at, draw_offer_from"
+    )
     .eq("id", gameId)
     .single();
 
@@ -39,7 +60,16 @@ export async function POST(
     return NextResponse.json({ error: "Game not found" }, { status: 404 });
   }
 
-  const game = data as { id: string; status: GameStatus; draw_offer_from: string | null };
+  const game = data as {
+    id: string;
+    status: GameStatus;
+    fen: string;
+    active_color: "w" | "b";
+    white_time_left: number;
+    black_time_left: number;
+    last_move_at: string | null;
+    draw_offer_from: string | null;
+  };
 
   if (game.status !== "active") {
     return NextResponse.json(
@@ -48,15 +78,14 @@ export async function POST(
     );
   }
 
-  const { data: playersData } = await supabase
+  const { data: playersData } = await writeClient
     .from("game_players")
-    .select("player_id")
+    .select("player_id, side")
     .eq("game_id", gameId);
 
-  const players = playersData as { player_id: string }[] | null;
-
-  const isPlayer = players?.some((p) => p.player_id === effectivePlayerId);
-  if (!isPlayer) {
+  const players = playersData as GamePlayerRow[] | null;
+  const playerRow = findPlayer(players, effectivePlayerId);
+  if (!playerRow) {
     return NextResponse.json(
       { error: "You are not a player in this game" },
       { status: 403 }
@@ -66,10 +95,21 @@ export async function POST(
   const action = body.action ?? "offer";
 
   if (action === "offer") {
-    const { data: updated, error: updateError } = await supabase
+    if (game.draw_offer_from === effectivePlayerId) {
+      return NextResponse.json({
+        game: {
+          id: game.id,
+          status: game.status,
+          draw_offer_from: game.draw_offer_from,
+        },
+      });
+    }
+
+    const { data: updated, error: updateError } = await writeClient
       .from("games")
       .update({ draw_offer_from: effectivePlayerId })
       .eq("id", gameId)
+      .eq("status", "active")
       .select("id, status, draw_offer_from")
       .single();
 
@@ -85,10 +125,18 @@ export async function POST(
   }
 
   if (action === "decline") {
-    const { data: updated, error: updateError } = await supabase
+    if (!game.draw_offer_from || game.draw_offer_from === effectivePlayerId) {
+      return NextResponse.json(
+        { error: "Нет предложения ничьей для отклонения" },
+        { status: 400 }
+      );
+    }
+
+    const { data: updated, error: updateError } = await writeClient
       .from("games")
       .update({ draw_offer_from: null })
       .eq("id", gameId)
+      .eq("status", "active")
       .select("id, status, draw_offer_from")
       .single();
 
@@ -103,6 +151,45 @@ export async function POST(
     return NextResponse.json({ game: updated });
   }
 
+  if (action === "accept") {
+    if (!game.draw_offer_from) {
+      return NextResponse.json(
+        { error: "Нет предложения ничьей" },
+        { status: 400 }
+      );
+    }
+    if (game.draw_offer_from === effectivePlayerId) {
+      return NextResponse.json(
+        { error: "Нельзя принять собственное предложение ничьей" },
+        { status: 400 }
+      );
+    }
+
+    const activeColor = (game.active_color ?? "w") as "w" | "b";
+    const { whiteTimeLeft, blackTimeLeft } = computeClocksAfterElapsed(
+      game.white_time_left ?? 0,
+      game.black_time_left ?? 0,
+      game.last_move_at ?? null,
+      activeColor
+    );
+
+    try {
+      const { game: updated } = await finishActiveGame(writeClient, gameId, "draw", {
+        whiteTimeLeft,
+        blackTimeLeft,
+        fen: game.fen,
+        activeColor,
+        clearDrawOffer: true,
+      });
+      return NextResponse.json({ game: updated });
+    } catch (error) {
+      console.error("Accept draw error:", error);
+      return NextResponse.json(
+        { error: "Не удалось принять ничью" },
+        { status: 500 }
+      );
+    }
+  }
+
   return NextResponse.json({ error: "Unknown action" }, { status: 400 });
 }
-

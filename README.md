@@ -34,7 +34,7 @@ NEXT_PUBLIC_SUPABASE_URL=...
 NEXT_PUBLIC_SUPABASE_ANON_KEY=...
 ```
 
-Значения возьмите в [Supabase Dashboard](https://supabase.com/dashboard) → ваш проект → **Settings** → **API** (Project URL и anon public key). Можно скопировать `.env.example` в `.env.local` и подставить свои ключи. Для SEO (корректные ссылки в robots.txt и sitemap) при необходимости укажите в `.env.local` переменную `NEXT_PUBLIC_SITE_URL` (полный URL сайта, например `https://your-domain.com`).
+Значения возьмите в [Supabase Dashboard](https://supabase.com/dashboard) → ваш проект → **Settings** → **API** (Project URL и anon public key). Можно скопировать `.env.example` в `.env.local` и подставить свои ключи. Для целостности партий (сдаться / ничья / рейтинг) также укажите **`SUPABASE_SERVICE_ROLE_KEY`** (тот же раздел API → `service_role`, секретный ключ). Добавьте его и в Vercel Environment Variables. Для SEO (корректные ссылки в robots.txt и sitemap) при необходимости укажите в `.env.local` переменную `NEXT_PUBLIC_SITE_URL` (полный URL сайта, например `https://your-domain.com`).
 
 3. **Создайте таблицы в Supabase** (иначе будет ошибка «Could not find the table public.games»):
    - Откройте [Supabase Dashboard](https://supabase.com/dashboard) → ваш проект.
@@ -45,6 +45,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=...
      3. `supabase-migration-profiles-add-role.sql` — добавление ролей (student/teacher/admin)
      4. `supabase-schema-games.sql` — таблицы для игр (games, game_players)
      5. `supabase-migration-games-allow-anon.sql` — разрешить игру без регистрации
+     6. `supabase-migration-game-integrity.sql` — серверная целостность партий (после настройки `SUPABASE_SERVICE_ROLE_KEY`)
    - Для каждого скрипта: скопируйте весь код из файла и вставьте в редактор, затем нажмите **Run** (или Ctrl+Enter).
    - Должно выполниться без ошибок. Схема подхватится автоматически.
    - Если в проекте раньше был Soft Skills: выполните `supabase-drop-soft-skills.sql`, чтобы удалить таблицы `children` / ratings.
