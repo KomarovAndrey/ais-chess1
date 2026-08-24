@@ -3,10 +3,11 @@
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Chess } from "chess.js";
-import { Chessboard } from "react-chessboard";
 import { Cpu, X, ChevronLeft, ChevronRight, SkipBack, SkipForward, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CPU_LEVEL_DESCRIPTIONS, CPU_PERSONAS } from "@/lib/cpu-levels";
+import BoardShell from "@/components/chess/BoardShell";
+import { chessSounds } from "@/lib/chessSounds";
 
 const TIME_OPTIONS = [
   { seconds: 180, label: "3 мин" },
@@ -223,6 +224,10 @@ function ChessPageContent() {
 
     game.move(chosenMove);
     setFen(game.fen());
+    if (chosenMove.captured) chessSounds.capture();
+    else chessSounds.move();
+    if (game.isCheck()) chessSounds.check();
+    if (game.isGameOver()) chessSounds.gameEnd();
     updateStatus();
   }
 
@@ -234,22 +239,45 @@ function ChessPageContent() {
     return `${minutes}:${seconds.toString().padStart(2, "0")}`;
   }
 
-  function onDrop(sourceSquare: string, targetSquare: string) {
+  function onBoardMove(uci: string) {
     if (!isPlayerTurn || game.isGameOver() || gameOverByTime) return false;
     if (initialTimeMs > 0 && (whiteTimeMs <= 0 || blackTimeMs <= 0)) return false;
 
+    const from = uci.slice(0, 2);
+    const to = uci.slice(2, 4);
+    const promotion = uci.length > 4 ? uci[4] : undefined;
     const move = game.move({
-      from: sourceSquare,
-      to: targetSquare,
-      promotion: "q"
+      from,
+      to,
+      promotion: promotion as "q" | "r" | "b" | "n" | undefined,
     });
 
-    if (move === null) return false;
+    if (move === null) {
+      chessSounds.illegal();
+      return false;
+    }
+
+    if (move.captured) chessSounds.capture();
+    else chessSounds.move();
+    if (game.isCheck()) chessSounds.check();
+    if (game.isGameOver()) chessSounds.gameEnd();
 
     setFen(game.fen());
     updateStatus();
     return true;
   }
+
+  const lastMoveUci = useMemo(() => {
+    const verbose = game.history({ verbose: true });
+    if (!verbose.length) return null;
+    const idx =
+      gameOver && history.length > 0
+        ? Math.max(0, replayStep - 1)
+        : verbose.length - 1;
+    const m = verbose[idx];
+    if (!m) return null;
+    return `${m.from}${m.to}${m.promotion ?? ""}`;
+  }, [fen, gameOver, history.length, replayStep, game]);
 
   return (
     <main className="page-bg min-h-screen px-4 py-6">
@@ -281,29 +309,35 @@ function ChessPageContent() {
               touchAction: "manipulation"
             }}
           >
-            <Chessboard
-              position={displayFen}
-              onPieceDrop={gameOver ? undefined : onDrop}
-              boardOrientation={playerColor}
-              customDarkSquareStyle={{ backgroundColor: "#b58863" }}
-              customLightSquareStyle={{ backgroundColor: "#f0d9b5" }}
-              customBoardStyle={{
-                borderRadius: 0,
-                boxShadow: "0 15px 40px rgba(15,23,42,0.15)"
-              }}
+            <BoardShell
+              fen={displayFen}
+              orientation={playerColor}
+              interactive={!gameOver && isPlayerTurn}
+              onMove={onBoardMove}
+              lastMoveUci={lastMoveUci}
+              sizeStyle={{ width: "100%", height: "100%" }}
             />
           </div>
           {history.length > 0 && (
-            <div className="mt-2 flex items-center gap-2">
+            <div className="mt-2 flex flex-wrap items-center gap-2">
               <p
                 className="text-sm text-white/55"
                 aria-live="polite"
                 aria-atomic="true"
               >
                 {gameOver
-                  ? (replayStep > 0 ? `Ход ${replayStep}: ${history[replayStep - 1] ?? ""}` : "Начальная позиция")
+                  ? replayStep > 0
+                    ? `Ход ${replayStep}: ${history[replayStep - 1] ?? ""}`
+                    : "Начальная позиция"
                   : `Последний ход: ${history[history.length - 1] ?? ""}`}
               </p>
+              <div className="max-h-16 flex-1 overflow-y-auto font-mono text-[11px] text-white/40">
+                {history
+                  .map((san, i) =>
+                    i % 2 === 0 ? `${Math.floor(i / 2) + 1}. ${san}` : san
+                  )
+                  .join(" ")}
+              </div>
             </div>
           )}
 
