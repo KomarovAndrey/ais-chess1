@@ -11,6 +11,7 @@
 - Supabase для email/password авторизации
 - `lucide-react` для иконок
 - `chess.js` и `react-chessboard` для логики и отображения доски
+- Stockfish.js (lite WASM) для игры с компьютером и анализа — копируется в `public/engines` при `npm install` / `npm run build` (GPL-3)
 
 ## Страницы
 
