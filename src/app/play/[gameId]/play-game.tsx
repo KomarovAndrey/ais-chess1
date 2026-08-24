@@ -7,7 +7,9 @@ import { Chess } from "chess.js";
 import { ChevronLeft, ChevronRight, SkipBack, SkipForward, Download } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { ABORT_MAX_PLIES, formatTimeControl } from "@/lib/timeControls";
+import { interpolateClocks } from "@/lib/clocks";
 import BoardShell from "@/components/chess/BoardShell";
+import ClockFace from "@/components/chess/ClockFace";
 import AnalysisPanel from "@/components/chess/AnalysisPanel";
 import GameChat from "@/components/GameChat";
 import { chessSounds } from "@/lib/chessSounds";
@@ -50,14 +52,6 @@ interface PlayerInfo {
 interface PlayGameProps {
   initialGame: GameRow;
   forceWatch?: boolean;
-}
-
-function formatMs(ms: number) {
-  if (ms < 0) ms = 0;
-  const totalSeconds = Math.floor(ms / 1000);
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-  return `${minutes}:${seconds.toString().padStart(2, "0")}`;
 }
 
 /** Число полуходов по FEN (для сравнения «кто впереди»). -1 если FEN невалидный. */
@@ -371,28 +365,28 @@ export default function PlayGame({ initialGame, forceWatch = false }: PlayGamePr
     return () => clearInterval(interval);
   }, [player, spectating, gameId, gameRow.status, isMyTurn, game]);
 
-  // Local ticking of clocks: чья очередь хода — те часы и идут
+  // Local display of clocks: interpolate from last_move_at; timeout POST only at 0.
   useEffect(() => {
     if (gameRow.status !== "active" || !gameRow.last_move_at) return;
     timeoutClaimedRef.current = false;
 
-    const lastMoveAt = new Date(gameRow.last_move_at).getTime();
+    const tick = () => {
+      const { whiteTimeLeft, blackTimeLeft } = interpolateClocks(
+        gameRow.white_time_left,
+        gameRow.black_time_left,
+        gameRow.last_move_at,
+        gameRow.active_color
+      );
+      setWhiteTime(whiteTimeLeft);
+      setBlackTime(blackTimeLeft);
 
-    const interval = setInterval(() => {
-      const now = Date.now();
-      const elapsed = now - lastMoveAt;
-
-      let nextWhite = gameRow.white_time_left;
-      let nextBlack = gameRow.black_time_left;
-      if (gameRow.active_color === "w") {
-        nextWhite = gameRow.white_time_left - elapsed;
-        setWhiteTime(nextWhite);
-      } else {
-        nextBlack = gameRow.black_time_left - elapsed;
-        setBlackTime(nextBlack);
-      }
-
-      if ((nextWhite <= 0 || nextBlack <= 0) && !timeoutClaimedRef.current && playerId && player && !spectating) {
+      if (
+        (whiteTimeLeft <= 0 || blackTimeLeft <= 0) &&
+        !timeoutClaimedRef.current &&
+        playerId &&
+        player &&
+        !spectating
+      ) {
         timeoutClaimedRef.current = true;
         fetch(`/api/games/${gameId}/timeout`, {
           method: "POST",
@@ -422,8 +416,10 @@ export default function PlayGame({ initialGame, forceWatch = false }: PlayGamePr
             timeoutClaimedRef.current = false;
           });
       }
-    }, 250);
+    };
 
+    tick();
+    const interval = setInterval(tick, 100);
     return () => clearInterval(interval);
   }, [
     gameRow.status,
@@ -492,18 +488,14 @@ export default function PlayGame({ initialGame, forceWatch = false }: PlayGamePr
   const onBoardMove = (uci: string): boolean => {
     if (!canMove) return false;
 
-    const now = Date.now();
-    let currentWhite = whiteTime;
-    let currentBlack = blackTime;
-
-    if (gameRow.status === "active" && gameRow.last_move_at) {
-      const elapsed = now - new Date(gameRow.last_move_at).getTime();
-      if (gameRow.active_color === "w") {
-        currentWhite = currentWhite - elapsed;
-      } else {
-        currentBlack = currentBlack - elapsed;
-      }
-    }
+    const nowClocks = interpolateClocks(
+      gameRow.white_time_left,
+      gameRow.black_time_left,
+      gameRow.status === "active" ? gameRow.last_move_at : null,
+      gameRow.active_color
+    );
+    const currentWhite = nowClocks.whiteTimeLeft;
+    const currentBlack = nowClocks.blackTimeLeft;
 
     if (currentWhite <= 0 || currentBlack <= 0) {
       claimTimeout()
@@ -843,9 +835,15 @@ export default function PlayGame({ initialGame, forceWatch = false }: PlayGamePr
                   <> · Гость</>
                 )}
               </span>
-              <span className="text-lg">
-                {formatMs(topTime)}
-              </span>
+              <ClockFace
+                ms={topTime}
+                active={
+                  gameRow.status === "active" &&
+                  ((topSide === "white" && gameRow.active_color === "w") ||
+                    (topSide === "black" && gameRow.active_color === "b"))
+                }
+                incrementSeconds={gameRow.increment_seconds ?? 0}
+              />
             </div>
 
             <div
@@ -953,9 +951,15 @@ export default function PlayGame({ initialGame, forceWatch = false }: PlayGamePr
                   <> · Гость</>
                 )}
               </span>
-              <span className="text-lg">
-                {formatMs(bottomTime)}
-              </span>
+              <ClockFace
+                ms={bottomTime}
+                active={
+                  gameRow.status === "active" &&
+                  ((bottomSide === "white" && gameRow.active_color === "w") ||
+                    (bottomSide === "black" && gameRow.active_color === "b"))
+                }
+                incrementSeconds={gameRow.increment_seconds ?? 0}
+              />
             </div>
             </div>
 

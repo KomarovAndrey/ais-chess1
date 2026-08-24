@@ -1,10 +1,18 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Chess, type Square } from "chess.js";
 import { Chessboard } from "react-chessboard";
+import {
+  legalDests,
+  needsPromotion,
+  promotionMenuPercent,
+  resolveFen,
+  toUci,
+  type BoardOrientation,
+} from "@/lib/boardLogic";
 
-export type BoardOrientation = "white" | "black";
+export type { BoardOrientation };
 
 export type BoardShellProps = {
   fen: string;
@@ -17,11 +25,19 @@ export type BoardShellProps = {
   className?: string;
   sizeStyle?: React.CSSProperties;
   lastMoveUci?: string | null;
+  showBoardNotation?: boolean;
 };
 
 type PendingPromotion = {
   from: Square;
   to: Square;
+  asPremove: boolean;
+};
+
+type PendingPremove = {
+  from: Square;
+  to: Square;
+  promotion?: string;
 };
 
 const DARK = "#b58863";
@@ -30,10 +46,11 @@ const SELECT = "rgba(224, 177, 91, 0.55)";
 const LEGAL_DOT = "radial-gradient(circle at center, rgba(224, 177, 91, 0.85) 22%, transparent 24%)";
 const LAST = "rgba(110, 180, 90, 0.45)";
 const CHECK = "rgba(220, 60, 60, 0.55)";
+const PREMOVE = "rgba(80, 140, 220, 0.5)";
 
 function kingInCheckSquare(fen: string): string | null {
   try {
-    const c = new Chess(fen === "startpos" ? undefined : fen);
+    const c = new Chess(fen);
     if (!c.isCheck()) return null;
     const turn = c.turn();
     const board = c.board();
@@ -51,31 +68,6 @@ function kingInCheckSquare(fen: string): string | null {
   return null;
 }
 
-function legalTargets(fen: string, from: Square): Square[] {
-  try {
-    const c = new Chess(fen === "startpos" ? undefined : fen);
-    return c.moves({ square: from, verbose: true }).map((m) => m.to as Square);
-  } catch {
-    return [];
-  }
-}
-
-function needsPromotion(fen: string, from: Square, to: Square): boolean {
-  try {
-    const c = new Chess(fen === "startpos" ? undefined : fen);
-    const piece = c.get(from);
-    if (!piece || piece.type !== "p") return false;
-    const rank = to[1];
-    return (piece.color === "w" && rank === "8") || (piece.color === "b" && rank === "1");
-  } catch {
-    return false;
-  }
-}
-
-function toUci(from: string, to: string, promotion?: string): string {
-  return `${from}${to}${promotion ?? ""}`;
-}
-
 export default function BoardShell({
   fen,
   orientation,
@@ -85,14 +77,13 @@ export default function BoardShell({
   className,
   sizeStyle,
   lastMoveUci,
+  showBoardNotation = true,
 }: BoardShellProps) {
   const [selected, setSelected] = useState<Square | null>(null);
   const [pendingPromotion, setPendingPromotion] = useState<PendingPromotion | null>(null);
+  const [pendingPremove, setPendingPremove] = useState<PendingPremove | null>(null);
 
-  const position =
-    fen === "startpos" || !fen
-      ? "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
-      : fen;
+  const position = resolveFen(fen);
 
   const lastFrom = lastMoveUci && lastMoveUci.length >= 4 ? lastMoveUci.slice(0, 2) : undefined;
   const lastTo = lastMoveUci && lastMoveUci.length >= 4 ? lastMoveUci.slice(2, 4) : undefined;
@@ -103,19 +94,23 @@ export default function BoardShell({
     if (lastFrom) styles[lastFrom] = { backgroundColor: LAST };
     if (lastTo) styles[lastTo] = { backgroundColor: LAST };
     if (checkSq) styles[checkSq] = { backgroundColor: CHECK };
+    if (pendingPremove) {
+      styles[pendingPremove.from] = { backgroundColor: PREMOVE };
+      styles[pendingPremove.to] = { backgroundColor: PREMOVE };
+    }
     if (selected) {
       styles[selected] = { backgroundColor: SELECT };
-      for (const t of legalTargets(position, selected)) {
+      for (const t of legalDests(position, selected)) {
         styles[t] = { background: LEGAL_DOT };
       }
     }
     return styles;
-  }, [selected, position, lastFrom, lastTo, checkSq]);
+  }, [selected, position, lastFrom, lastTo, checkSq, pendingPremove]);
 
   const attemptMove = useCallback(
     async (from: Square, to: Square, promotion?: string) => {
       if (needsPromotion(position, from, to) && !promotion) {
-        setPendingPromotion({ from, to });
+        setPendingPromotion({ from, to, asPremove: false });
         setSelected(null);
         return false;
       }
@@ -128,42 +123,81 @@ export default function BoardShell({
     [onMove, position]
   );
 
+  useEffect(() => {
+    setSelected(null);
+    setPendingPromotion(null);
+  }, [position]);
+
+  useEffect(() => {
+    if (!interactive || !pendingPremove) return;
+    const queued = pendingPremove;
+    const id = window.setTimeout(() => {
+      setPendingPremove(null);
+      void attemptMove(queued.from, queued.to, queued.promotion);
+    }, 0);
+    return () => window.clearTimeout(id);
+  }, [interactive, pendingPremove, attemptMove]);
+
+  const queuePremove = useCallback(
+    (from: Square, to: Square, promotion?: string) => {
+      if (needsPromotion(position, from, to) && !promotion) {
+        setPendingPromotion({ from, to, asPremove: true });
+        setSelected(null);
+        return;
+      }
+      setPendingPremove({ from, to, promotion });
+      setSelected(null);
+      setPendingPromotion(null);
+    },
+    [position]
+  );
+
   const onPieceDrop = useCallback(
     (sourceSquare: string, targetSquare: string) => {
       if (!interactive && !allowPremoves) return false;
       const from = sourceSquare as Square;
       const to = targetSquare as Square;
-      if (needsPromotion(position, from, to)) {
-        setPendingPromotion({ from, to });
+      if (!interactive && allowPremoves) {
+        queuePremove(from, to);
         return false;
       }
-      // Synchronously validate local legality for drag feedback
+      if (needsPromotion(position, from, to)) {
+        setPendingPromotion({ from, to, asPremove: false });
+        return false;
+      }
       try {
         const c = new Chess(position);
         const trial = c.move({ from, to, promotion: "q" });
-        if (!trial && !allowPremoves) return false;
+        if (!trial) return false;
       } catch {
-        if (!allowPremoves) return false;
+        return false;
       }
       void attemptMove(from, to);
       return true;
     },
-    [interactive, allowPremoves, position, attemptMove]
+    [interactive, allowPremoves, position, attemptMove, queuePremove]
   );
 
   const onSquareClick = useCallback(
     (square: string) => {
-      if (!interactive) return;
+      if (!interactive && !allowPremoves) return;
       const sq = square as Square;
-      if (pendingPromotion) return;
+      if (pendingPromotion) {
+        setPendingPromotion(null);
+        return;
+      }
 
       if (selected) {
         if (selected === sq) {
           setSelected(null);
           return;
         }
-        const targets = legalTargets(position, selected);
+        const targets = legalDests(position, selected);
         if (targets.includes(sq)) {
+          if (!interactive && allowPremoves) {
+            queuePremove(selected, sq);
+            return;
+          }
           void attemptMove(selected, sq);
           return;
         }
@@ -172,7 +206,17 @@ export default function BoardShell({
       try {
         const c = new Chess(position);
         const piece = c.get(sq);
-        if (piece && piece.color === c.turn()) {
+        if (!piece) {
+          setSelected(null);
+          setPendingPremove(null);
+          return;
+        }
+        const waitingSide = piece.color !== c.turn();
+        if (interactive && piece.color === c.turn()) {
+          setPendingPremove(null);
+          setSelected(sq);
+        } else if (!interactive && allowPremoves && waitingSide) {
+          setPendingPremove(null);
           setSelected(sq);
         } else {
           setSelected(null);
@@ -181,7 +225,30 @@ export default function BoardShell({
         setSelected(null);
       }
     },
-    [interactive, selected, position, attemptMove, pendingPromotion]
+    [
+      interactive,
+      allowPremoves,
+      selected,
+      position,
+      attemptMove,
+      pendingPromotion,
+      queuePremove,
+    ]
+  );
+
+  const isDraggablePiece = useCallback(
+    ({ piece }: { piece: string }) => {
+      const color = piece[0] as "w" | "b";
+      try {
+        const c = new Chess(position);
+        if (interactive) return color === c.turn();
+        if (allowPremoves) return color !== c.turn();
+        return false;
+      } catch {
+        return false;
+      }
+    },
+    [interactive, allowPremoves, position]
   );
 
   const promotionColor = useMemo(() => {
@@ -209,14 +276,26 @@ export default function BoardShell({
           { p: "n", label: "♘" },
         ];
 
+  const promoBox = pendingPromotion
+    ? promotionMenuPercent(pendingPromotion.to, orientation)
+    : null;
+
   return (
     <div className={`relative ${className ?? ""}`} style={sizeStyle}>
       <Chessboard
         position={position}
         onPieceDrop={interactive || allowPremoves ? onPieceDrop : undefined}
         onSquareClick={onSquareClick}
+        onSquareRightClick={() => {
+          setSelected(null);
+          setPendingPremove(null);
+          setPendingPromotion(null);
+        }}
+        isDraggablePiece={isDraggablePiece}
+        arePiecesDraggable={interactive || allowPremoves}
+        arePremovesAllowed={false}
         boardOrientation={orientation}
-        arePremovesAllowed={Boolean(allowPremoves && !interactive)}
+        showBoardNotation={showBoardNotation}
         customDarkSquareStyle={{ backgroundColor: DARK }}
         customLightSquareStyle={{ backgroundColor: LIGHT }}
         customSquareStyles={customSquareStyles}
@@ -227,32 +306,34 @@ export default function BoardShell({
         animationDuration={200}
       />
 
-      {pendingPromotion && (
-        <div className="absolute inset-0 z-20 flex items-center justify-center bg-ink-950/55 backdrop-blur-[2px]">
-          <div className="rounded-2xl border border-white/15 bg-ink-800 p-3 shadow-card">
-            <p className="mb-2 text-center text-xs font-medium text-white/55">Превращение</p>
-            <div className="flex gap-2">
-              {promoPieces.map((opt) => (
-                <button
-                  key={opt.p}
-                  type="button"
-                  className="flex h-12 w-12 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-2xl text-white transition hover:border-gold hover:bg-gold/20"
-                  onClick={() =>
-                    void attemptMove(pendingPromotion.from, pendingPromotion.to, opt.p)
-                  }
-                >
-                  {opt.label}
-                </button>
-              ))}
-            </div>
+      {pendingPromotion && promoBox && (
+        <div
+          className="absolute z-20 flex flex-col overflow-hidden rounded-sm border border-ink-900/40 bg-white shadow-lg"
+          style={{
+            left: `${promoBox.left}%`,
+            top: `${promoBox.top}%`,
+            width: `${promoBox.width}%`,
+            height: `${promoBox.height}%`,
+          }}
+        >
+          {promoPieces.map((opt) => (
             <button
+              key={opt.p}
               type="button"
-              className="mt-2 w-full text-center text-xs text-white/40 hover:text-white/70"
-              onClick={() => setPendingPromotion(null)}
+              className="flex flex-1 items-center justify-center bg-[#f0d9b5] text-[clamp(1.1rem,4vw,1.7rem)] leading-none text-ink-900 hover:bg-gold/80"
+              aria-label={`Превратить в ${opt.p}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                if (pendingPromotion.asPremove) {
+                  queuePremove(pendingPromotion.from, pendingPromotion.to, opt.p);
+                } else {
+                  void attemptMove(pendingPromotion.from, pendingPromotion.to, opt.p);
+                }
+              }}
             >
-              Отмена
+              {opt.label}
             </button>
-          </div>
+          ))}
         </div>
       )}
     </div>

@@ -12,16 +12,11 @@ import {
   type CpuLevel,
 } from "@/lib/cpu-levels";
 import BoardShell from "@/components/chess/BoardShell";
+import ClockFace from "@/components/chess/ClockFace";
+import TimePresetPicker from "@/components/TimePresetPicker";
 import AnalysisPanel from "@/components/chess/AnalysisPanel";
 import { chessSounds } from "@/lib/chessSounds";
 import { levelToEngineParams, stockfishAnalyze } from "@/lib/stockfishEngine";
-
-const TIME_OPTIONS = [
-  { seconds: 180, label: "3 мин" },
-  { seconds: 300, label: "5 мин" },
-  { seconds: 600, label: "10 мин" },
-  { seconds: 900, label: "15 мин" },
-];
 
 const SIDE_OPTIONS: { id: "white" | "black" | "random"; label: string; icon: string }[] = [
   { id: "black", label: "Чёрные", icon: "♚" },
@@ -36,6 +31,7 @@ function ChessPageContent() {
   const colorParam = searchParams.get("color");
   const levelParam = searchParams.get("level");
   const timeParam = searchParams.get("time");
+  const incParam = searchParams.get("inc");
 
   const initialColor: PlayerColor =
     colorParam === "black" ? "black" : colorParam === "white" ? "white" : "white";
@@ -44,6 +40,7 @@ function ChessPageContent() {
     ? (parsedLevel as CpuLevel)
     : 3;
   const timePerSideSeconds = timeParam && Number(timeParam) > 0 ? Number(timeParam) : 0;
+  const incrementSeconds = incParam && Number(incParam) > 0 ? Number(incParam) : 0;
   const initialTimeMs = timePerSideSeconds * 1000;
 
   const [game] = useState(() => new Chess());
@@ -57,6 +54,7 @@ function ChessPageContent() {
   const [gameOverByTime, setGameOverByTime] = useState(false);
   const [showNewGameModal, setShowNewGameModal] = useState(false);
   const [modalTime, setModalTime] = useState(300);
+  const [modalIncrement, setModalIncrement] = useState(0);
   const [modalColor, setModalColor] = useState<"white" | "black" | "random">("random");
   const [modalLevel, setModalLevel] = useState<CpuLevel>(3);
   const [showAnalysis, setShowAnalysis] = useState(false);
@@ -119,6 +117,12 @@ function ChessPageContent() {
     return (turn === "w" && playerColor === "white") || (turn === "b" && playerColor === "black");
   }, [game, playerColor, fen]);
 
+  function creditIncrement(color: "w" | "b") {
+    if (incrementSeconds <= 0 || initialTimeMs <= 0) return;
+    if (color === "w") setWhiteTimeMs((t) => t + incrementSeconds * 1000);
+    else setBlackTimeMs((t) => t + incrementSeconds * 1000);
+  }
+
   const whiteClockRuns = game.turn() === "w";
   const blackClockRuns = game.turn() === "b";
 
@@ -166,7 +170,9 @@ function ChessPageContent() {
   function startNewGame() {
     const color =
       modalColor === "random" ? (Math.random() < 0.5 ? "white" : "black") : modalColor;
-    router.push(`/chess?color=${color}&level=${modalLevel}&time=${modalTime}`);
+    router.push(
+      `/chess?color=${color}&level=${modalLevel}&time=${modalTime}&inc=${modalIncrement}`
+    );
   }
 
   function updateStatus() {
@@ -216,33 +222,30 @@ function ChessPageContent() {
           else chessSounds.move();
           if (game.isCheck()) chessSounds.check();
           if (game.isGameOver()) chessSounds.gameEnd();
+          if (incrementSeconds > 0 && initialTimeMs > 0) {
+            creditIncrement(move.color);
+          }
           updateStatus();
         }
       }
       if (!played) {
         const fallback = moves[Math.floor(Math.random() * moves.length)];
-        game.move(fallback);
+        const moved = game.move(fallback);
         setFen(game.fen());
         chessSounds.move();
+        if (moved) creditIncrement(moved.color);
         updateStatus();
       }
     } catch {
       const fallback = moves[Math.floor(Math.random() * moves.length)];
-      game.move(fallback);
+      const moved = game.move(fallback);
       setFen(game.fen());
       chessSounds.move();
+      if (moved) creditIncrement(moved.color);
       updateStatus();
     } finally {
       aiBusyRef.current = false;
     }
-  }
-
-  function formatMs(ms: number) {
-    if (ms < 0) ms = 0;
-    const totalSeconds = Math.floor(ms / 1000);
-    const minutes = Math.floor(totalSeconds / 60);
-    const seconds = totalSeconds % 60;
-    return `${minutes}:${seconds.toString().padStart(2, "0")}`;
   }
 
   function onBoardMove(uci: string) {
@@ -268,6 +271,7 @@ function ChessPageContent() {
     if (game.isCheck()) chessSounds.check();
     if (game.isGameOver()) chessSounds.gameEnd();
 
+    creditIncrement(move.color);
     setFen(game.fen());
     updateStatus();
     return true;
@@ -300,8 +304,16 @@ function ChessPageContent() {
 
           {initialTimeMs > 0 && (
             <div className="mb-3 flex items-center justify-between rounded-2xl border border-white/10 bg-ink-950/80 px-4 py-2 text-sm font-mono text-white">
-              <span>Чёрные</span>
-              <span className="text-lg">{formatMs(blackTimeMs)}</span>
+              <span>{playerColor === "white" ? "Чёрные" : "Белые"}</span>
+              <ClockFace
+                ms={playerColor === "white" ? blackTimeMs : whiteTimeMs}
+                active={
+                  !gameOver &&
+                  ((playerColor === "white" && game.turn() === "b") ||
+                    (playerColor === "black" && game.turn() === "w"))
+                }
+                incrementSeconds={incrementSeconds}
+              />
             </div>
           )}
 
@@ -319,6 +331,7 @@ function ChessPageContent() {
               fen={displayFen}
               orientation={playerColor}
               interactive={!gameOver && isPlayerTurn}
+              allowPremoves={!gameOver && !isPlayerTurn}
               onMove={onBoardMove}
               lastMoveUci={lastMoveUci}
               sizeStyle={{ width: "100%", height: "100%" }}
@@ -349,8 +362,12 @@ function ChessPageContent() {
 
           {initialTimeMs > 0 && (
             <div className="mt-3 flex items-center justify-between rounded-2xl border border-white/10 bg-ink-950/80 px-4 py-2 text-sm font-mono text-white">
-              <span>Белые</span>
-              <span className="text-lg">{formatMs(whiteTimeMs)}</span>
+              <span>{playerColor === "white" ? "Белые" : "Чёрные"}</span>
+              <ClockFace
+                ms={playerColor === "white" ? whiteTimeMs : blackTimeMs}
+                active={!gameOver && isPlayerTurn}
+                incrementSeconds={incrementSeconds}
+              />
             </div>
           )}
 
@@ -507,27 +524,14 @@ function ChessPageContent() {
               </h3>
             </div>
             <div className="px-6 pb-6 pt-2 space-y-6">
-              <div>
-                <p className="mb-3 text-center text-sm font-medium text-white/55">
-                  Минут на партию
-                </p>
-                <div className="grid grid-cols-4 gap-2">
-                  {TIME_OPTIONS.map((opt) => (
-                    <button
-                      key={opt.seconds}
-                      type="button"
-                      onClick={() => setModalTime(opt.seconds)}
-                      className={`rounded-xl border px-3 py-3 text-sm font-bold transition ${
-                        modalTime === opt.seconds
-                          ? "border border-gold bg-gold text-ink-900 shadow-glow"
-                          : "border border-white/10 bg-white/5 text-white/70 hover:bg-white/10"
-                      }`}
-                    >
-                      {opt.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
+              <TimePresetPicker
+                seconds={modalTime}
+                increment={modalIncrement}
+                onChange={(s, inc) => {
+                  setModalTime(s);
+                  setModalIncrement(inc);
+                }}
+              />
               <div>
                 <p className="mb-3 text-center text-sm font-medium text-white/55">
                   Сторона

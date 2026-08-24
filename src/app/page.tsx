@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { UserPlus, Cpu, X, Trophy, Puzzle, Swords, Search } from "lucide-react";
 import GameParamsModal from "@/components/GameParamsModal";
+import TimePresetPicker from "@/components/TimePresetPicker";
 import {
   CPU_LEVEL_DESCRIPTIONS,
   CPU_LEVELS,
@@ -12,15 +13,6 @@ import {
   type CpuLevel,
 } from "@/lib/cpu-levels";
 import { supabase } from "@/lib/supabaseClient";
-
-const TIME_OPTIONS = [
-  { seconds: 60, label: "1 мин" },
-  { seconds: 120, label: "2 мин" },
-  { seconds: 180, label: "3 мин" },
-  { seconds: 300, label: "5 мин" },
-  { seconds: 600, label: "10 мин" },
-  { seconds: 900, label: "15 мин" },
-];
 
 const SIDE_OPTIONS: { id: "black" | "random" | "white"; label: string; icon: string }[] = [
   { id: "black", label: "Чёрные", icon: "♚" },
@@ -561,25 +553,14 @@ export default function HomePage() {
                   Игра с компьютером
                 </h3>
               </div>
-              <div>
-                <p className="mb-3 text-center text-sm font-medium text-white/50">Минут на партию</p>
-                <div className="grid grid-cols-3 gap-2">
-                  {TIME_OPTIONS.map((opt) => (
-                    <button
-                      key={opt.seconds}
-                      type="button"
-                      onClick={() => setTimeControl(opt.seconds)}
-                      className={`rounded-xl px-3 py-3 text-sm font-bold transition ${
-                        timeControl === opt.seconds
-                          ? "border border-gold bg-gold text-ink-900 shadow-glow"
-                          : "border border-white/10 bg-white/5 text-white/80 hover:bg-white/10"
-                      }`}
-                    >
-                      {opt.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
+              <TimePresetPicker
+                seconds={timeControl}
+                increment={increment}
+                onChange={(s, inc) => {
+                  setTimeControl(s);
+                  setIncrement(inc);
+                }}
+              />
               <div>
                 <p className="mb-3 text-center text-sm font-medium text-white/50">Сторона</p>
                 <div className="grid grid-cols-3 gap-2">
@@ -633,7 +614,9 @@ export default function HomePage() {
                         ? "white"
                         : "black"
                       : cpuColorChoice;
-                  router.push(`/chess?color=${color}&level=${cpuLevel}&time=${timeControl}`);
+                  router.push(
+                    `/chess?color=${color}&level=${cpuLevel}&time=${timeControl}&inc=${increment}`
+                  );
                 }}
                 className="flex w-full items-center justify-center gap-3 rounded-2xl bg-gold px-4 py-4 text-base font-semibold text-ink-900 shadow-glow transition hover:bg-gold-bright"
               >
