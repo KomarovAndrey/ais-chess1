@@ -26,6 +26,7 @@ export async function GET(req: NextRequest) {
 
   const theme = req.nextUrl.searchParams.get("theme");
   const exclude = req.nextUrl.searchParams.get("exclude");
+  const daily = req.nextUrl.searchParams.get("daily") === "1";
 
   let userRating = 1500;
   if (user) {
@@ -65,13 +66,20 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Нет задач" }, { status: 404 });
   }
 
-  // Pick closest rating to user
-  pool.sort(
-    (a, b) =>
-      Math.abs(a.rating - userRating) - Math.abs(b.rating - userRating)
-  );
-  const top = pool.slice(0, Math.min(12, pool.length));
-  const pick = top[Math.floor(Math.random() * top.length)];
+  const today = new Date().toISOString().slice(0, 10);
+  let pick: Zadacha;
+  if (daily) {
+    let h = 0;
+    for (let i = 0; i < today.length; i++) h = (h * 31 + today.charCodeAt(i)) >>> 0;
+    pick = pool[h % pool.length];
+  } else {
+    pool.sort(
+      (a, b) =>
+        Math.abs(a.rating - userRating) - Math.abs(b.rating - userRating)
+    );
+    const top = pool.slice(0, Math.min(12, pool.length));
+    pick = top[Math.floor(Math.random() * top.length)];
+  }
 
   // Distinct themes for UI chips
   const themes = Array.from(
@@ -88,5 +96,7 @@ export async function GET(req: NextRequest) {
     userRating,
     themes,
     source: data && data.length > 0 ? "db" : "seed",
+    daily: daily || undefined,
+    dailyKey: daily ? today : undefined,
   });
 }

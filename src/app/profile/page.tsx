@@ -17,6 +17,7 @@ type ProfileData = {
   rating_bullet: number;
   rating_blitz: number;
   rating_rapid: number;
+  rating_puzzle?: number;
 };
 
 type FriendEntry = {
@@ -353,6 +354,10 @@ export default function ProfilePage() {
                 <div className="text-xs font-medium text-white/45">Rapid</div>
                 <div className="text-lg font-bold text-gold">{profile?.rating_rapid ?? 1500}</div>
               </div>
+              <div className="text-center">
+                <div className="text-xs font-medium text-white/45">Задачи</div>
+                <div className="text-lg font-bold text-gold">{profile?.rating_puzzle ?? 1500}</div>
+              </div>
             </div>
           </div>
         </div>
@@ -420,7 +425,15 @@ export default function ProfilePage() {
                 <div className="mt-1 text-2xl font-extrabold">{profile?.rating_rapid ?? 1500}</div>
               </button>
             </div>
-
+            <Link
+              href="/zadachi"
+              className="block rounded-2xl border border-white/10 bg-white/5 p-4 text-left hover:border-gold/40"
+            >
+              <div className="text-xs font-semibold text-white/70">Задачи</div>
+              <div className="mt-1 text-2xl font-extrabold text-white">
+                {profile?.rating_puzzle ?? 1500}
+              </div>
+            </Link>
             <RatingChart points={history[ratingType]} />
           </div>
         )}

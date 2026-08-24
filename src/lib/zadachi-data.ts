@@ -69,16 +69,16 @@ export const ZADACHI_SEED: Zadacha[] = [
   {
     id: "discover-1",
     fen: "r2qkb1r/ppp2ppp/2n1bn2/3pp3/4P3/2NP1N2/PPP1BPPP/R1BQK2R w KQkq - 0 6",
-    moves: ["d3e5"],
+    moves: ["f3e5"],
     themes: ["discoveredAttack", "material"],
     rating: 1200,
   },
   {
     id: "mate2-1",
     fen: "2r3k1/5ppp/8/8/8/8/5PPP/2R3K1 w - - 0 1",
-    moves: ["c1c8", "g8h7", "c8h8"],
-    themes: ["mateIn2", "backRank", "mate"],
-    rating: 1300,
+    moves: ["c1c8"],
+    themes: ["mateIn1", "backRank", "mate"],
+    rating: 1100,
   },
   {
     id: "mate2-2",
@@ -89,8 +89,8 @@ export const ZADACHI_SEED: Zadacha[] = [
   },
   {
     id: "skewer-1",
-    fen: "8/8/1k6/8/8/8/1K6/1R6 w - - 0 1",
-    moves: ["b1b6"],
+    fen: "q6k/8/8/8/8/8/8/R6K w - - 0 1",
+    moves: ["a1a8"],
     themes: ["skewer", "endgame"],
     rating: 1000,
   },
@@ -103,8 +103,8 @@ export const ZADACHI_SEED: Zadacha[] = [
   },
   {
     id: "endgame-2",
-    fen: "8/5k2/8/8/8/8/5PPP/5RK1 w - - 0 1",
-    moves: ["f1f7"],
+    fen: "6k1/8/6K1/8/8/8/8/5R2 w - - 0 1",
+    moves: ["f1f8"],
     themes: ["endgame", "mateIn1", "mate"],
     rating: 850,
   },

@@ -149,6 +149,7 @@ export default function PlayGame({ initialGame, forceWatch = false }: PlayGamePr
   // Игнорировать устаревшие Realtime/poll, чтобы ход не откатывался
   const lastMoveAtRef = useRef<string | null>(initialGame.last_move_at ?? null);
   const timeoutClaimedRef = useRef(false);
+  const moveChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
   const isMyTurn = useMemo(() => {
     if (!player) return false;
@@ -291,34 +292,41 @@ export default function PlayGame({ initialGame, forceWatch = false }: PlayGamePr
     return () => { cancelled = true; };
   }, [gameId, gameRow.status]);
 
-  // Subscribe to realtime updates (Supabase Realtime). Игнорируем устаревшие события.
+  // Subscribe to realtime: postgres UPDATE + dedicated move broadcast
   useEffect(() => {
+    const applyIncoming = (newGame: GameRow) => {
+      if (!newGame?.id) return;
+      const incomingAt = newGame.last_move_at ? new Date(newGame.last_move_at).getTime() : 0;
+      const seenAt = lastMoveAtRef.current ? new Date(lastMoveAtRef.current).getTime() : 0;
+      const incomingPlies = pliesFromFen(newGame.fen);
+      const currentPlies = game.history().length;
+      const isAheadByPlies = incomingPlies >= 0 && incomingPlies > currentPlies;
+      const isStaleByTime = incomingAt > 0 && seenAt > 0 && incomingAt <= seenAt;
+      if (isStaleByTime && !isAheadByPlies) return;
+      lastMoveAtRef.current = newGame.last_move_at;
+      setGameRow(newGame);
+      setWhiteTime(newGame.white_time_left);
+      setBlackTime(newGame.black_time_left);
+      if (newGame.fen) {
+        game.load(newGame.fen);
+      }
+    };
+
     const channel = supabase
-      .channel(`game:${gameId}`)
+      .channel(`game:${gameId}`, { config: { broadcast: { ack: false } } })
       .on(
         "postgres_changes",
         { event: "UPDATE", schema: "public", table: "games", filter: `id=eq.${gameId}` },
-        (payload) => {
-          const newGame = payload.new as GameRow;
-          const incomingAt = newGame.last_move_at ? new Date(newGame.last_move_at).getTime() : 0;
-          const seenAt = lastMoveAtRef.current ? new Date(lastMoveAtRef.current).getTime() : 0;
-          const incomingPlies = pliesFromFen(newGame.fen);
-          const currentPlies = game.history().length;
-          const isAheadByPlies = incomingPlies >= 0 && incomingPlies > currentPlies;
-          const isStaleByTime = incomingAt > 0 && seenAt > 0 && incomingAt <= seenAt;
-          if (isStaleByTime && !isAheadByPlies) return;
-          lastMoveAtRef.current = newGame.last_move_at;
-          setGameRow(newGame);
-          setWhiteTime(newGame.white_time_left);
-          setBlackTime(newGame.black_time_left);
-          if (newGame.fen) {
-            game.load(newGame.fen);
-          }
-        }
+        (payload) => applyIncoming(payload.new as GameRow)
       )
+      .on("broadcast", { event: "move" }, (payload) => {
+        applyIncoming((payload.payload as { game?: GameRow })?.game ?? (payload.payload as GameRow));
+      })
       .subscribe();
+    moveChannelRef.current = channel;
 
     return () => {
+      moveChannelRef.current = null;
       supabase.removeChannel(channel);
     };
   }, [gameId, game]);
@@ -359,7 +367,7 @@ export default function PlayGame({ initialGame, forceWatch = false }: PlayGamePr
     };
 
     poll();
-    const interval = setInterval(poll, spectating ? 2000 : 1500);
+    const interval = setInterval(poll, 4000);
     return () => clearInterval(interval);
   }, [player, spectating, gameId, gameRow.status, isMyTurn, game]);
 
@@ -556,6 +564,11 @@ export default function PlayGame({ initialGame, forceWatch = false }: PlayGamePr
         setBlackTime(data.game.black_time_left);
         if (data.game.fen) game.load(data.game.fen);
         setError(null);
+        void moveChannelRef.current?.send({
+          type: "broadcast",
+          event: "move",
+          payload: { game: data.game },
+        });
       })
       .catch((e: unknown) => {
         game.undo();

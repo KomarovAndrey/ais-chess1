@@ -13,22 +13,60 @@ type LoadState = {
   userRating: number;
   themes: string[];
   source: string;
+  daily?: boolean;
+  dailyKey?: string;
 };
+
+const STREAK_KEY = "ais_zadachi_streak";
+
+function readStreak(): { count: number; lastSolved: string | null } {
+  try {
+    const raw = window.localStorage.getItem(STREAK_KEY);
+    if (!raw) return { count: 0, lastSolved: null };
+    const parsed = JSON.parse(raw) as { count?: number; lastSolved?: string };
+    return {
+      count: typeof parsed.count === "number" ? parsed.count : 0,
+      lastSolved: parsed.lastSolved ?? null,
+    };
+  } catch {
+    return { count: 0, lastSolved: null };
+  }
+}
+
+function bumpStreak(dailyKey: string): number {
+  const prev = readStreak();
+  if (prev.lastSolved === dailyKey) return prev.count;
+  const yesterday = new Date(dailyKey + "T00:00:00Z");
+  yesterday.setUTCDate(yesterday.getUTCDate() - 1);
+  const yKey = yesterday.toISOString().slice(0, 10);
+  const next = prev.lastSolved === yKey ? prev.count + 1 : 1;
+  window.localStorage.setItem(
+    STREAK_KEY,
+    JSON.stringify({ count: next, lastSolved: dailyKey })
+  );
+  return next;
+}
 
 export default function ZadachiPage() {
   const [theme, setTheme] = useState<string | null>(null);
+  const [daily, setDaily] = useState(false);
   const [data, setData] = useState<LoadState | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const [fen, setFen] = useState("");
-  const [step, setStep] = useState(0); // index into solution moves (player moves are even)
+  const [step, setStep] = useState(0);
   const [status, setStatus] = useState<"play" | "correct" | "wrong" | "done">("play");
   const [sessionOk, setSessionOk] = useState(0);
   const [sessionFail, setSessionFail] = useState(0);
   const [userRating, setUserRating] = useState<number | null>(null);
   const [lastDelta, setLastDelta] = useState<number | null>(null);
   const [boardKey, setBoardKey] = useState(0);
+  const [streak, setStreak] = useState(0);
+
+  useEffect(() => {
+    setStreak(readStreak().count);
+  }, []);
 
   const loadNext = useCallback(
     async (excludeId?: string) => {
@@ -39,8 +77,9 @@ export default function ZadachiPage() {
       setLastDelta(null);
       try {
         const params = new URLSearchParams();
-        if (theme) params.set("theme", theme);
-        if (excludeId) params.set("exclude", excludeId);
+        if (daily) params.set("daily", "1");
+        else if (theme) params.set("theme", theme);
+        if (excludeId && !daily) params.set("exclude", excludeId);
         const res = await fetch(`/api/zadachi?${params.toString()}`);
         const json = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(json.error || "Не удалось загрузить задачу");
@@ -50,6 +89,8 @@ export default function ZadachiPage() {
           userRating: json.userRating ?? 1500,
           themes: Array.isArray(json.themes) ? json.themes : [],
           source: json.source ?? "seed",
+          daily: json.daily,
+          dailyKey: json.dailyKey,
         });
         setUserRating(json.userRating ?? 1500);
         setFen(z.fen);
@@ -60,7 +101,7 @@ export default function ZadachiPage() {
         setLoading(false);
       }
     },
-    [theme]
+    [theme, daily]
   );
 
   useEffect(() => {
@@ -174,6 +215,9 @@ export default function ZadachiPage() {
           setStatus("done");
           setSessionOk((n) => n + 1);
           void reportAttempt(true, zadacha.id);
+          if (data?.daily && data.dailyKey) {
+            setStreak(bumpStreak(data.dailyKey));
+          }
         } else {
           setStatus("correct");
           setTimeout(() => setStatus("play"), 400);
@@ -184,7 +228,7 @@ export default function ZadachiPage() {
         return false;
       }
     },
-    [zadacha, status, step, fen, playOpponentIfNeeded]
+    [zadacha, status, step, fen, playOpponentIfNeeded, data]
   );
 
   const resetCurrent = () => {
@@ -226,6 +270,9 @@ export default function ZadachiPage() {
               )}
             </span>
           )}
+          <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-white/70">
+            Серия: <span className="font-semibold text-gold">{streak}</span>
+          </span>
           {zadacha && (
             <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1">
               Сложность ~{zadacha.rating}
@@ -236,9 +283,26 @@ export default function ZadachiPage() {
         <div className="mb-4 flex flex-wrap justify-center gap-2">
           <button
             type="button"
-            onClick={() => setTheme(null)}
+            onClick={() => {
+              setDaily(true);
+              setTheme(null);
+            }}
             className={`rounded-xl px-3 py-1.5 text-xs font-semibold transition ${
-              theme === null
+              daily
+                ? "border border-gold bg-gold text-ink-900"
+                : "border border-white/10 bg-white/5 text-white/70 hover:bg-white/10"
+            }`}
+          >
+            Задача дня
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setDaily(false);
+              setTheme(null);
+            }}
+            className={`rounded-xl px-3 py-1.5 text-xs font-semibold transition ${
+              !daily && theme === null
                 ? "border border-gold bg-gold text-ink-900"
                 : "border border-white/10 bg-white/5 text-white/70 hover:bg-white/10"
             }`}
@@ -249,9 +313,12 @@ export default function ZadachiPage() {
             <button
               key={t}
               type="button"
-              onClick={() => setTheme(t === theme ? null : t)}
+              onClick={() => {
+                setDaily(false);
+                setTheme(t === theme ? null : t);
+              }}
               className={`rounded-xl px-3 py-1.5 text-xs font-semibold transition ${
-                theme === t
+                !daily && theme === t
                   ? "border border-gold bg-gold text-ink-900"
                   : "border border-white/10 bg-white/5 text-white/70 hover:bg-white/10"
               }`}
@@ -328,7 +395,7 @@ export default function ZadachiPage() {
                 </button>
                 <button
                   type="button"
-                  disabled={loading}
+                  disabled={loading || daily}
                   onClick={() => void loadNext(zadacha.id)}
                   className="inline-flex items-center gap-2 rounded-xl bg-gold px-4 py-2 text-sm font-semibold text-ink-900 hover:bg-gold-bright disabled:opacity-60"
                 >
