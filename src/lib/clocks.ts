@@ -7,16 +7,17 @@ export { applyIncrement, computeClocksAfterElapsed };
 
 /**
  * Lichess-style clock start:
- * clocks stay frozen until White has played the first move (plies > 0).
- * Then Black's clock runs; after each move the opponent's clock runs.
- * The opening move does not consume time and does not receive Fischer increment.
+ * each player's clock starts only after that player has made their first move.
+ * Practically: both opening moves are free; clocks begin ticking after Black's
+ * first reply (plies >= 2). Then White's clock runs on White's second turn, etc.
+ * Opening moves do not receive Fischer increment.
  */
 export function clocksAreRunning(
   moves: string[] | null | undefined,
   lastMoveAt: string | null | undefined
 ): boolean {
   const plies = Array.isArray(moves) ? moves.length : 0;
-  return plies > 0 && Boolean(lastMoveAt);
+  return plies >= 2 && Boolean(lastMoveAt);
 }
 
 /** Display interpolation of stored clocks (same contract as the server). */
@@ -40,7 +41,7 @@ export function interpolateClocks(
 
 /**
  * Clock state right before accepting a move (elapsed deducted if running).
- * Opening position (0 plies): frozen, no deduction.
+ * First move by each side is free (plies < 2): frozen, no deduction.
  */
 export function clocksBeforeMove(args: {
   whiteTimeLeft: number;
@@ -72,7 +73,7 @@ export function clocksBeforeMove(args: {
 
 /**
  * After a legal move: add Fischer increment only once clocks have already been running
- * (i.e. not on White's opening move — Lichess).
+ * (not on either player's opening move — Lichess).
  */
 export function clocksAfterLegalMove(args: {
   whiteTimeLeft: number;

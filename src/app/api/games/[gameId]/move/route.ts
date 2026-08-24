@@ -147,7 +147,7 @@ export async function POST(
       movesBefore: currentMoves,
     });
 
-    // Timeout only after clocks have started (after White's first move).
+    // Timeout only after clocks have started (after Black's first reply).
     if (clocksWereRunning && (clockWhite <= 0 || clockBlack <= 0)) {
       const winner = clockWhite <= 0 ? "black" : "white";
       const { game } = await finishActiveGame(writeClient, gameId, winner, {

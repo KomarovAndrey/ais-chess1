@@ -382,7 +382,7 @@ export default function PlayGame({ initialGame, forceWatch = false }: PlayGamePr
     return () => clearInterval(interval);
   }, [gameId, gameRow.status, game]);
 
-  // Local display of clocks: frozen until White's first move (Lichess).
+  // Local display of clocks: frozen until both sides have moved once (Lichess).
   useEffect(() => {
     if (gameRow.status !== "active") return;
     timeoutClaimedRef.current = false;

@@ -99,7 +99,7 @@ export async function POST(
     if (!clocksAreRunning(moves, game.last_move_at ?? null)) {
       return NextResponse.json(
         {
-          error: "Часы ещё не запущены — белые должны сделать первый ход",
+          error: "Часы ещё не запущены — оба игрока должны сделать первый ход",
           whiteTimeLeft: game.white_time_left ?? 0,
           blackTimeLeft: game.black_time_left ?? 0,
         },

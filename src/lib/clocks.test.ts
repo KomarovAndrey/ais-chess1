@@ -44,59 +44,76 @@ describe("computeClocksAfterElapsed / interpolateClocks", () => {
     expect(r).toEqual({ whiteTimeLeft: 12_000, blackTimeLeft: 8_000 });
   });
 
-  it("stays frozen before White's first move even if lastMoveAt was set (legacy)", () => {
+  it("stays frozen for White's and Black's opening moves", () => {
     const now = 1_700_000_000_000;
     vi.spyOn(Date, "now").mockReturnValue(now);
     const last = new Date(now - 5_000).toISOString();
-    const r = interpolateClocks(60_000, 60_000, last, "w", { moves: [] });
-    expect(r).toEqual({ whiteTimeLeft: 60_000, blackTimeLeft: 60_000 });
+    expect(interpolateClocks(60_000, 60_000, last, "w", { moves: [] })).toEqual({
+      whiteTimeLeft: 60_000,
+      blackTimeLeft: 60_000,
+    });
+    expect(interpolateClocks(60_000, 60_000, last, "b", { moves: ["e2e4"] })).toEqual({
+      whiteTimeLeft: 60_000,
+      blackTimeLeft: 60_000,
+    });
   });
 
-  it("ticks only after at least one move (Lichess)", () => {
+  it("ticks only after Black has also moved (plies >= 2, Lichess)", () => {
     const now = 1_700_000_000_000;
     vi.spyOn(Date, "now").mockReturnValue(now);
     const last = new Date(now - 2_000).toISOString();
-    const r = interpolateClocks(60_000, 60_000, last, "b", { moves: ["e2e4"] });
-    expect(r.whiteTimeLeft).toBe(60_000);
-    expect(r.blackTimeLeft).toBe(58_000);
+    const r = interpolateClocks(60_000, 60_000, last, "w", {
+      moves: ["e2e4", "e7e5"],
+    });
+    expect(r.whiteTimeLeft).toBe(58_000);
+    expect(r.blackTimeLeft).toBe(60_000);
   });
 });
 
 describe("Lichess clock start contract", () => {
-  it("clocksAreRunning requires both a move and lastMoveAt", () => {
+  it("clocksAreRunning requires two plies and lastMoveAt", () => {
     expect(clocksAreRunning([], "2020-01-01T00:00:00.000Z")).toBe(false);
-    expect(clocksAreRunning(["e2e4"], null)).toBe(false);
-    expect(clocksAreRunning(["e2e4"], "2020-01-01T00:00:00.000Z")).toBe(true);
+    expect(clocksAreRunning(["e2e4"], "2020-01-01T00:00:00.000Z")).toBe(false);
+    expect(clocksAreRunning(["e2e4", "e7e5"], null)).toBe(false);
+    expect(clocksAreRunning(["e2e4", "e7e5"], "2020-01-01T00:00:00.000Z")).toBe(true);
   });
 
-  it("opening move does not deduct time or apply increment", () => {
+  it("opening moves do not deduct time or apply increment", () => {
     const now = 1_700_000_000_000;
     vi.spyOn(Date, "now").mockReturnValue(now);
     const last = new Date(now - 9_000).toISOString();
-    const before = clocksBeforeMove({
+    const whiteOpen = clocksBeforeMove({
       whiteTimeLeft: 60_000,
       blackTimeLeft: 60_000,
       lastMoveAt: last,
       sideToMove: "w",
       movesBefore: [],
     });
-    expect(before).toEqual({
+    expect(whiteOpen.clocksWereRunning).toBe(false);
+    const blackOpen = clocksBeforeMove({
+      whiteTimeLeft: 60_000,
+      blackTimeLeft: 60_000,
+      lastMoveAt: last,
+      sideToMove: "b",
+      movesBefore: ["e2e4"],
+    });
+    expect(blackOpen).toEqual({
       whiteTimeLeft: 60_000,
       blackTimeLeft: 60_000,
       clocksWereRunning: false,
     });
     expect(
       clocksAfterLegalMove({
-        whiteTimeLeft: before.whiteTimeLeft,
-        blackTimeLeft: before.blackTimeLeft,
-        movedSide: "w",
+        whiteTimeLeft: blackOpen.whiteTimeLeft,
+        blackTimeLeft: blackOpen.blackTimeLeft,
+        movedSide: "b",
         incrementSeconds: 2,
-        clocksWereRunning: before.clocksWereRunning,
+        clocksWereRunning: false,
       })
     ).toEqual({ whiteTimeLeft: 60_000, blackTimeLeft: 60_000 });
   });
 
-  it("after the first move, black's elapsed is deducted and black gets increment", () => {
+  it("after Black's first reply, White's elapsed is deducted and White gets increment", () => {
     const now = 1_700_000_000_000;
     vi.spyOn(Date, "now").mockReturnValue(now);
     const last = new Date(now - 3_000).toISOString();
@@ -104,20 +121,20 @@ describe("Lichess clock start contract", () => {
       whiteTimeLeft: 60_000,
       blackTimeLeft: 60_000,
       lastMoveAt: last,
-      sideToMove: "b",
-      movesBefore: ["e2e4"],
+      sideToMove: "w",
+      movesBefore: ["e2e4", "e7e5"],
     });
     expect(before.clocksWereRunning).toBe(true);
-    expect(before.blackTimeLeft).toBe(57_000);
+    expect(before.whiteTimeLeft).toBe(57_000);
     expect(
       clocksAfterLegalMove({
         whiteTimeLeft: before.whiteTimeLeft,
         blackTimeLeft: before.blackTimeLeft,
-        movedSide: "b",
+        movedSide: "w",
         incrementSeconds: 2,
         clocksWereRunning: true,
       })
-    ).toEqual({ whiteTimeLeft: 60_000, blackTimeLeft: 59_000 });
+    ).toEqual({ whiteTimeLeft: 59_000, blackTimeLeft: 60_000 });
   });
 });
 
