@@ -271,7 +271,7 @@ export default function HomePage() {
               Играй онлайн. <span className="text-gold">Расти в рейтинге.</span>
             </h1>
             <p className="animate-fade-up-delay-2 max-w-md text-base leading-relaxed text-white/55 md:text-lg">
-              Рейтинговый лобби, вызовы друзьям и партии по ссылке — быстрый старт без лишнего шума.
+              Рейтинговый лобби, вызовы друзьям и тактические задачи — быстрый старт без лишнего шума.
             </p>
 
             <div className="animate-fade-up-delay-2 flex flex-col gap-3 pt-2 sm:flex-row sm:flex-wrap sm:items-center">
@@ -373,15 +373,15 @@ export default function HomePage() {
             </div>
           </button>
           <Link
-            href="/puzzles"
+            href="/zadachi"
             className="group flex min-h-[88px] items-center gap-4 rounded-2xl border border-white/10 bg-white/[0.04] p-4 transition hover:border-gold/40 hover:bg-white/[0.07]"
           >
             <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-violet-500/15 text-violet-300">
               <Puzzle className="h-6 w-6" />
             </div>
             <div>
-              <h2 className="font-semibold text-white">Головоломки</h2>
-              <p className="text-xs text-white/40">Тактика</p>
+              <h2 className="font-semibold text-white">Задачи</h2>
+              <p className="text-xs text-white/40">Тактика и рейтинг</p>
             </div>
           </Link>
           <Link

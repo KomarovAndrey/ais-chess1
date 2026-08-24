@@ -7,7 +7,7 @@ import AppNav from "@/components/AppNav";
 
 const NAV_LINKS = [
   { href: "/ratings", label: "Рейтинг" },
-  { href: "/puzzles", label: "Пазлы" },
+  { href: "/zadachi", label: "Задачи" },
   { href: "/tournaments", label: "Турниры" },
   { href: "/reversi", label: "Reversi" },
 ] as const;

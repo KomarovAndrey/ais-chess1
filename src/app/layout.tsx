@@ -17,7 +17,7 @@ const unbounded = Unbounded({
 
 export const metadata: Metadata = {
   title: "AIS Chess",
-  description: "Онлайн-шахматы: партии, рейтинг, пазлы и турниры",
+  description: "Онлайн-шахматы: партии, рейтинг, задачи и турниры",
   viewport: {
     width: "device-width",
     initialScale: 1,
