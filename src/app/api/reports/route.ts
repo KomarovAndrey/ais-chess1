@@ -5,6 +5,38 @@ import { checkRateLimit } from "@/lib/rateLimit";
 const UUID_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
+/** GET: list reports (admin only). */
+export async function GET() {
+  const auth = await getSupabaseAndUser();
+  if ("response" in auth) return auth.response;
+  const { supabase, user } = auth;
+
+  const { data: me } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  if ((me as { role?: string } | null)?.role !== "admin") {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  const { data, error } = await supabase
+    .from("user_reports")
+    .select("id, reporter_id, target_user_id, game_id, reason, created_at")
+    .order("created_at", { ascending: false })
+    .limit(100);
+
+  if (error) {
+    if (error.message?.includes("user_reports") || error.code === "42P01") {
+      return NextResponse.json({ reports: [] });
+    }
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  return NextResponse.json({ reports: data ?? [] });
+}
+
 /** POST: report a user and/or game. */
 export async function POST(req: NextRequest) {
   const auth = await getSupabaseAndUser();
