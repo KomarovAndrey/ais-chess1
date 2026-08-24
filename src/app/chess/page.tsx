@@ -119,6 +119,8 @@ function ChessPageContent() {
 
   function creditIncrement(color: "w" | "b") {
     if (incrementSeconds <= 0 || initialTimeMs <= 0) return;
+    // No increment on the opening move (clocks were not running yet).
+    if (history.length === 0) return;
     if (color === "w") setWhiteTimeMs((t) => t + incrementSeconds * 1000);
     else setBlackTimeMs((t) => t + incrementSeconds * 1000);
   }
@@ -137,6 +139,8 @@ function ChessPageContent() {
 
   useEffect(() => {
     if (initialTimeMs <= 0 || game.isGameOver() || gameOverByTime) return;
+    // Lichess-style: clocks stay frozen until the first move is played.
+    if (history.length === 0) return;
     const interval = setInterval(() => {
       if (whiteClockRuns) {
         setWhiteTimeMs((w) => {
@@ -161,7 +165,7 @@ function ChessPageContent() {
       }
     }, 100);
     return () => clearInterval(interval);
-  }, [whiteClockRuns, blackClockRuns, initialTimeMs, gameOverByTime]);
+  }, [whiteClockRuns, blackClockRuns, initialTimeMs, gameOverByTime, history.length]);
 
   function openNewGameModal() {
     setShowNewGameModal(true);
@@ -309,6 +313,7 @@ function ChessPageContent() {
                 ms={playerColor === "white" ? blackTimeMs : whiteTimeMs}
                 active={
                   !gameOver &&
+                  history.length > 0 &&
                   ((playerColor === "white" && game.turn() === "b") ||
                     (playerColor === "black" && game.turn() === "w"))
                 }
@@ -365,7 +370,7 @@ function ChessPageContent() {
               <span>{playerColor === "white" ? "Белые" : "Чёрные"}</span>
               <ClockFace
                 ms={playerColor === "white" ? whiteTimeMs : blackTimeMs}
-                active={!gameOver && isPlayerTurn}
+                active={!gameOver && history.length > 0 && isPlayerTurn}
                 incrementSeconds={incrementSeconds}
               />
             </div>

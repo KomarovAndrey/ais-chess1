@@ -5,8 +5,6 @@ import { checkRateLimit } from "@/lib/rateLimit";
 import { moveBodySchema } from "@/lib/validations/games";
 import {
   applyGameRatings,
-  applyIncrement,
-  computeClocksAfterElapsed,
   computeStatusAndWinner,
   findPlayer,
   finishActiveGame,
@@ -15,6 +13,7 @@ import {
   requireAuthForRated,
   type GamePlayerRow,
 } from "@/lib/games/integrity";
+import { clocksAfterLegalMove, clocksBeforeMove } from "@/lib/clocks";
 
 const UUID_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -125,10 +124,31 @@ export async function POST(
     const currentBlack = currentGame.black_time_left ?? 0;
     const lastMoveAt = currentGame.last_move_at ?? null;
 
-    const { whiteTimeLeft: clockWhite, blackTimeLeft: clockBlack } =
-      computeClocksAfterElapsed(currentWhite, currentBlack, lastMoveAt, currentActive);
+    const currentMoves: string[] = Array.isArray(currentGame.moves)
+      ? currentGame.moves
+      : typeof currentGame.moves === "object" && currentGame.moves !== null
+        ? (Object.values(currentGame.moves) as string[])
+        : [];
 
-    if (clockWhite <= 0 || clockBlack <= 0) {
+    const inc =
+      typeof currentGame.increment_seconds === "number"
+        ? currentGame.increment_seconds
+        : 0;
+
+    const {
+      whiteTimeLeft: clockWhite,
+      blackTimeLeft: clockBlack,
+      clocksWereRunning,
+    } = clocksBeforeMove({
+      whiteTimeLeft: currentWhite,
+      blackTimeLeft: currentBlack,
+      lastMoveAt,
+      sideToMove: currentActive,
+      movesBefore: currentMoves,
+    });
+
+    // Timeout only after clocks have started (after White's first move).
+    if (clocksWereRunning && (clockWhite <= 0 || clockBlack <= 0)) {
       const winner = clockWhite <= 0 ? "black" : "white";
       const { game } = await finishActiveGame(writeClient, gameId, winner, {
         whiteTimeLeft: clockWhite,
@@ -152,23 +172,17 @@ export async function POST(
       return NextResponse.json({ error: "Недопустимый ход" }, { status: 400 });
     }
 
-    const movedSide = currentActive;
-    const inc = typeof currentGame.increment_seconds === "number"
-      ? currentGame.increment_seconds
-      : 0;
-    const withInc = applyIncrement(clockWhite, clockBlack, movedSide, inc);
-    let nextWhite = withInc.whiteTimeLeft;
-    let nextBlack = withInc.blackTimeLeft;
+    const { whiteTimeLeft: nextWhite, blackTimeLeft: nextBlack } = clocksAfterLegalMove({
+      whiteTimeLeft: clockWhite,
+      blackTimeLeft: clockBlack,
+      movedSide: currentActive,
+      incrementSeconds: inc,
+      clocksWereRunning,
+    });
 
     const newFen = chess.fen();
     const nextActive = chess.turn() as "w" | "b";
     const { status, winner } = computeStatusAndWinner(newFen, nextWhite, nextBlack);
-
-    const currentMoves: string[] = Array.isArray(currentGame.moves)
-      ? currentGame.moves
-      : typeof currentGame.moves === "object" && currentGame.moves !== null
-        ? (Object.values(currentGame.moves) as string[])
-        : [];
 
     const payload = {
       fen: newFen,

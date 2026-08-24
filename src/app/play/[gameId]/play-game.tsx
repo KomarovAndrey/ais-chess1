@@ -7,7 +7,7 @@ import { Chess } from "chess.js";
 import { ChevronLeft, ChevronRight, SkipBack, SkipForward, Download } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { ABORT_MAX_PLIES, formatTimeControl } from "@/lib/timeControls";
-import { interpolateClocks } from "@/lib/clocks";
+import { clocksAreRunning, interpolateClocks } from "@/lib/clocks";
 import BoardShell from "@/components/chess/BoardShell";
 import ClockFace from "@/components/chess/ClockFace";
 import AnalysisPanel from "@/components/chess/AnalysisPanel";
@@ -365,17 +365,25 @@ export default function PlayGame({ initialGame, forceWatch = false }: PlayGamePr
     return () => clearInterval(interval);
   }, [player, spectating, gameId, gameRow.status, isMyTurn, game]);
 
-  // Local display of clocks: interpolate from last_move_at; timeout POST only at 0.
+  // Local display of clocks: frozen until White's first move (Lichess).
   useEffect(() => {
-    if (gameRow.status !== "active" || !gameRow.last_move_at) return;
+    if (gameRow.status !== "active") return;
     timeoutClaimedRef.current = false;
+
+    const moves = Array.isArray(gameRow.moves) ? gameRow.moves : [];
+    if (!clocksAreRunning(moves, gameRow.last_move_at)) {
+      setWhiteTime(gameRow.white_time_left);
+      setBlackTime(gameRow.black_time_left);
+      return;
+    }
 
     const tick = () => {
       const { whiteTimeLeft, blackTimeLeft } = interpolateClocks(
         gameRow.white_time_left,
         gameRow.black_time_left,
         gameRow.last_move_at,
-        gameRow.active_color
+        gameRow.active_color,
+        { moves }
       );
       setWhiteTime(whiteTimeLeft);
       setBlackTime(blackTimeLeft);
@@ -427,6 +435,7 @@ export default function PlayGame({ initialGame, forceWatch = false }: PlayGamePr
     gameRow.active_color,
     gameRow.white_time_left,
     gameRow.black_time_left,
+    gameRow.moves,
     playerId,
     player,
     spectating,
@@ -434,6 +443,10 @@ export default function PlayGame({ initialGame, forceWatch = false }: PlayGamePr
     game,
   ]);
 
+  const clocksLive = clocksAreRunning(
+    Array.isArray(gameRow.moves) ? gameRow.moves : [],
+    gameRow.last_move_at
+  );
   const boardOrientation: "white" | "black" = player?.side ?? "white";
   const topSide: "white" | "black" = boardOrientation === "white" ? "black" : "white";
   const bottomSide: "white" | "black" = boardOrientation;
@@ -492,7 +505,8 @@ export default function PlayGame({ initialGame, forceWatch = false }: PlayGamePr
       gameRow.white_time_left,
       gameRow.black_time_left,
       gameRow.status === "active" ? gameRow.last_move_at : null,
-      gameRow.active_color
+      gameRow.active_color,
+      { moves: Array.isArray(gameRow.moves) ? gameRow.moves : [] }
     );
     const currentWhite = nowClocks.whiteTimeLeft;
     const currentBlack = nowClocks.blackTimeLeft;
@@ -838,6 +852,7 @@ export default function PlayGame({ initialGame, forceWatch = false }: PlayGamePr
               <ClockFace
                 ms={topTime}
                 active={
+                  clocksLive &&
                   gameRow.status === "active" &&
                   ((topSide === "white" && gameRow.active_color === "w") ||
                     (topSide === "black" && gameRow.active_color === "b"))
@@ -954,6 +969,7 @@ export default function PlayGame({ initialGame, forceWatch = false }: PlayGamePr
               <ClockFace
                 ms={bottomTime}
                 active={
+                  clocksLive &&
                   gameRow.status === "active" &&
                   ((bottomSide === "white" && gameRow.active_color === "w") ||
                     (bottomSide === "black" && gameRow.active_color === "b"))

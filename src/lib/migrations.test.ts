@@ -8,6 +8,7 @@ const REQUIRED = [
   "supabase-migration-tournaments-arena.sql",
   "supabase-migration-live-protocol-phase-f.sql",
   "supabase-migration-trust-phase-g.sql",
+  "supabase-migration-lichess-clock-start.sql",
 ];
 
 describe("SQL migrations", () => {

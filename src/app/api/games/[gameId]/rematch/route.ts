@@ -104,7 +104,8 @@ export async function POST(
         started_at: now,
         white_time_left: initial,
         black_time_left: initial,
-        last_move_at: now,
+        // Clocks start after White's first move (Lichess).
+        last_move_at: null,
       })
       .select("*")
       .single();

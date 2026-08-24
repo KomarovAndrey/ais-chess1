@@ -169,12 +169,14 @@ export async function POST(req: NextRequest) {
 
     const totalPlayers = (players?.length ?? 0) + 1;
     if (totalPlayers >= 2 && game.status === "waiting") {
+      // Lichess-style: start the game, but leave last_move_at null so clocks
+      // stay frozen until White plays the first move.
       await writeClient
         .from("games")
         .update({
           status: "active",
           started_at: new Date().toISOString(),
-          last_move_at: new Date().toISOString()
+          last_move_at: null,
         })
         .eq("id", gameId)
         .eq("status", "waiting");

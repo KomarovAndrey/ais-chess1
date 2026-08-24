@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseOptionalUser } from "@/lib/apiAuth";
 import { checkRateLimit } from "@/lib/rateLimit";
 import {
-  computeClocksAfterElapsed,
   findPlayer,
   finishActiveGame,
   getGameWriteClient,
@@ -10,6 +9,7 @@ import {
   requireAuthForRated,
   type GamePlayerRow,
 } from "@/lib/games/integrity";
+import { interpolateClocks } from "@/lib/clocks";
 
 type GameStatus = "waiting" | "active" | "finished";
 
@@ -56,7 +56,7 @@ export async function POST(
   const { data, error: gameError } = await writeClient
     .from("games")
     .select(
-      "id, status, fen, active_color, white_time_left, black_time_left, last_move_at, draw_offer_from, rated"
+      "id, status, fen, active_color, white_time_left, black_time_left, last_move_at, draw_offer_from, rated, moves"
     )
     .eq("id", gameId)
     .single();
@@ -79,6 +79,7 @@ export async function POST(
     black_time_left: number;
     last_move_at: string | null;
     draw_offer_from: string | null;
+    moves?: string[] | unknown;
   };
 
   if (game.status !== "active") {
@@ -176,11 +177,17 @@ export async function POST(
     }
 
     const activeColor = (game.active_color ?? "w") as "w" | "b";
-    const { whiteTimeLeft, blackTimeLeft } = computeClocksAfterElapsed(
+    const moves: string[] = Array.isArray(game.moves)
+      ? game.moves
+      : typeof game.moves === "object" && game.moves !== null
+        ? (Object.values(game.moves) as string[])
+        : [];
+    const { whiteTimeLeft, blackTimeLeft } = interpolateClocks(
       game.white_time_left ?? 0,
       game.black_time_left ?? 0,
       game.last_move_at ?? null,
-      activeColor
+      activeColor,
+      { moves }
     );
 
     try {

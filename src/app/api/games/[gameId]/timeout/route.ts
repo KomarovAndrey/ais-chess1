@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseOptionalUser } from "@/lib/apiAuth";
 import { checkRateLimit } from "@/lib/rateLimit";
 import {
-  computeClocksAfterElapsed,
   findPlayer,
   finishActiveGame,
   getGameWriteClient,
@@ -10,6 +9,7 @@ import {
   requireAuthForRated,
   type GamePlayerRow,
 } from "@/lib/games/integrity";
+import { clocksAreRunning, interpolateClocks } from "@/lib/clocks";
 
 const UUID_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -55,7 +55,7 @@ export async function POST(
     const { data: game, error: gameError } = await writeClient
       .from("games")
       .select(
-        "id, status, fen, active_color, white_time_left, black_time_left, last_move_at, rated"
+        "id, status, fen, active_color, white_time_left, black_time_left, last_move_at, rated, moves"
       )
       .eq("id", gameId)
       .single();
@@ -90,11 +90,29 @@ export async function POST(
     }
 
     const activeColor = (game.active_color ?? "w") as "w" | "b";
-    const { whiteTimeLeft, blackTimeLeft } = computeClocksAfterElapsed(
+    const moves: string[] = Array.isArray(game.moves)
+      ? game.moves
+      : typeof game.moves === "object" && game.moves !== null
+        ? (Object.values(game.moves) as string[])
+        : [];
+
+    if (!clocksAreRunning(moves, game.last_move_at ?? null)) {
+      return NextResponse.json(
+        {
+          error: "Часы ещё не запущены — белые должны сделать первый ход",
+          whiteTimeLeft: game.white_time_left ?? 0,
+          blackTimeLeft: game.black_time_left ?? 0,
+        },
+        { status: 400 }
+      );
+    }
+
+    const { whiteTimeLeft, blackTimeLeft } = interpolateClocks(
       game.white_time_left ?? 0,
       game.black_time_left ?? 0,
       game.last_move_at ?? null,
-      activeColor
+      activeColor,
+      { moves }
     );
 
     if (whiteTimeLeft > 0 && blackTimeLeft > 0) {
