@@ -33,7 +33,12 @@ export const createSeekSchema = z.object({
     .min(1)
     .max(86400),
   incrementSeconds: z.number().int().min(0).max(120).optional().default(0),
-  rated: z.boolean().optional().default(true)
+  rated: z.boolean().optional().default(true),
+  tournamentId: z
+    .string()
+    .regex(UUID_REGEX, "Invalid tournamentId")
+    .optional()
+    .nullable(),
 });
 
 export const joinGameSchema = z.object({

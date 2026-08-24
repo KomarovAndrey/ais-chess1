@@ -16,9 +16,11 @@ export async function POST(
     return NextResponse.json({ error: "Invalid tournament id" }, { status: 400 });
   }
 
+  await supabase.rpc("refresh_tournament_status", { p_id: id });
+
   const { data: tournament, error: tError } = await supabase
     .from("tournaments")
-    .select("id, status, max_players")
+    .select("id, status, max_players, format")
     .eq("id", id)
     .single();
 
@@ -26,17 +28,44 @@ export async function POST(
     return NextResponse.json({ error: "Tournament not found" }, { status: 404 });
   }
 
-  if (tournament.status !== "open") {
+  // Arena: join while open or started; classic: only open
+  const canJoin =
+    tournament.status === "open" ||
+    (tournament.format === "arena" && tournament.status === "started");
+  if (!canJoin) {
     return NextResponse.json({ error: "Запись в турнир закрыта." }, { status: 400 });
   }
 
   const { count } = await supabase
     .from("tournament_players")
     .select("id", { count: "exact", head: true })
-    .eq("tournament_id", id);
+    .eq("tournament_id", id)
+    .eq("withdrawn", false);
 
   if (tournament.max_players != null && (count ?? 0) >= tournament.max_players) {
     return NextResponse.json({ error: "Достигнут лимит участников." }, { status: 400 });
+  }
+
+  // Rejoin if previously withdrawn
+  const { data: existing } = await supabase
+    .from("tournament_players")
+    .select("id, withdrawn")
+    .eq("tournament_id", id)
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (existing?.id) {
+    if (!existing.withdrawn) {
+      return NextResponse.json({ error: "Вы уже записаны в этот турнир." }, { status: 400 });
+    }
+    const { error: updErr } = await supabase
+      .from("tournament_players")
+      .update({ withdrawn: false })
+      .eq("id", existing.id);
+    if (updErr) {
+      return NextResponse.json({ error: updErr.message }, { status: 500 });
+    }
+    return NextResponse.json({ ok: true, rejoined: true }, { status: 200 });
   }
 
   const { error: insertError } = await supabase

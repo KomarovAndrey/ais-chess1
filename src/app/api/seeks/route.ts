@@ -57,6 +57,7 @@ export async function POST(req: NextRequest) {
     timeControlSeconds,
     incrementSeconds = 0,
     rated = true,
+    tournamentId = null,
   } = parsed.data;
 
   // Guests cannot use this route (auth required). Rated requires profile (RPC checks).
@@ -65,6 +66,7 @@ export async function POST(req: NextRequest) {
     p_increment: incrementSeconds,
     p_rated: rated,
     p_color: creatorColor,
+    p_tournament_id: tournamentId,
   });
 
   if (error) {
@@ -75,9 +77,21 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
+    if (msg.includes("tournament_not_active")) {
+      return NextResponse.json(
+        { error: "Турнир не идёт или уже завершён." },
+        { status: 400 }
+      );
+    }
+    if (msg.includes("not_in_tournament")) {
+      return NextResponse.json(
+        { error: "Сначала запишитесь в турнир." },
+        { status: 400 }
+      );
+    }
     console.error("match_or_create_seek:", error);
     return NextResponse.json(
-      { error: "Не удалось найти партию. Выполните SQL миграцию matchmaking." },
+      { error: "Не удалось найти партию. Выполните SQL миграцию matchmaking/arena." },
       { status: 500 }
     );
   }

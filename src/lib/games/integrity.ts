@@ -91,6 +91,14 @@ export async function applyGameRatings(
     console.error("update_game_ratings failed:", error);
     // Do not throw: the game is already finished. Fix SERVICE_ROLE / SQL and re-run if needed.
   }
+
+  const { error: arenaErr } = await writeClient.rpc("apply_arena_game_result", {
+    p_game_id: gameId,
+    p_winner: winner,
+  });
+  if (arenaErr && !arenaErr.message?.includes("Could not find the function")) {
+    console.error("apply_arena_game_result failed:", arenaErr);
+  }
 }
 
 /** Finish an active game with a server-chosen winner and apply ratings once. */
