@@ -325,45 +325,62 @@ export default function PlayGame({ initialGame, forceWatch = false }: PlayGamePr
     };
   }, [gameId, game]);
 
-  // Polling fallback for opponent turn or spectators
+  // Polling: always while waiting/active so server wall-clock timeouts apply
+  // even if this tab is in the background or the opponent closed theirs.
   useEffect(() => {
-    const waitingForUpdate =
-      spectating
-        ? gameRow.status === "waiting" || gameRow.status === "active"
-        : !!player &&
-          (gameRow.status === "waiting" ||
-            (gameRow.status === "active" && !isMyTurn));
-    if (!waitingForUpdate) return;
+    if (gameRow.status !== "waiting" && gameRow.status !== "active") return;
 
     const poll = async () => {
-      const { data, error } = await supabase
-        .from("games")
-        .select("*")
-        .eq("id", gameId)
-        .single();
-
-      if (error || !data) return;
-      const newGame = data as GameRow;
-      const incomingAt = newGame.last_move_at ? new Date(newGame.last_move_at).getTime() : 0;
-      const seenAt = lastMoveAtRef.current ? new Date(lastMoveAtRef.current).getTime() : 0;
-      const incomingPlies = pliesFromFen(newGame.fen);
-      const currentPlies = game.history().length;
-      const isAheadByPlies = incomingPlies >= 0 && incomingPlies > currentPlies;
-      const isStaleByTime = incomingAt > 0 && seenAt > 0 && incomingAt <= seenAt;
-      if (isStaleByTime && !isAheadByPlies) return;
-      lastMoveAtRef.current = newGame.last_move_at;
-      setGameRow(newGame);
-      setWhiteTime(newGame.white_time_left);
-      setBlackTime(newGame.black_time_left);
-      if (newGame.fen) {
-        game.load(newGame.fen);
+      try {
+        const res = await fetch(`/api/games/${gameId}`, { cache: "no-store" });
+        if (!res.ok) return;
+        const data = (await res.json()) as { game?: GameRow };
+        if (!data.game) return;
+        const newGame = data.game;
+        const incomingAt = newGame.last_move_at ? new Date(newGame.last_move_at).getTime() : 0;
+        const seenAt = lastMoveAtRef.current ? new Date(lastMoveAtRef.current).getTime() : 0;
+        const incomingPlies = pliesFromFen(newGame.fen);
+        const currentPlies = game.history().length;
+        const isAheadByPlies = incomingPlies >= 0 && incomingPlies > currentPlies;
+        const statusChanged = newGame.status !== gameRow.status;
+        const isStaleByTime = incomingAt > 0 && seenAt > 0 && incomingAt < seenAt - 50;
+        if (isStaleByTime && !isAheadByPlies && !statusChanged) {
+          // Still refresh clock fields from authoritative sync.
+          setWhiteTime(newGame.white_time_left);
+          setBlackTime(newGame.black_time_left);
+          setGameRow((prev) => ({
+            ...prev,
+            white_time_left: newGame.white_time_left,
+            black_time_left: newGame.black_time_left,
+            last_move_at: newGame.last_move_at,
+            status: newGame.status,
+            winner: newGame.winner,
+          }));
+          lastMoveAtRef.current = newGame.last_move_at;
+          return;
+        }
+        lastMoveAtRef.current = newGame.last_move_at;
+        setGameRow(newGame);
+        setWhiteTime(newGame.white_time_left);
+        setBlackTime(newGame.black_time_left);
+        if (newGame.fen && newGame.fen !== "startpos") {
+          try {
+            game.load(newGame.fen);
+          } catch {
+            /* ignore */
+          }
+        } else if (newGame.fen === "startpos") {
+          game.reset();
+        }
+      } catch {
+        /* ignore */
       }
     };
 
-    poll();
-    const interval = setInterval(poll, 4000);
+    void poll();
+    const interval = setInterval(() => void poll(), 2000);
     return () => clearInterval(interval);
-  }, [player, spectating, gameId, gameRow.status, isMyTurn, game]);
+  }, [gameId, gameRow.status, game]);
 
   // Local display of clocks: frozen until White's first move (Lichess).
   useEffect(() => {
