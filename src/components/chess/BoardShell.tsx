@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Chess, type Square } from "chess.js";
 import { Chessboard } from "react-chessboard";
 import {
@@ -82,6 +82,7 @@ export default function BoardShell({
   const [selected, setSelected] = useState<Square | null>(null);
   const [pendingPromotion, setPendingPromotion] = useState<PendingPromotion | null>(null);
   const [pendingPremove, setPendingPremove] = useState<PendingPremove | null>(null);
+  const lastInteractRef = useRef<{ sq: string; at: number } | null>(null);
 
   const position = resolveFen(fen);
 
@@ -181,6 +182,10 @@ export default function BoardShell({
   const onSquareClick = useCallback(
     (square: string) => {
       if (!interactive && !allowPremoves) return;
+      const now = performance.now();
+      const prev = lastInteractRef.current;
+      if (prev && prev.sq === square && now - prev.at < 80) return;
+      lastInteractRef.current = { sq: square, at: now };
       const sq = square as Square;
       if (pendingPromotion) {
         setPendingPromotion(null);
@@ -286,6 +291,8 @@ export default function BoardShell({
         position={position}
         onPieceDrop={interactive || allowPremoves ? onPieceDrop : undefined}
         onSquareClick={onSquareClick}
+        onPieceClick={(_piece, square) => onSquareClick(square)}
+        onPromotionCheck={() => false}
         onSquareRightClick={() => {
           setSelected(null);
           setPendingPremove(null);
