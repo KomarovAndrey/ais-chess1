@@ -19,7 +19,14 @@ type ProfileData = {
   rating_rapid: number;
 };
 
-type FriendEntry = { id: string; username: string | null; display_name: string; rating: number };
+type FriendEntry = {
+  id: string;
+  username: string | null;
+  display_name: string;
+  rating: number;
+  online?: boolean;
+  inGameId?: string | null;
+};
 type PendingIncoming = { id: string; from_user: FriendEntry };
 type PendingOutgoing = { id: string; to_user: FriendEntry };
 type PlayedGame = {
@@ -641,9 +648,25 @@ export default function ProfilePage() {
               <ul className="space-y-2">
                 {friends.map((f) => (
                   <li key={f.id} className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-3 py-2">
-                    <Link href={f.username ? `/user/${f.username}` : "#"} className="text-sm font-medium text-white/85 hover:underline">
-                      {f.display_name || f.username || "Игрок"} {f.username && ` (${f.username})`} · {f.rating}
-                    </Link>
+                    <div className="min-w-0">
+                      <Link href={f.username ? `/user/${f.username}` : "#"} className="text-sm font-medium text-white/85 hover:underline">
+                        <span
+                          className={`mr-1.5 inline-block h-2 w-2 rounded-full ${
+                            f.online ? "bg-emerald-400" : "bg-white/25"
+                          }`}
+                          title={f.online ? (f.inGameId ? "В игре" : "В сети") : "Не в сети"}
+                        />
+                        {f.display_name || f.username || "Игрок"} {f.username && ` (${f.username})`} · {f.rating}
+                      </Link>
+                      {f.online && f.inGameId && (
+                        <Link
+                          href={`/play/${f.inGameId}?watch=1`}
+                          className="mt-0.5 block text-[11px] text-gold hover:underline"
+                        >
+                          Смотреть партию
+                        </Link>
+                      )}
+                    </div>
                     <div className="flex gap-2">
                       {outgoingChallengeByFriendId[f.id] ? (
                         <button

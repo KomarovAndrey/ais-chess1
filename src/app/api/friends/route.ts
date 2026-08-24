@@ -18,7 +18,16 @@ export async function GET() {
     return NextResponse.json({ error: "Failed to load friends" }, { status: 500 });
   }
 
-  const friends: { id: string; username: string | null; display_name: string; rating: number }[] = [];
+  const ONLINE_MS = 90_000;
+  type FriendPresence = {
+    id: string;
+    username: string | null;
+    display_name: string;
+    rating: number;
+    online: boolean;
+    inGameId: string | null;
+  };
+  const friends: FriendPresence[] = [];
   const pendingIncoming: { id: string; from_user: { id: string; username: string | null; display_name: string; rating: number } }[] = [];
   const pendingOutgoing: { id: string; to_user: { id: string; username: string | null; display_name: string; rating: number } }[] = [];
 
@@ -34,23 +43,55 @@ export async function GET() {
   outgoing.forEach((r) => allOtherIds.add(r.to_user_id));
 
   if (allOtherIds.size > 0) {
-    const { data: profiles } = await supabase
+    type ProfileRow = {
+      id: string;
+      username: string | null;
+      display_name: string;
+      rating?: number;
+      rating_blitz?: number;
+      last_seen_at?: string | null;
+      current_game_id?: string | null;
+    };
+    let profiles: ProfileRow[] = [];
+
+    const withPresence = await supabase
       .from("profiles")
-      .select("id, username, display_name, rating, rating_blitz")
+      .select("id, username, display_name, rating, rating_blitz, last_seen_at, current_game_id")
       .in("id", Array.from(allOtherIds));
+
+    if (withPresence.error?.message?.includes("last_seen_at")) {
+      const fallback = await supabase
+        .from("profiles")
+        .select("id, username, display_name, rating, rating_blitz")
+        .in("id", Array.from(allOtherIds));
+      profiles = (fallback.data ?? []) as ProfileRow[];
+    } else {
+      profiles = (withPresence.data ?? []) as ProfileRow[];
+    }
+
+    const now = Date.now();
     const byId = new Map(
-      (profiles ?? []).map(
-        (p: { id: string; username: string | null; display_name: string; rating?: number; rating_blitz?: number }) => [
+      profiles.map((p) => {
+        const last = p.last_seen_at ? new Date(p.last_seen_at).getTime() : 0;
+        const online = last > 0 && now - last < ONLINE_MS;
+        return [
           p.id,
-          { ...p, rating: (p as any).rating_blitz ?? (p as any).rating ?? 1500 }
-        ]
-      )
+          {
+            id: p.id,
+            username: p.username ?? null,
+            display_name: p.display_name ?? "",
+            rating: p.rating_blitz ?? p.rating ?? 1500,
+            online,
+            inGameId: online && p.current_game_id ? p.current_game_id : null,
+          },
+        ] as const;
+      })
     );
 
     accepted.forEach((r) => {
       const otherId = r.from_user_id === me ? r.to_user_id : r.from_user_id;
       const p = byId.get(otherId);
-      if (p) friends.push({ id: p.id, username: p.username ?? null, display_name: p.display_name ?? "", rating: p.rating ?? 1500 });
+      if (p) friends.push(p);
     });
     incoming.forEach((r) => {
       const p = byId.get(r.from_user_id);

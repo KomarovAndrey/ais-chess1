@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Manrope, Unbounded } from "next/font/google";
 import "./globals.css";
 import SiteHeader from "@/components/SiteHeader";
+import PresenceHeartbeat from "@/components/PresenceHeartbeat";
 
 const manrope = Manrope({
   subsets: ["latin", "cyrillic"],
@@ -35,6 +36,7 @@ export default function RootLayout({
     <html lang="ru">
       <body className={`${manrope.variable} ${unbounded.variable} font-sans page-bg min-h-screen`}>
         <SiteHeader />
+        <PresenceHeartbeat />
         {children}
         <footer className="border-t border-white/5 py-8 text-center">
           <a

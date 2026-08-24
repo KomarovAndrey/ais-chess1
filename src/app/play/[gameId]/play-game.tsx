@@ -9,6 +9,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { ABORT_MAX_PLIES, formatTimeControl } from "@/lib/timeControls";
 import BoardShell from "@/components/chess/BoardShell";
 import AnalysisPanel from "@/components/chess/AnalysisPanel";
+import GameChat from "@/components/GameChat";
 import { chessSounds } from "@/lib/chessSounds";
 
 type GameStatus = "waiting" | "active" | "finished" | "aborted";
@@ -48,6 +49,7 @@ interface PlayerInfo {
 
 interface PlayGameProps {
   initialGame: GameRow;
+  forceWatch?: boolean;
 }
 
 function formatMs(ms: number) {
@@ -119,7 +121,7 @@ function buildPgn(
   return headers + moveList.join(" ") + " " + resultTag;
 }
 
-export default function PlayGame({ initialGame }: PlayGameProps) {
+export default function PlayGame({ initialGame, forceWatch = false }: PlayGameProps) {
   const params = useParams<{ gameId: string }>();
   const router = useRouter();
   const gameId = params.gameId;
@@ -129,6 +131,8 @@ export default function PlayGame({ initialGame }: PlayGameProps) {
   const [player, setPlayer] = useState<PlayerRow | null>(null);
   const [playerId, setPlayerId] = useState<string | null>(null);
   const [isJoining, setIsJoining] = useState(false);
+  const [spectating, setSpectating] = useState(forceWatch);
+  const [canChat, setCanChat] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [rematchBusy, setRematchBusy] = useState(false);
   const [rematchWaiting, setRematchWaiting] = useState(false);
@@ -159,7 +163,9 @@ export default function PlayGame({ initialGame }: PlayGameProps) {
       if (cancelled) return;
       if (session?.user?.id) {
         setPlayerId(session.user.id);
+        setCanChat(true);
       } else {
+        setCanChat(false);
         let id = window.localStorage.getItem("ais_chess_player_id");
         if (!id) {
           id = crypto.randomUUID();
@@ -170,7 +176,12 @@ export default function PlayGame({ initialGame }: PlayGameProps) {
     });
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => {
       if (cancelled) return;
-      if (session?.user?.id) setPlayerId(session.user.id);
+      if (session?.user?.id) {
+        setPlayerId(session.user.id);
+        setCanChat(true);
+      } else {
+        setCanChat(false);
+      }
     });
     return () => {
       cancelled = true;
@@ -178,28 +189,62 @@ export default function PlayGame({ initialGame }: PlayGameProps) {
     };
   }, []);
 
-  // Join game on mount
+  // Join as player, or enter spectator mode
   useEffect(() => {
     if (!playerId) return;
     let cancelled = false;
 
-    async function join() {
+    async function bootstrap() {
       setIsJoining(true);
       setError(null);
       try {
+        if (forceWatch) {
+          setSpectating(true);
+          if (initialGame.fen && initialGame.fen !== "startpos") {
+            game.load(initialGame.fen);
+          }
+          const playersRes = await fetch(`/api/games/${gameId}/players`);
+          const playersData = await playersRes.json().catch(() => null);
+          if (!cancelled && playersData) {
+            if (playersData.whitePlayer) setWhitePlayerInfo(playersData.whitePlayer);
+            if (playersData.blackPlayer) setBlackPlayerInfo(playersData.blackPlayer);
+          }
+          return;
+        }
+
         const res = await fetch("/api/games/join", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ gameId, playerId })
         });
 
+        const data = await res.json().catch(() => ({}));
+
         if (!res.ok) {
-          const data = await res.json().catch(() => ({}));
+          // Active/finished game and not a seat → watch
+          if (
+            data.error === "Game is not accepting joins" ||
+            gameRow.status === "active" ||
+            gameRow.status === "finished" ||
+            gameRow.status === "aborted"
+          ) {
+            if (!cancelled) {
+              setSpectating(true);
+              if (gameRow.fen && gameRow.fen !== "startpos") {
+                game.load(gameRow.fen);
+              }
+              const playersRes = await fetch(`/api/games/${gameId}/players`);
+              const playersData = await playersRes.json().catch(() => null);
+              if (playersData?.whitePlayer) setWhitePlayerInfo(playersData.whitePlayer);
+              if (playersData?.blackPlayer) setBlackPlayerInfo(playersData.blackPlayer);
+            }
+            return;
+          }
           throw new Error(data.error || "Не удалось подключиться к партии");
         }
 
-        const data = await res.json();
         if (!cancelled) {
+          setSpectating(false);
           lastMoveAtRef.current = data.game.last_move_at ?? null;
           setGameRow(data.game);
           setPlayer(data.player);
@@ -222,12 +267,13 @@ export default function PlayGame({ initialGame }: PlayGameProps) {
       }
     }
 
-    join();
+    void bootstrap();
 
     return () => {
       cancelled = true;
     };
-  }, [playerId, gameId, game]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- join once per playerId/gameId/watch
+  }, [playerId, gameId, forceWatch]);
 
   // Подтянуть логины и рейтинги соперника, когда партия началась или завершилась
   useEffect(() => {
@@ -277,11 +323,14 @@ export default function PlayGame({ initialGame }: PlayGameProps) {
     };
   }, [gameId, game]);
 
-  // Polling fallback: только когда ждём соперника. Не применять устаревшее состояние.
+  // Polling fallback for opponent turn or spectators
   useEffect(() => {
     const waitingForUpdate =
-      player &&
-      (gameRow.status === "waiting" || (gameRow.status === "active" && !isMyTurn));
+      spectating
+        ? gameRow.status === "waiting" || gameRow.status === "active"
+        : !!player &&
+          (gameRow.status === "waiting" ||
+            (gameRow.status === "active" && !isMyTurn));
     if (!waitingForUpdate) return;
 
     const poll = async () => {
@@ -310,9 +359,9 @@ export default function PlayGame({ initialGame }: PlayGameProps) {
     };
 
     poll();
-    const interval = setInterval(poll, 1500);
+    const interval = setInterval(poll, spectating ? 2000 : 1500);
     return () => clearInterval(interval);
-  }, [player, gameId, gameRow.status, isMyTurn, game]);
+  }, [player, spectating, gameId, gameRow.status, isMyTurn, game]);
 
   // Local ticking of clocks: чья очередь хода — те часы и идут
   useEffect(() => {
@@ -335,7 +384,7 @@ export default function PlayGame({ initialGame }: PlayGameProps) {
         setBlackTime(nextBlack);
       }
 
-      if ((nextWhite <= 0 || nextBlack <= 0) && !timeoutClaimedRef.current && playerId) {
+      if ((nextWhite <= 0 || nextBlack <= 0) && !timeoutClaimedRef.current && playerId && player && !spectating) {
         timeoutClaimedRef.current = true;
         fetch(`/api/games/${gameId}/timeout`, {
           method: "POST",
@@ -375,6 +424,8 @@ export default function PlayGame({ initialGame }: PlayGameProps) {
     gameRow.white_time_left,
     gameRow.black_time_left,
     playerId,
+    player,
+    spectating,
     gameId,
     game,
   ]);
@@ -646,7 +697,18 @@ export default function PlayGame({ initialGame }: PlayGameProps) {
   }, [gameRow.rematch_game_id, gameRow.status, router]);
 
   const statusText = (() => {
-    if (!player) return "Подключаемся к партии...";
+    if (spectating) {
+      if (gameRow.status === "waiting") return "Ожидание игроков…";
+      if (gameRow.status === "aborted") return "Партия отменена.";
+      if (gameRow.status === "finished") {
+        if (gameRow.winner === "draw") return "Трансляция завершена. Ничья.";
+        if (gameRow.winner === "white") return "Трансляция завершена. Победили белые.";
+        if (gameRow.winner === "black") return "Трансляция завершена. Победили чёрные.";
+        return "Трансляция завершена.";
+      }
+      return gameRow.active_color === "w" ? "Ход белых." : "Ход чёрных.";
+    }
+    if (!player) return isJoining ? "Подключаемся к партии..." : "Подключаемся к партии...";
     if (gameRow.status === "waiting") {
       return "Ожидаем второго игрока. Отправьте ссылку другу.";
     }
@@ -696,11 +758,12 @@ export default function PlayGame({ initialGame }: PlayGameProps) {
           <div className="mb-3 flex items-center justify-between">
             <div>
               <h1 className="font-display text-lg font-semibold text-white md:text-xl">
-                Онлайн-партия
+                {spectating ? "Трансляция" : "Онлайн-партия"}
               </h1>
               <p className="text-xs text-white/45">
                 {tcLabel}
                 {gameRow.rated === false ? " · товарищеская" : " · рейтинговая"}
+                {spectating ? " · зритель" : ""}
               </p>
             </div>
             <button
@@ -738,10 +801,19 @@ export default function PlayGame({ initialGame }: PlayGameProps) {
 
           <div className="mb-3 flex items-center justify-between text-xs font-medium text-white/70">
             <div className="flex flex-col">
-              <span>Вы играете:</span>
-              <span className="text-sm font-semibold">
-                {player?.side === "white" ? "Белыми" : "Чёрными"}
-              </span>
+              {spectating ? (
+                <>
+                  <span>Режим</span>
+                  <span className="text-sm font-semibold text-gold">Просмотр</span>
+                </>
+              ) : (
+                <>
+                  <span>Вы играете:</span>
+                  <span className="text-sm font-semibold">
+                    {player?.side === "white" ? "Белыми" : player?.side === "black" ? "Чёрными" : "…"}
+                  </span>
+                </>
+              )}
             </div>
             <div className="rounded-full bg-white/5 px-3 py-1 text-[11px]">
               {statusText}
@@ -819,7 +891,7 @@ export default function PlayGame({ initialGame }: PlayGameProps) {
               </div>
             )}
 
-            {gameRow.status === "active" && (
+            {gameRow.status === "active" && !spectating && (
               <div className="flex items-center justify-center gap-3">
                 {canAbortEarly ? (
                   <button
@@ -1044,16 +1116,31 @@ export default function PlayGame({ initialGame }: PlayGameProps) {
         )}
 
         <aside className="w-full max-w-md space-y-4 md:w-80">
+          <GameChat gameId={gameId} canSend={canChat} />
           <div className="surface p-4">
             <h2 className="mb-2 text-sm font-semibold text-white">
-              Как играть
+              {spectating ? "Трансляция" : "Как играть"}
             </h2>
-            <ol className="list-decimal space-y-1 pl-5 text-xs text-white/70">
-              <li>Создатель партии копирует ссылку и отправляет другу.</li>
-              <li>Второй игрок открывает ссылку на своём устройстве.</li>
-              <li>Когда оба подключены, партия автоматически стартует.</li>
-              <li>Следите за временем: у каждого есть свой лимит.</li>
-            </ol>
+            {spectating ? (
+              <ul className="list-disc space-y-1 pl-5 text-xs text-white/70">
+                <li>Доска только для просмотра — ходы делают игроки.</li>
+                <li>Можно писать в чат, если вы вошли в аккаунт.</li>
+                <li>
+                  Все живые партии — в разделе{" "}
+                  <Link href="/tv" className="text-gold hover:underline">
+                    ТВ
+                  </Link>
+                  .
+                </li>
+              </ul>
+            ) : (
+              <ol className="list-decimal space-y-1 pl-5 text-xs text-white/70">
+                <li>Создатель партии копирует ссылку и отправляет другу.</li>
+                <li>Второй игрок открывает ссылку на своём устройстве.</li>
+                <li>Когда оба подключены, партия автоматически стартует.</li>
+                <li>Следите за временем: у каждого есть свой лимит.</li>
+              </ol>
+            )}
           </div>
         </aside>
       </div>

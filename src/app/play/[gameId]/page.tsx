@@ -13,10 +13,13 @@ const PlayGame = dynamic(() => import("./play-game"), {
 
 interface PlayPageProps {
   params: Promise<{ gameId: string }>;
+  searchParams: Promise<{ watch?: string }>;
 }
 
-export default async function PlayPage({ params }: PlayPageProps) {
+export default async function PlayPage({ params, searchParams }: PlayPageProps) {
   const { gameId } = await params;
+  const sp = await searchParams;
+  const watch = sp.watch === "1" || sp.watch === "true";
 
   const supabase = await createClient();
   if (!supabase) {
@@ -33,6 +36,5 @@ export default async function PlayPage({ params }: PlayPageProps) {
     notFound();
   }
 
-  return <PlayGame initialGame={game} />;
+  return <PlayGame initialGame={game} forceWatch={watch} />;
 }
-
