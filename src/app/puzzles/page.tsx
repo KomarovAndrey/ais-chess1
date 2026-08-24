@@ -53,35 +53,35 @@ export default function PuzzlesPage() {
   }, []);
 
   return (
-    <main className="min-h-screen bg-gradient-to-b from-blue-50 via-white to-orange-50 px-4 py-6">
+    <main className="page-bg min-h-screen px-4 py-6">
       <div className="mx-auto max-w-2xl">
         <div className="mb-4 flex items-center justify-between">
           <Link
             href="/"
-            className="text-sm font-medium text-slate-600 hover:text-slate-900"
+            className="text-sm font-medium text-white/55 transition hover:text-white"
           >
             ← На главную
           </Link>
-          <h1 className="flex items-center gap-2 text-xl font-bold text-slate-900">
-            <PuzzleIcon className="h-6 w-6 text-violet-600" />
+          <h1 className="flex items-center gap-2 font-display text-xl font-semibold text-white">
+            <PuzzleIcon className="h-6 w-6 text-violet-300" />
             Головоломки
           </h1>
-          <div className="w-20 text-right text-sm text-slate-500">
+          <div className="w-20 text-right text-sm text-white/45">
             {correctCount} / {correctCount + wrongCount || "—"}
           </div>
         </div>
 
-        <p className="mb-4 text-center text-sm text-slate-600">
+        <p className="mb-4 text-center text-sm text-white/50">
           Найдите лучший ход. Позиция {puzzleIndex + 1} из {PUZZLES.length}
           {puzzle.theme ? ` · ${puzzle.theme}` : ""}
         </p>
 
-        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-lg">
+        <div className="surface p-4">
           <div
             key={key}
             role="img"
             aria-label="Шахматная доска. Найдите лучший ход."
-            className="mx-auto overflow-hidden border border-slate-200 bg-slate-100"
+            className="mx-auto overflow-hidden border border-white/10 bg-white/5"
             style={{
               width: "min(100vw - 2rem, 70vh, 480px)",
               height: "min(100vw - 2rem, 70vh, 480px)",
@@ -110,7 +110,7 @@ export default function PuzzlesPage() {
             </p>
           )}
           {message === "wrong" && (
-            <p className="mt-4 text-center text-lg font-semibold text-red-600">
+            <p className="mt-4 text-center text-lg font-semibold text-red-300">
               Неверно. Попробуйте ещё.
             </p>
           )}
@@ -119,7 +119,7 @@ export default function PuzzlesPage() {
             <button
               type="button"
               onClick={resetCurrent}
-              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
+              className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-white/70 hover:bg-white/10"
             >
               <RotateCcw className="h-4 w-4" />
               Заново

@@ -173,30 +173,30 @@ export default function PublicProfilePage() {
 
   if (!username) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-gradient-to-br from-blue-50 via-white to-orange-50">
-        <p className="text-slate-600">Укажите логин в адресе.</p>
+      <main className="page-bg flex min-h-screen items-center justify-center">
+        <p className="text-white/55">Укажите логин в адресе.</p>
       </main>
     );
   }
 
   if (loading) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-gradient-to-br from-blue-50 via-white to-orange-50">
-        <p className="text-slate-600">Загрузка...</p>
+      <main className="page-bg flex min-h-screen items-center justify-center">
+        <p className="text-white/55">Загрузка...</p>
       </main>
     );
   }
 
   if (notFound || !profile) {
     return (
-      <main className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-orange-50 px-4 py-8">
+      <main className="page-bg min-h-screen px-4 py-8">
         <div className="mx-auto max-w-md text-center">
-          <Link href="/" className="inline-flex items-center gap-2 text-sm font-medium text-slate-600 hover:text-blue-700 mb-6">
+          <Link href="/" className="mb-6 inline-flex items-center gap-2 text-sm font-medium text-white/55 hover:text-white">
             <ArrowLeft className="h-4 w-4" />
             На главную
           </Link>
-          <h1 className="text-xl font-bold text-slate-900">Профиль не найден</h1>
-          <p className="text-slate-600 mt-2">Игрок с логином {username} не найден.</p>
+          <h1 className="font-display text-xl font-semibold text-white">Профиль не найден</h1>
+          <p className="mt-2 text-white/55">Игрок с логином {username} не найден.</p>
         </div>
       </main>
     );
@@ -209,27 +209,27 @@ export default function PublicProfilePage() {
     : profile.username?.slice(0, 2).toUpperCase() ?? "?";
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-orange-50 px-4 py-8">
+    <main className="page-bg min-h-screen px-4 py-8">
       <div className="mx-auto max-w-2xl">
         <Link
           href="/"
-          className="mb-6 inline-flex items-center gap-2 text-sm font-medium text-slate-600 hover:text-blue-700"
+          className="mb-6 inline-flex items-center gap-2 text-sm font-medium text-white/55 transition hover:text-white"
         >
           <ArrowLeft className="h-4 w-4" />
           На главную
         </Link>
 
-        <div className="mb-6 flex flex-wrap items-center gap-4 rounded-2xl border border-slate-200 bg-white/90 p-4 shadow-md backdrop-blur md:p-6">
-          <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-blue-100 text-xl font-semibold text-blue-700">
+        <div className="mb-6 flex flex-wrap items-center gap-4 surface p-4 md:p-6">
+          <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-blue-100 text-xl font-semibold text-gold">
             {initials}
           </div>
           <div className="min-w-0 flex-1">
-            <h1 className="text-xl font-bold text-slate-900 truncate">
+            <h1 className="font-display text-xl font-semibold text-white truncate">
               {profile.display_name || profile.username || "Игрок"}
             </h1>
             <div className="mt-1">
-              <span className="text-sm font-semibold text-slate-700">Логин: </span>
-              <span className="text-sm font-mono text-blue-700">
+              <span className="text-sm font-semibold text-white/70">Логин: </span>
+              <span className="text-sm font-mono text-gold">
                 {profile.username ?? "—"}
               </span>
             </div>
@@ -256,7 +256,7 @@ export default function PublicProfilePage() {
                         setAddFriendLoading(false);
                       }
                     }}
-                    className="inline-flex items-center justify-center gap-1 rounded-xl bg-slate-700 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-50"
+                    className="inline-flex items-center justify-center gap-1 rounded-xl bg-gold px-3 py-2 text-sm font-semibold text-ink-900 hover:bg-gold-bright disabled:opacity-50"
                   >
                     Отменить вызов
                   </button>
@@ -265,7 +265,7 @@ export default function PublicProfilePage() {
                     type="button"
                     disabled={addFriendLoading}
                     onClick={() => setChallengeModalOpen(true)}
-                    className="inline-flex items-center justify-center gap-1 rounded-xl bg-amber-500 px-3 py-2 text-sm font-medium text-white hover:bg-amber-600 disabled:opacity-50"
+                    className="inline-flex items-center justify-center gap-1 rounded-xl bg-gold px-3 py-2 text-sm font-medium text-white hover:bg-gold-bright disabled:opacity-50"
                   >
                     <SwordsIcon className="h-4 w-4" />
                     Вызвать на партию
@@ -287,16 +287,16 @@ export default function PublicProfilePage() {
 
                   {removeConfirmOpen && (
                     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-                      <div className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-4 shadow-xl">
-                        <h3 className="text-sm font-semibold text-slate-900">Подтверждение</h3>
-                        <p className="mt-2 text-sm text-slate-700">
+                      <div className="w-full max-w-sm rounded-2xl border border-white/10 bg-ink-800 p-4 shadow-card">
+                        <h3 className="text-sm font-semibold text-white">Подтверждение</h3>
+                        <p className="mt-2 text-sm text-white/70">
                           Вы действительно хотите удалить из друзей?
                         </p>
                         <div className="mt-4 flex justify-end gap-2">
                           <button
                             type="button"
                             onClick={() => setRemoveConfirmOpen(false)}
-                            className="rounded-xl bg-slate-200 px-3 py-2 text-sm font-medium text-slate-800 hover:bg-slate-300"
+                            className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm font-medium text-white/85 hover:bg-white/10"
                           >
                             Нет
                           </button>
@@ -383,14 +383,14 @@ export default function PublicProfilePage() {
                       setAddFriendLoading(false);
                     }
                   }}
-                  className="inline-flex items-center gap-1 rounded-xl bg-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-400 disabled:opacity-70"
+                  className="inline-flex items-center gap-1 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm font-medium text-white/70 hover:bg-white/10 disabled:opacity-70"
                 >
                   Отменить заявку
                 </button>
               ) : friendStatus === "pending_incoming" ? (
                 <Link
                   href="/profile"
-                  className="inline-flex items-center gap-1 rounded-xl bg-amber-500 px-3 py-2 text-sm font-medium text-white hover:bg-amber-600"
+                  className="inline-flex items-center gap-1 rounded-xl bg-gold px-3 py-2 text-sm font-medium text-white hover:bg-gold-bright"
                 >
                   Есть заявка · открыть «Друзья»
                 </Link>
@@ -433,7 +433,7 @@ export default function PublicProfilePage() {
                   {addFriendLoading ? "Отправка…" : "Добавить в друзья"}
                 </button>
               ) : null}
-              {addFriendMessage && <p className="mt-1 text-xs text-slate-600">{addFriendMessage}</p>}
+              {addFriendMessage && <p className="mt-1 text-xs text-white/55">{addFriendMessage}</p>}
             </div>
           )}
         </div>
@@ -443,7 +443,7 @@ export default function PublicProfilePage() {
             type="button"
             onClick={() => setRatingType("bullet")}
             className={`rounded-2xl border p-4 text-left shadow-sm ${
-              ratingType === "bullet" ? "border-blue-600 bg-blue-600 text-white" : "border-slate-200 bg-white/90 text-slate-900"
+              ratingType === "bullet" ? "border-gold bg-gold text-ink-900" : "border-white/10 bg-white/5 text-white"
             }`}
           >
             <div className="text-xs font-semibold opacity-90">Bullet</div>
@@ -453,7 +453,7 @@ export default function PublicProfilePage() {
             type="button"
             onClick={() => setRatingType("blitz")}
             className={`rounded-2xl border p-4 text-left shadow-sm ${
-              ratingType === "blitz" ? "border-blue-600 bg-blue-600 text-white" : "border-slate-200 bg-white/90 text-slate-900"
+              ratingType === "blitz" ? "border-gold bg-gold text-ink-900" : "border-white/10 bg-white/5 text-white"
             }`}
           >
             <div className="text-xs font-semibold opacity-90">Blitz</div>
@@ -463,7 +463,7 @@ export default function PublicProfilePage() {
             type="button"
             onClick={() => setRatingType("rapid")}
             className={`rounded-2xl border p-4 text-left shadow-sm ${
-              ratingType === "rapid" ? "border-blue-600 bg-blue-600 text-white" : "border-slate-200 bg-white/90 text-slate-900"
+              ratingType === "rapid" ? "border-gold bg-gold text-ink-900" : "border-white/10 bg-white/5 text-white"
             }`}
           >
             <div className="text-xs font-semibold opacity-90">Rapid</div>
@@ -473,24 +473,24 @@ export default function PublicProfilePage() {
 
         <RatingChart points={history[ratingType]} />
 
-        <div className="mt-6 rounded-3xl border border-slate-200 bg-white/90 p-6 shadow-lg backdrop-blur md:p-8">
-          <h2 className="mb-4 text-lg font-semibold text-slate-900">Партии</h2>
+        <div className="mt-6 surface p-6 md:p-8">
+          <h2 className="mb-4 font-display text-lg font-semibold text-white">Партии</h2>
           {gamesLoading && (
-            <p className="text-sm text-slate-500">Загрузка партий…</p>
+            <p className="text-sm text-white/45">Загрузка партий…</p>
           )}
           {gamesError && (
-            <p className="rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-800">
+            <p className="rounded-xl border border-gold/30 bg-gold/10 px-3 py-2 text-sm text-gold">
               {gamesError}
             </p>
           )}
           {!gamesLoading && !gamesError && games.length === 0 && (
-            <p className="text-sm text-slate-500">Партий пока нет.</p>
+            <p className="text-sm text-white/45">Партий пока нет.</p>
           )}
           {!gamesLoading && games.length > 0 && (
             <div className="overflow-x-auto">
               <table className="min-w-full text-sm">
                 <thead>
-                  <tr className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-500">
+                  <tr className="border-b border-white/10 text-xs uppercase tracking-wide text-white/45">
                     <th className="py-2 pr-3 text-left font-medium">Дата</th>
                     <th className="py-2 px-3 text-left font-medium">Режим</th>
                     <th className="py-2 px-3 text-left font-medium">Белые</th>
@@ -501,8 +501,8 @@ export default function PublicProfilePage() {
                 </thead>
                 <tbody>
                   {games.map((g) => (
-                    <tr key={g.id} className="border-b border-slate-100 last:border-0">
-                      <td className="py-2 pr-3 text-slate-700 whitespace-nowrap">
+                    <tr key={g.id} className="border-b border-white/10 last:border-0">
+                      <td className="py-2 pr-3 text-white/70 whitespace-nowrap">
                         {new Date(g.created_at).toLocaleString("ru-RU", {
                           day: "2-digit",
                           month: "2-digit",
@@ -510,8 +510,8 @@ export default function PublicProfilePage() {
                           minute: "2-digit",
                         })}
                       </td>
-                      <td className="py-2 px-3 text-slate-700 whitespace-nowrap">{g.mode}</td>
-                      <td className="py-2 px-3 text-slate-700 whitespace-nowrap">
+                      <td className="py-2 px-3 text-white/70 whitespace-nowrap">{g.mode}</td>
+                      <td className="py-2 px-3 text-white/70 whitespace-nowrap">
                         {g.white_username ? (
                           <Link href={`/user/${encodeURIComponent(g.white_username)}`} className="text-blue-600 hover:underline">
                             {g.white_username}
@@ -520,7 +520,7 @@ export default function PublicProfilePage() {
                           "—"
                         )}
                       </td>
-                      <td className="py-2 px-3 text-slate-700 whitespace-nowrap">
+                      <td className="py-2 px-3 text-white/70 whitespace-nowrap">
                         {g.black_username ? (
                           <Link href={`/user/${encodeURIComponent(g.black_username)}`} className="text-blue-600 hover:underline">
                             {g.black_username}
@@ -529,16 +529,16 @@ export default function PublicProfilePage() {
                           "—"
                         )}
                       </td>
-                      <td className="py-2 px-3 text-slate-700 whitespace-nowrap">{g.result}</td>
+                      <td className="py-2 px-3 text-white/70 whitespace-nowrap">{g.result}</td>
                       <td className="py-2 pl-3 text-right whitespace-nowrap">
                         {g.rating_delta > 0 && (
                           <span className="text-green-600 font-semibold">+{g.rating_delta}</span>
                         )}
                         {g.rating_delta < 0 && (
-                          <span className="text-red-600 font-semibold">{g.rating_delta}</span>
+                          <span className="text-red-300 font-semibold">{g.rating_delta}</span>
                         )}
                         {g.rating_delta === 0 && (
-                          <span className="text-slate-500">0</span>
+                          <span className="text-white/45">0</span>
                         )}
                       </td>
                     </tr>
@@ -550,10 +550,10 @@ export default function PublicProfilePage() {
         </div>
 
         {profile.bio?.trim() && (
-          <div className="mt-6 rounded-3xl border border-slate-200 bg-white/90 p-6 shadow-lg backdrop-blur md:p-8">
-            <h2 className="mb-4 text-lg font-semibold text-slate-900">Информация о себе</h2>
-            <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4">
-              <p className="text-slate-700 whitespace-pre-wrap">{profile.bio.trim()}</p>
+          <div className="mt-6 surface p-6 md:p-8">
+            <h2 className="mb-4 font-display text-lg font-semibold text-white">Информация о себе</h2>
+            <div className="rounded-xl border border-white/10 bg-white/5/50 p-4">
+              <p className="text-white/70 whitespace-pre-wrap">{profile.bio.trim()}</p>
             </div>
           </div>
         )}

@@ -11,8 +11,8 @@ export default async function ReversiPlayPage({
   const { gameId } = await params;
   if (!UUID_REGEX.test(gameId)) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-gradient-to-b from-green-50 to-emerald-50">
-        <p className="text-slate-600">Неверная ссылка на игру.</p>
+      <main className="page-bg flex min-h-screen items-center justify-center">
+        <p className="text-white/55">Неверная ссылка на игру.</p>
       </main>
     );
   }
@@ -29,7 +29,7 @@ export default async function ReversiPlayPage({
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-b from-green-50 via-white to-emerald-50">
+    <main className="page-bg min-h-screen">
       <ReversiPlayClient gameId={gameId} initialGame={initialGame} />
     </main>
   );

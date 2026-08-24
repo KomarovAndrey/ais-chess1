@@ -46,16 +46,16 @@ export default function ForgotPasswordPage() {
 
   if (sent) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-gradient-to-br from-blue-50 via-white to-orange-50 px-4">
-        <div className="w-full max-w-md rounded-3xl border border-slate-200 bg-white/90 p-8 shadow-lg backdrop-blur text-center">
-          <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-full bg-blue-100 text-blue-600">
+      <main className="page-bg flex min-h-screen items-center justify-center px-4">
+        <div className="w-full max-w-md surface p-8 text-center">
+          <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-full bg-blue-500/15 text-blue-300">
             <Mail className="h-6 w-6" />
           </div>
-          <h1 className="mb-2 text-xl font-bold text-slate-900">Проверьте почту</h1>
-          <p className="mb-6 text-sm text-slate-600">
-            На адрес <strong className="text-slate-800">{email}</strong> отправлена ссылка для сброса пароля. Перейдите по ней и задайте новый пароль.
+          <h1 className="mb-2 font-display text-xl font-semibold text-white">Проверьте почту</h1>
+          <p className="mb-6 text-sm text-white/55">
+            На адрес <strong className="text-white/85">{email}</strong> отправлена ссылка для сброса пароля. Перейдите по ней и задайте новый пароль.
           </p>
-          <Link href="/login" className="text-sm font-semibold text-blue-700 underline-offset-4 hover:underline">
+          <Link href="/login" className="text-sm font-semibold text-gold hover:text-gold-bright">
             Вернуться к входу
           </Link>
         </div>
@@ -64,20 +64,20 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-gradient-to-br from-blue-50 via-white to-orange-50 px-4">
-      <div className="w-full max-w-md rounded-3xl border border-slate-200 bg-white/90 p-8 shadow-lg backdrop-blur">
+    <main className="page-bg flex min-h-screen items-center justify-center px-4">
+      <div className="w-full max-w-md surface p-8">
         <div className="mb-6 text-center">
-          <h1 className="mb-1 text-2xl font-bold text-slate-900">
+          <h1 className="mb-1 font-display text-2xl font-semibold text-white">
             Восстановление пароля
           </h1>
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-white/45">
             Введите email вашего аккаунта — мы отправим ссылку для сброса пароля.
           </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4" noValidate>
           <div className="space-y-1.5">
-            <label htmlFor="email" className="text-sm font-medium text-slate-700">
+            <label htmlFor="email" className="text-sm font-medium text-white/70">
               Электронная почта <span className="text-red-500">*</span>
             </label>
             <input
@@ -86,25 +86,25 @@ export default function ForgotPasswordPage() {
               autoComplete="email"
               value={email}
               onChange={(e) => { setEmail(e.target.value); setFieldError(null); }}
-              className={`w-full rounded-xl border bg-slate-50 px-3 py-2.5 text-base outline-none ring-offset-2 focus:ring-2 ${
-                fieldError ? "border-red-300 focus:border-red-500 focus:ring-red-500" : "border-slate-200 focus:border-blue-500 focus:ring-blue-500"
+              className={`input-dark ${
+                fieldError ? "border-red-400/70 focus:border-red-400 focus:ring-red-400/30" : ""
               }`}
               placeholder="you@school.com"
               aria-required
               aria-invalid={!!fieldError}
             />
-            {fieldError && <p className="text-xs text-red-600" role="alert">{fieldError}</p>}
+            {fieldError && <p className="text-xs text-red-300" role="alert">{fieldError}</p>}
           </div>
 
           {error && (
-            <div className="rounded-xl bg-red-50 px-3 py-2 text-xs text-red-600" role="alert">
+            <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-300" role="alert">
               {error}
             </div>
           )}
 
           <Button
             type="submit"
-            variant="secondary"
+            variant="default"
             size="lg"
             className="w-full justify-center gap-2"
             disabled={loading}
@@ -114,8 +114,8 @@ export default function ForgotPasswordPage() {
           </Button>
         </form>
 
-        <div className="mt-4 text-center text-xs text-slate-500">
-          <Link href="/login" className="inline-block min-h-[44px] py-2 font-semibold leading-[44px] text-blue-700 underline-offset-4 hover:underline">
+        <div className="mt-4 text-center text-xs text-white/45">
+          <Link href="/login" className="inline-block min-h-[44px] py-2 font-semibold leading-[44px] text-gold hover:text-gold-bright">
             Вернуться к входу
           </Link>
         </div>

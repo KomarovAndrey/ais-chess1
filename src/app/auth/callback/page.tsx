@@ -54,16 +54,16 @@ function AuthCallbackContent() {
   }, [router, searchParams]);
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-gradient-to-br from-blue-50 via-white to-orange-50">
+    <main className="page-bg flex min-h-screen items-center justify-center">
       <div className="text-center">
         {status === "loading" && (
-          <p className="text-slate-600">Подтверждение аккаунта...</p>
+          <p className="text-white/55">Подтверждение аккаунта...</p>
         )}
         {status === "ok" && (
-          <p className="text-slate-600">Вход выполнен, перенаправление...</p>
+          <p className="text-white/55">Вход выполнен, перенаправление...</p>
         )}
         {status === "error" && (
-          <p className="text-slate-600">Перенаправление на страницу входа...</p>
+          <p className="text-white/55">Перенаправление на страницу входа...</p>
         )}
       </div>
     </main>
@@ -78,8 +78,8 @@ export default function AuthCallbackPage() {
   return (
     <Suspense
       fallback={
-        <main className="flex min-h-screen items-center justify-center bg-gradient-to-br from-blue-50 via-white to-orange-50">
-          <p className="text-slate-600">Подтверждение аккаунта...</p>
+        <main className="page-bg flex min-h-screen items-center justify-center">
+          <p className="text-white/55">Подтверждение аккаунта...</p>
         </main>
       }
     >

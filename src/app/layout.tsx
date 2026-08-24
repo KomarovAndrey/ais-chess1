@@ -1,19 +1,29 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Manrope, Unbounded } from "next/font/google";
 import "./globals.css";
 import SiteHeader from "@/components/SiteHeader";
 
-const inter = Inter({ subsets: ["latin", "cyrillic"] });
+const manrope = Manrope({
+  subsets: ["latin", "cyrillic"],
+  variable: "--font-manrope",
+  display: "swap"
+});
+
+const unbounded = Unbounded({
+  subsets: ["latin", "cyrillic"],
+  variable: "--font-unbounded",
+  display: "swap"
+});
 
 export const metadata: Metadata = {
   title: "AIS Chess",
-  description: "Внутришкольный сайт для игры в шахматы AIS Chess",
+  description: "Онлайн-шахматы: партии, рейтинг, пазлы и турниры",
   viewport: {
     width: "device-width",
     initialScale: 1,
     maximumScale: 5
   },
-  themeColor: "#f97316"
+  themeColor: "#0c1017"
 };
 
 export default function RootLayout({
@@ -23,15 +33,15 @@ export default function RootLayout({
 }) {
   return (
     <html lang="ru">
-      <body className={inter.className}>
+      <body className={`${manrope.variable} ${unbounded.variable} font-sans page-bg min-h-screen`}>
         <SiteHeader />
         {children}
-        <footer className="py-6 text-center">
+        <footer className="border-t border-white/5 py-8 text-center">
           <a
             href="https://ais.alabuga.ru/"
             target="_blank"
             rel="noopener noreferrer"
-            className="text-slate-600 hover:text-blue-700 underline-offset-4 hover:underline text-sm"
+            className="text-sm text-white/45 transition hover:text-gold"
           >
             Международная школа «Алабуга»
           </a>
@@ -40,4 +50,3 @@ export default function RootLayout({
     </html>
   );
 }
-

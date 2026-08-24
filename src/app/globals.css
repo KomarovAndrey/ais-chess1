@@ -2,37 +2,150 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --bg: #0c1017;
+  --bg-elevated: #151b26;
+  --gold: #e0b15b;
+  --gold-bright: #f3c56b;
+  --gold-dim: #b8893a;
+  --text: #e8edf5;
+  --muted: #9aa6b8;
+}
+
 body {
-  @apply bg-white text-slate-900 font-sans;
+  @apply font-sans antialiased;
+  background: var(--bg);
+  color: var(--text);
   padding-top: env(safe-area-inset-top);
   padding-bottom: env(safe-area-inset-bottom);
 }
 
 html {
   -webkit-tap-highlight-color: transparent;
+  color-scheme: dark;
 }
 
 main {
   touch-action: manipulation;
 }
 
-/* iOS: не менее 16px, чтобы не было зума при фокусе */
 input,
 textarea,
 select {
   font-size: 16px;
 }
 
+.page-bg {
+  background-color: var(--bg);
+  background-image:
+    radial-gradient(ellipse 80% 50% at 10% -10%, rgba(224, 177, 91, 0.14), transparent 55%),
+    radial-gradient(ellipse 60% 40% at 100% 0%, rgba(59, 130, 246, 0.12), transparent 50%),
+    linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
+  background-size: auto, auto, 48px 48px, 48px 48px;
+}
+
+.page-shell {
+  @apply mx-auto w-full max-w-6xl px-4 py-8 md:py-10;
+}
+
+.page-title {
+  @apply font-display text-2xl font-semibold tracking-tight text-white md:text-3xl;
+}
+
+.page-subtitle {
+  @apply mt-1 text-sm text-white/50 md:text-base;
+}
+
+.surface {
+  @apply rounded-3xl border border-white/10 bg-white/[0.06] shadow-card backdrop-blur-xl;
+}
+
+.surface-pad {
+  @apply surface p-5 md:p-6;
+}
+
 .btn-primary {
-  @apply inline-flex items-center justify-center rounded-xl bg-orange-500 px-6 py-3 text-base font-semibold text-white shadow-md transition hover:bg-orange-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2;
+  @apply inline-flex items-center justify-center rounded-2xl bg-gold px-6 py-3 text-base font-semibold text-ink-900 shadow-glow transition hover:bg-gold-bright focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-2 focus-visible:ring-offset-ink-900 disabled:cursor-not-allowed disabled:opacity-60;
 }
 
 .btn-secondary {
-  @apply inline-flex items-center justify-center rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2;
+  @apply inline-flex items-center justify-center rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-white/90 transition hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-2 focus-visible:ring-offset-ink-900 disabled:cursor-not-allowed disabled:opacity-60;
+}
+
+.btn-ghost {
+  @apply inline-flex items-center justify-center rounded-2xl border border-white/10 bg-transparent px-4 py-2 text-sm font-medium text-white/80 transition hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold;
 }
 
 .card {
-  @apply rounded-2xl border border-slate-200 bg-white/80 p-6 shadow-sm backdrop-blur;
+  @apply surface p-6;
+}
+
+.nav-chip {
+  @apply rounded-xl border border-white/10 bg-white/5 text-sm font-medium text-white/90 transition hover:border-gold/40 hover:bg-white/10 hover:text-white;
+}
+
+.tab-pill {
+  @apply rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm font-medium text-white/70 transition hover:bg-white/10 hover:text-white;
+}
+
+.tab-pill-active {
+  @apply rounded-xl border border-gold bg-gold px-3 py-2 text-sm font-semibold text-ink-900 shadow-glow;
+}
+
+.input-dark {
+  @apply w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-base text-white placeholder-white/35 outline-none transition focus:border-gold/50 focus:ring-2 focus:ring-gold/20;
+}
+
+.label-dark {
+  @apply text-sm font-medium text-white/70;
+}
+
+.link-muted {
+  @apply text-sm font-medium text-white/55 transition hover:text-white;
+}
+
+.board-chrome {
+  @apply surface overflow-hidden;
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes board-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.55;
+  }
+  50% {
+    transform: scale(1.03);
+    opacity: 0.85;
+  }
+}
+
+.animate-fade-up {
+  animation: fade-up 0.7s ease-out both;
+}
+
+.animate-fade-up-delay {
+  animation: fade-up 0.7s ease-out 0.12s both;
+}
+
+.animate-fade-up-delay-2 {
+  animation: fade-up 0.7s ease-out 0.24s both;
+}
+
+.animate-board-pulse {
+  animation: board-pulse 5.5s ease-in-out infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -42,5 +155,11 @@ select {
     animation-iteration-count: 1 !important;
     transition-duration: 0.001ms !important;
   }
-}
 
+  .animate-fade-up,
+  .animate-fade-up-delay,
+  .animate-fade-up-delay-2,
+  .animate-board-pulse {
+    animation: none !important;
+  }
+}

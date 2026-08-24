@@ -24,10 +24,12 @@ export default async function RatingsPage({
   const supabase = await createClient();
   if (!supabase) {
     return (
-      <main className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-orange-50 px-4 py-10">
-        <div className="mx-auto max-w-3xl rounded-3xl border border-slate-200 bg-white/90 p-6 shadow-lg backdrop-blur">
-          <h1 className="text-xl font-bold text-slate-900">Рейтинги</h1>
-          <p className="mt-2 text-sm text-slate-600">Сервер не настроен.</p>
+      <main className="page-bg min-h-screen">
+        <div className="page-shell">
+          <div className="surface-pad">
+            <h1 className="page-title">Рейтинги</h1>
+            <p className="page-subtitle">Сервер не настроен.</p>
+          </div>
         </div>
       </main>
     );
@@ -51,78 +53,69 @@ export default async function RatingsPage({
     return (r.rating_blitz ?? legacy) ?? 1500;
   };
 
+  const label = type === "bullet" ? "Bullet" : type === "rapid" ? "Rapid" : "Blitz";
+
   return (
-    <main className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-orange-50 px-4 py-10">
-      <div className="mx-auto max-w-3xl">
-        <div className="mb-6 flex items-center justify-between rounded-3xl border border-slate-200 bg-white/90 p-6 shadow-lg backdrop-blur">
+    <main className="page-bg min-h-screen">
+      <div className="page-shell max-w-3xl">
+        <div className="mb-6 flex items-end justify-between gap-4">
           <div>
-            <h1 className="text-xl font-bold text-slate-900">Рейтинги</h1>
-            <p className="mt-1 text-sm text-slate-600">
-              Топ игроков {type === "bullet" ? "Bullet" : type === "rapid" ? "Rapid" : "Blitz"}
-            </p>
+            <h1 className="page-title">Рейтинги</h1>
+            <p className="page-subtitle">Топ игроков · {label}</p>
           </div>
-          <Link
-            href="/"
-            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50"
-          >
+          <Link href="/" className="btn-secondary">
             На главную
           </Link>
         </div>
 
-        <div className="mb-4 flex gap-2">
-          <Link
-            href="/ratings?type=bullet"
-            className={`rounded-xl border px-3 py-2 text-sm font-medium shadow-sm ${
-              type === "bullet" ? "border-blue-600 bg-blue-600 text-white" : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
-            }`}
-          >
-            Bullet
-          </Link>
-          <Link
-            href="/ratings?type=blitz"
-            className={`rounded-xl border px-3 py-2 text-sm font-medium shadow-sm ${
-              type === "blitz" ? "border-blue-600 bg-blue-600 text-white" : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
-            }`}
-          >
-            Blitz
-          </Link>
-          <Link
-            href="/ratings?type=rapid"
-            className={`rounded-xl border px-3 py-2 text-sm font-medium shadow-sm ${
-              type === "rapid" ? "border-blue-600 bg-blue-600 text-white" : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
-            }`}
-          >
-            Rapid
-          </Link>
+        <div className="mb-4 flex flex-wrap gap-2">
+          {(
+            [
+              ["bullet", "Bullet"],
+              ["blitz", "Blitz"],
+              ["rapid", "Rapid"],
+            ] as const
+          ).map(([key, name]) => (
+            <Link
+              key={key}
+              href={`/ratings?type=${key}`}
+              className={type === key ? "tab-pill-active" : "tab-pill"}
+            >
+              {name}
+            </Link>
+          ))}
         </div>
 
-        <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white/90 shadow-lg backdrop-blur">
-          <div className="grid grid-cols-[56px_1fr_96px] gap-0 border-b border-slate-200 bg-slate-50 px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-600">
+        <div className="surface overflow-hidden">
+          <div className="grid grid-cols-[56px_1fr_96px] gap-0 border-b border-white/10 bg-white/[0.03] px-4 py-3 text-xs font-semibold uppercase tracking-wider text-white/45">
             <div>#</div>
             <div>Игрок</div>
             <div className="text-right">Рейтинг</div>
           </div>
 
           {rows.length === 0 ? (
-            <div className="px-4 py-6 text-sm text-slate-600">Пока нет данных.</div>
+            <div className="px-4 py-6 text-sm text-white/55">Пока нет данных.</div>
           ) : (
-            <ul className="divide-y divide-slate-100">
+            <ul className="divide-y divide-white/5">
               {rows.map((r, idx) => (
-                <li key={r.id} className="grid grid-cols-[56px_1fr_96px] items-center px-4 py-3 hover:bg-slate-50">
-                  <div className="text-sm font-semibold text-slate-500">{idx + 1}</div>
+                <li
+                  key={r.id}
+                  className="grid grid-cols-[56px_1fr_96px] items-center px-4 py-3 transition hover:bg-white/[0.04]"
+                >
+                  <div className="text-sm font-semibold text-white/40">{idx + 1}</div>
                   <div className="min-w-0">
-                    <div className="truncate text-sm font-semibold text-slate-900">
+                    <div className="truncate text-sm font-semibold text-white">
                       {r.display_name?.trim() || r.username || "Игрок"}
                     </div>
                     {r.username && (
-                      <div className="truncate text-xs text-slate-500">
-                        <Link className="hover:underline" href={`/user/${encodeURIComponent(r.username)}`}>
+                      <div className="truncate text-xs text-white/45">
+                        <Link className="hover:text-gold" href={`/user/${encodeURIComponent(r.username)}`}>
                           {r.username}
                         </Link>
                       </div>
                     )}
                   </div>
-                  <div className="text-right text-sm font-bold text-amber-600">{pick(r)}</div>
+                  <div className="text-right text-sm font-bold text-gold">{pick(r)}</div>
                 </li>
               ))}
             </ul>
@@ -132,4 +125,3 @@ export default async function RatingsPage({
     </main>
   );
 }
-

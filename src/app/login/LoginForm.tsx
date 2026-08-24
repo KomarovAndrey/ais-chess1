@@ -41,35 +41,29 @@ export default function LoginForm({ resetSuccess = false }: LoginFormProps) {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-gradient-to-br from-blue-50 via-white to-orange-50 px-4">
-      <div className="w-full max-w-md rounded-3xl border border-slate-200 bg-white/90 p-8 shadow-lg backdrop-blur">
+    <main className="page-bg flex min-h-screen items-center justify-center px-4 py-10">
+      <div className="surface w-full max-w-md p-8">
         <div className="mb-6 text-center">
-          <h1 className="text-2xl font-bold text-slate-900">
-            Вход в AIS Chess
-          </h1>
+          <h1 className="page-title text-2xl">Вход в AIS Chess</h1>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-1.5">
-            <label className="text-sm font-medium text-slate-700">
-              Email
-            </label>
+            <label className="label-dark">Email</label>
             <input
               type="email"
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-base outline-none ring-offset-2 focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+              className="input-dark"
               placeholder="you@school.com"
             />
           </div>
 
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
-              <label className="text-sm font-medium text-slate-700">
-                Пароль
-              </label>
-              <Link href="/forgot-password" className="inline-block min-h-[44px] py-2 text-xs font-medium leading-[44px] text-blue-700 hover:underline">
+              <label className="label-dark">Пароль</label>
+              <Link href="/forgot-password" className="text-xs font-medium text-gold hover:text-gold-bright">
                 Забыли пароль?
               </Link>
             </div>
@@ -78,41 +72,32 @@ export default function LoginForm({ resetSuccess = false }: LoginFormProps) {
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-base outline-none ring-offset-2 focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+              className="input-dark"
               placeholder="Минимум 6 символов"
             />
           </div>
 
           {resetSuccess && (
-            <div className="rounded-xl bg-green-50 px-3 py-2 text-xs text-green-700" role="status">
+            <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-300" role="status">
               Пароль успешно изменён. Войдите с новым паролем.
             </div>
           )}
 
           {error && (
-            <div className="rounded-xl bg-red-50 px-3 py-2 text-xs text-red-600">
+            <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-300">
               {error}
             </div>
           )}
 
-          <Button
-            type="submit"
-            variant="default"
-            size="lg"
-            className="w-full justify-center gap-2"
-            disabled={loading}
-          >
+          <Button type="submit" variant="default" size="lg" className="w-full justify-center gap-2" disabled={loading}>
             <LogIn className="h-4 w-4" />
             {loading ? "Входим..." : "Войти"}
           </Button>
         </form>
 
-        <div className="mt-4 text-center text-xs text-slate-500">
+        <div className="mt-4 text-center text-xs text-white/45">
           Нет аккаунта?{" "}
-          <Link
-            href="/register"
-            className="inline-block min-h-[44px] py-2 font-semibold leading-[44px] text-blue-700 underline-offset-4 hover:underline"
-          >
+          <Link href="/register" className="font-semibold text-gold hover:text-gold-bright">
             Зарегистрироваться
           </Link>
         </div>

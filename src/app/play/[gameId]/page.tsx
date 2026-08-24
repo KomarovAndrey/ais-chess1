@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 const PlayGame = dynamic(() => import("./play-game"), {
   ssr: true,
   loading: () => (
-    <div className="flex min-h-[50vh] items-center justify-center text-slate-500">
+    <div className="flex min-h-[50vh] items-center justify-center text-white/45">
       Загрузка партии…
     </div>
   ),

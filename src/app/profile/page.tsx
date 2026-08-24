@@ -279,8 +279,8 @@ export default function ProfilePage() {
 
   if (loading) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-gradient-to-br from-blue-50 via-white to-orange-50">
-        <p className="text-slate-600">Загрузка...</p>
+      <main className="page-bg flex min-h-screen items-center justify-center">
+        <p className="text-white/55">Загрузка...</p>
       </main>
     );
   }
@@ -294,51 +294,51 @@ export default function ProfilePage() {
     : profile?.username?.slice(0, 2).toUpperCase() ?? "?";
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-orange-50 px-4 py-8">
+    <main className="page-bg min-h-screen px-4 py-8">
       <div className="mx-auto max-w-2xl">
         <Link
           href="/"
-          className="mb-6 inline-flex items-center gap-2 text-sm font-medium text-slate-600 hover:text-blue-700"
+          className="mb-6 inline-flex items-center gap-2 text-sm font-medium text-white/55 transition hover:text-white"
         >
           <ArrowLeft className="h-4 w-4" />
           На главную
         </Link>
 
-        <div className="mb-6 rounded-2xl border border-slate-200 bg-white/90 p-4 shadow-md backdrop-blur md:p-6">
+        <div className="mb-6 surface p-4 md:p-6">
           <div className="flex flex-wrap items-start gap-4">
-            <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-blue-100 text-xl font-semibold text-blue-700">
+            <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-blue-100 text-xl font-semibold text-gold">
               {initials}
             </div>
             <div className="min-w-0 flex-1">
-              <h1 className="text-xl font-bold text-slate-900 truncate">
+              <h1 className="font-display text-xl font-semibold text-white truncate">
                 {profile?.username ?? (user.email ?? "Профиль")}
               </h1>
-              <p className="text-xs text-slate-500 mt-0.5">
+              <p className="text-xs text-white/45 mt-0.5">
                 {profile?.username ? "По этому логину вас находят в поиске друзей" : "Логин задаётся при регистрации и не изменяется"}
               </p>
               {profile?.display_name?.trim() && (
-                <p className="text-sm text-slate-600 mt-0.5">Имя: {profile.display_name.trim()}</p>
+                <p className="text-sm text-white/55 mt-0.5">Имя: {profile.display_name.trim()}</p>
               )}
-              <p className="text-xs text-slate-400 mt-1">{user.email}</p>
+              <p className="text-xs text-white/40 mt-1">{user.email}</p>
             </div>
-            <div className="flex shrink-0 gap-3 rounded-xl bg-slate-50 px-4 py-2">
+            <div className="flex shrink-0 gap-3 rounded-xl bg-white/5 px-4 py-2">
               <div className="text-center">
-                <div className="text-xs font-medium text-slate-500">Bullet</div>
-                <div className="text-lg font-bold text-amber-600">{profile?.rating_bullet ?? 1500}</div>
+                <div className="text-xs font-medium text-white/45">Bullet</div>
+                <div className="text-lg font-bold text-gold">{profile?.rating_bullet ?? 1500}</div>
               </div>
               <div className="text-center">
-                <div className="text-xs font-medium text-slate-500">Blitz</div>
-                <div className="text-lg font-bold text-amber-600">{profile?.rating_blitz ?? 1500}</div>
+                <div className="text-xs font-medium text-white/45">Blitz</div>
+                <div className="text-lg font-bold text-gold">{profile?.rating_blitz ?? 1500}</div>
               </div>
               <div className="text-center">
-                <div className="text-xs font-medium text-slate-500">Rapid</div>
-                <div className="text-lg font-bold text-amber-600">{profile?.rating_rapid ?? 1500}</div>
+                <div className="text-xs font-medium text-white/45">Rapid</div>
+                <div className="text-lg font-bold text-gold">{profile?.rating_rapid ?? 1500}</div>
               </div>
             </div>
           </div>
         </div>
 
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-2 border-b border-slate-200">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-2 border-b border-white/10">
           <div className="flex gap-2 flex-wrap">
             {(["edit", "ratings", "friends", "games"] as const).map((s) => (
               <button
@@ -347,8 +347,8 @@ export default function ProfilePage() {
                 onClick={() => setActiveSection(s)}
                 className={`px-3 py-2 text-sm font-medium rounded-t-lg ${
                   activeSection === s
-                    ? "bg-white border border-slate-200 border-b-white -mb-px text-blue-700"
-                    : "text-slate-600 hover:text-slate-900"
+                    ? "border border-white/10 border-b-ink-900 -mb-px bg-ink-900 text-gold"
+                    : "text-white/55 hover:text-white"
                 }`}
               >
                 {s === "edit" && "Профиль"}
@@ -374,7 +374,7 @@ export default function ProfilePage() {
                 type="button"
                 onClick={() => setRatingType("bullet")}
                 className={`rounded-2xl border p-4 text-left shadow-sm ${
-                  ratingType === "bullet" ? "border-blue-600 bg-blue-600 text-white" : "border-slate-200 bg-white/90 text-slate-900"
+                  ratingType === "bullet" ? "border-gold bg-gold text-ink-900" : "border-white/10 bg-white/5 text-white"
                 }`}
               >
                 <div className="text-xs font-semibold opacity-90">Bullet</div>
@@ -384,7 +384,7 @@ export default function ProfilePage() {
                 type="button"
                 onClick={() => setRatingType("blitz")}
                 className={`rounded-2xl border p-4 text-left shadow-sm ${
-                  ratingType === "blitz" ? "border-blue-600 bg-blue-600 text-white" : "border-slate-200 bg-white/90 text-slate-900"
+                  ratingType === "blitz" ? "border-gold bg-gold text-ink-900" : "border-white/10 bg-white/5 text-white"
                 }`}
               >
                 <div className="text-xs font-semibold opacity-90">Blitz</div>
@@ -394,7 +394,7 @@ export default function ProfilePage() {
                 type="button"
                 onClick={() => setRatingType("rapid")}
                 className={`rounded-2xl border p-4 text-left shadow-sm ${
-                  ratingType === "rapid" ? "border-blue-600 bg-blue-600 text-white" : "border-slate-200 bg-white/90 text-slate-900"
+                  ratingType === "rapid" ? "border-gold bg-gold text-ink-900" : "border-white/10 bg-white/5 text-white"
                 }`}
               >
                 <div className="text-xs font-semibold opacity-90">Rapid</div>
@@ -407,10 +407,10 @@ export default function ProfilePage() {
         )}
 
         {activeSection === "edit" && (
-          <div className="rounded-3xl border border-slate-200 bg-white/90 p-6 shadow-lg backdrop-blur md:p-8">
+          <div className="surface p-6 md:p-8">
             <form onSubmit={handleSubmit} className="space-y-5">
               <div className="space-y-1.5">
-                <label htmlFor="display_name" className="text-sm font-medium text-slate-700">
+                <label htmlFor="display_name" className="text-sm font-medium text-white/70">
                   Имя (как к вам обращаться)
                 </label>
                 <input
@@ -419,12 +419,12 @@ export default function ProfilePage() {
                   maxLength={100}
                   value={displayName}
                   onChange={(e) => setDisplayName(e.target.value)}
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-base outline-none ring-offset-2 focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+                  className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-base text-white outline-none ring-offset-2 focus:border-gold/50 focus:ring-2 focus:ring-gold/20"
                   placeholder="Введите имя"
                 />
               </div>
               <div className="space-y-1.5">
-                <label htmlFor="bio" className="text-sm font-medium text-slate-700">
+                <label htmlFor="bio" className="text-sm font-medium text-white/70">
                   О себе
                 </label>
                 <textarea
@@ -433,15 +433,15 @@ export default function ProfilePage() {
                   maxLength={2000}
                   value={bio}
                   onChange={(e) => setBio(e.target.value)}
-                  className="w-full resize-y rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-base outline-none ring-offset-2 focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+                  className="w-full resize-y rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-base text-white outline-none ring-offset-2 focus:border-gold/50 focus:ring-2 focus:ring-gold/20"
                   placeholder="Расскажите о себе..."
                 />
-                <p className="text-xs text-slate-400">{bio.length} / 2000</p>
+                <p className="text-xs text-white/40">{bio.length} / 2000</p>
               </div>
               {message && (
                 <p
                   className={`rounded-xl px-3 py-2 text-sm ${
-                    message.type === "ok" ? "bg-green-50 text-green-700" : "bg-red-50 text-red-600"
+                    message.type === "ok" ? "bg-green-50 text-green-700" : "border border-red-500/30 bg-red-500/10 text-red-300"
                   }`}
                 >
                   {message.text}
@@ -459,18 +459,18 @@ export default function ProfilePage() {
         )}
 
         {activeSection === "games" && (
-          <div className="rounded-3xl border border-slate-200 bg-white/90 p-6 shadow-lg backdrop-blur md:p-8 space-y-4">
-            <h2 className="text-lg font-semibold text-slate-900 mb-2">Партии</h2>
+          <div className="surface p-6 md:p-8 space-y-4">
+            <h2 className="font-display text-lg font-semibold text-white mb-2">Партии</h2>
             {gamesLoading && (
-              <p className="text-sm text-slate-500">Загрузка партий…</p>
+              <p className="text-sm text-white/45">Загрузка партий…</p>
             )}
             {gamesError && (
-              <p className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-600">
+              <p className="rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
                 {gamesError}
               </p>
             )}
             {!gamesLoading && !gamesError && games.length === 0 && (
-              <p className="text-sm text-slate-500">
+              <p className="text-sm text-white/45">
                 Пока нет сыгранных рейтинговых партий.
               </p>
             )}
@@ -478,7 +478,7 @@ export default function ProfilePage() {
               <div className="overflow-x-auto">
                 <table className="min-w-full text-sm">
                   <thead>
-                    <tr className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-500">
+                    <tr className="border-b border-white/10 text-xs uppercase tracking-wide text-white/45">
                       <th className="py-2 pr-3 text-left font-medium">Дата</th>
                       <th className="py-2 px-3 text-left font-medium">Режим</th>
                       <th className="py-2 px-3 text-left font-medium">Белые</th>
@@ -489,8 +489,8 @@ export default function ProfilePage() {
                   </thead>
                   <tbody>
                     {games.map((g) => (
-                      <tr key={g.id} className="border-b border-slate-100 last:border-0">
-                        <td className="py-2 pr-3 text-slate-700 whitespace-nowrap">
+                      <tr key={g.id} className="border-b border-white/10 last:border-0">
+                        <td className="py-2 pr-3 text-white/70 whitespace-nowrap">
                           {new Date(g.created_at).toLocaleString("ru-RU", {
                             day: "2-digit",
                             month: "2-digit",
@@ -498,16 +498,16 @@ export default function ProfilePage() {
                             minute: "2-digit",
                           })}
                         </td>
-                        <td className="py-2 px-3 text-slate-700 whitespace-nowrap">
+                        <td className="py-2 px-3 text-white/70 whitespace-nowrap">
                           {g.mode}
                         </td>
-                        <td className="py-2 px-3 text-slate-700 whitespace-nowrap">
+                        <td className="py-2 px-3 text-white/70 whitespace-nowrap">
                           {g.white_username ?? "—"}
                         </td>
-                        <td className="py-2 px-3 text-slate-700 whitespace-nowrap">
+                        <td className="py-2 px-3 text-white/70 whitespace-nowrap">
                           {g.black_username ?? "—"}
                         </td>
-                        <td className="py-2 px-3 text-slate-700 whitespace-nowrap">
+                        <td className="py-2 px-3 text-white/70 whitespace-nowrap">
                           {g.result}
                         </td>
                         <td className="py-2 pl-3 text-right whitespace-nowrap">
@@ -517,12 +517,12 @@ export default function ProfilePage() {
                             </span>
                           )}
                           {g.rating_delta < 0 && (
-                            <span className="text-red-600 font-semibold">
+                            <span className="text-red-300 font-semibold">
                               {g.rating_delta}
                             </span>
                           )}
                           {g.rating_delta === 0 && (
-                            <span className="text-slate-500">0</span>
+                            <span className="text-white/45">0</span>
                           )}
                         </td>
                       </tr>
@@ -535,16 +535,16 @@ export default function ProfilePage() {
         )}
 
         {activeSection === "friends" && (
-          <div className="rounded-3xl border border-slate-200 bg-white/90 p-6 shadow-lg backdrop-blur md:p-8">
-            <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold text-slate-900">
-              <Users className="h-5 w-5 text-slate-600" />
+          <div className="surface p-6 md:p-8">
+            <h2 className="mb-4 flex items-center gap-2 font-display text-lg font-semibold text-white">
+              <Users className="h-5 w-5 text-white/55" />
               Друзья
             </h2>
-            <p className="text-sm text-slate-600 mb-4">
+            <p className="text-sm text-white/55 mb-4">
               Поиск друзей по логину. Ваш логин для поиска: {profile?.username ? (
-                <span className="font-mono font-semibold text-blue-700">{profile.username}</span>
+                <span className="font-mono font-semibold text-gold">{profile.username}</span>
               ) : (
-                <span className="text-amber-600">укажите во вкладке «Профиль»</span>
+                <span className="text-gold">укажите во вкладке «Профиль»</span>
               )}
             </p>
 
@@ -554,7 +554,7 @@ export default function ProfilePage() {
                 value={addFriendUsername}
                 onChange={(e) => setAddFriendUsername(e.target.value)}
                 placeholder="Введите логин пользователя"
-                className="flex-1 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-base outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+                className="flex-1 rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-base text-white outline-none focus:border-gold/50 focus:ring-2 focus:ring-gold/20"
               />
               <button
                 type="submit"
@@ -567,23 +567,23 @@ export default function ProfilePage() {
             </form>
 
             {friendsMessage && (
-              <p className={`mb-4 rounded-xl px-3 py-2 text-sm ${friendsMessage.type === "ok" ? "bg-green-50 text-green-700" : "bg-red-50 text-red-600"}`}>
+              <p className={`mb-4 rounded-xl px-3 py-2 text-sm ${friendsMessage.type === "ok" ? "bg-green-50 text-green-700" : "border border-red-500/30 bg-red-500/10 text-red-300"}`}>
                 {friendsMessage.text}
               </p>
             )}
 
             {pendingIncoming.length > 0 && (
               <div className="mb-6">
-                <h3 className="text-sm font-medium text-slate-700 mb-2">Входящие заявки</h3>
+                <h3 className="text-sm font-medium text-white/70 mb-2">Входящие заявки</h3>
                 <ul className="space-y-2">
                   {pendingIncoming.map((req) => (
-                    <li key={req.id} className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                      <Link href={req.from_user.username ? `/user/${req.from_user.username}` : "#"} className="text-sm font-medium text-slate-800 hover:underline">
+                    <li key={req.id} className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-3 py-2">
+                      <Link href={req.from_user.username ? `/user/${req.from_user.username}` : "#"} className="text-sm font-medium text-white/85 hover:underline">
                         {req.from_user.display_name || req.from_user.username || "Игрок"} {req.from_user.username && ` (${req.from_user.username})`} · {req.from_user.rating}
                       </Link>
                       <div className="flex gap-2">
                         <button type="button" onClick={() => acceptRequest(req.id)} className="rounded-lg bg-green-600 px-2 py-1 text-xs text-white hover:bg-green-700">Принять</button>
-                        <button type="button" onClick={() => declineRequest(req.id)} className="rounded-lg bg-slate-300 px-2 py-1 text-xs text-slate-700 hover:bg-slate-400">Отклонить</button>
+                        <button type="button" onClick={() => declineRequest(req.id)} className="rounded-lg border border-white/10 bg-white/5 px-2 py-1 text-xs text-white/70 hover:bg-white/10">Отклонить</button>
                       </div>
                     </li>
                   ))}
@@ -593,16 +593,16 @@ export default function ProfilePage() {
 
             {pendingOutgoing.length > 0 && (
               <div className="mb-6">
-                <h3 className="text-sm font-medium text-slate-700 mb-2">Исходящие заявки</h3>
+                <h3 className="text-sm font-medium text-white/70 mb-2">Исходящие заявки</h3>
                 <ul className="space-y-2">
                   {pendingOutgoing.map((req) => (
                     <li
                       key={req.id}
-                      className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-3 py-2"
+                      className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-3 py-2"
                     >
                       <Link
                         href={req.to_user.username ? `/user/${req.to_user.username}` : "#"}
-                        className="text-sm text-slate-600"
+                        className="text-sm text-white/55"
                       >
                         {req.to_user.display_name || req.to_user.username || "Игрок"}{" "}
                         {req.to_user.username && ` (${req.to_user.username})`} · ожидание
@@ -610,7 +610,7 @@ export default function ProfilePage() {
                       <button
                         type="button"
                         onClick={() => cancelFriendRequest(req.id)}
-                        className="rounded-lg bg-slate-300 px-2 py-1 text-xs text-slate-700 hover:bg-slate-400"
+                        className="rounded-lg border border-white/10 bg-white/5 px-2 py-1 text-xs text-white/70 hover:bg-white/10"
                       >
                         Отменить заявку
                       </button>
@@ -620,16 +620,16 @@ export default function ProfilePage() {
               </div>
             )}
 
-            <h3 className="text-sm font-medium text-slate-700 mb-2">Список друзей</h3>
+            <h3 className="text-sm font-medium text-white/70 mb-2">Список друзей</h3>
             {friends.length === 0 && pendingIncoming.length === 0 && pendingOutgoing.length === 0 ? (
-              <p className="text-sm text-slate-500">Друзей пока нет. Введите логин выше, чтобы отправить заявку.</p>
+              <p className="text-sm text-white/45">Друзей пока нет. Введите логин выше, чтобы отправить заявку.</p>
             ) : friends.length === 0 ? (
-              <p className="text-sm text-slate-500">Нет принятых друзей.</p>
+              <p className="text-sm text-white/45">Нет принятых друзей.</p>
             ) : (
               <ul className="space-y-2">
                 {friends.map((f) => (
-                  <li key={f.id} className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                    <Link href={f.username ? `/user/${f.username}` : "#"} className="text-sm font-medium text-slate-800 hover:underline">
+                  <li key={f.id} className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-3 py-2">
+                    <Link href={f.username ? `/user/${f.username}` : "#"} className="text-sm font-medium text-white/85 hover:underline">
                       {f.display_name || f.username || "Игрок"} {f.username && ` (${f.username})`} · {f.rating}
                     </Link>
                     <div className="flex gap-2">
@@ -638,7 +638,7 @@ export default function ProfilePage() {
                           type="button"
                           onClick={() => cancelChallenge(f.id, outgoingChallengeByFriendId[f.id])}
                           disabled={challengingId !== null}
-                          className="rounded-lg bg-slate-700 px-2 py-1 text-xs font-medium text-white hover:bg-slate-800 disabled:opacity-50"
+                          className="rounded-lg bg-gold px-2 py-1 text-xs font-semibold text-ink-900 hover:bg-gold-bright disabled:opacity-50"
                         >
                           {challengingId === f.id ? "Отмена…" : "Отменить вызов"}
                         </button>
@@ -647,7 +647,7 @@ export default function ProfilePage() {
                           type="button"
                           onClick={() => setChallengeModalOpenFor(f)}
                           disabled={challengingId !== null}
-                          className="rounded-lg bg-amber-500 px-2 py-1 text-xs font-medium text-white hover:bg-amber-600 disabled:opacity-50"
+                          className="rounded-lg bg-gold px-2 py-1 text-xs font-medium text-white hover:bg-gold-bright disabled:opacity-50"
                         >
                           {challengingId === f.id ? "Отправка…" : "Вызвать на партию"}
                         </button>
@@ -655,7 +655,7 @@ export default function ProfilePage() {
                       <button
                         type="button"
                         onClick={() => setRemoveConfirm({ open: true, friend: f })}
-                        className="rounded-lg bg-slate-300 px-2 py-1 text-xs text-slate-700 hover:bg-slate-400"
+                        className="rounded-lg border border-white/10 bg-white/5 px-2 py-1 text-xs text-white/70 hover:bg-white/10"
                       >
                         Удалить
                       </button>
@@ -680,9 +680,9 @@ export default function ProfilePage() {
 
             {removeConfirm.open && removeConfirm.friend && (
               <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-                <div className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-4 shadow-xl">
-                  <h3 className="text-sm font-semibold text-slate-900">Подтверждение</h3>
-                  <p className="mt-2 text-sm text-slate-700">
+                <div className="w-full max-w-sm rounded-2xl border border-white/10 bg-ink-800 p-4 shadow-card">
+                  <h3 className="text-sm font-semibold text-white">Подтверждение</h3>
+                  <p className="mt-2 text-sm text-white/70">
                     Вы действительно хотите удалить из друзей{" "}
                     <span className="font-semibold">{removeConfirm.friend.display_name || removeConfirm.friend.username || "игрока"}</span>?
                   </p>
@@ -690,7 +690,7 @@ export default function ProfilePage() {
                     <button
                       type="button"
                       onClick={() => setRemoveConfirm({ open: false, friend: null })}
-                      className="min-h-[44px] rounded-xl bg-slate-200 px-3 py-2 text-sm font-medium text-slate-800 hover:bg-slate-300"
+                      className="min-h-[44px] rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm font-medium text-white/85 hover:bg-white/10"
                     >
                       Нет
                     </button>

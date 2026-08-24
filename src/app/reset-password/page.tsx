@@ -57,12 +57,12 @@ export default function ResetPasswordPage() {
 
   if (!ready) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-gradient-to-br from-blue-50 via-white to-orange-50 px-4">
-        <div className="w-full max-w-md rounded-3xl border border-slate-200 bg-white/90 p-8 shadow-lg backdrop-blur text-center">
-          <p className="mb-4 text-sm text-slate-600">
+      <main className="page-bg flex min-h-screen items-center justify-center px-4">
+        <div className="w-full max-w-md surface p-8 text-center">
+          <p className="mb-4 text-sm text-white/55">
             Загрузка... Если вы перешли по ссылке из письма, эта страница позволит задать новый пароль.
           </p>
-          <Link href="/forgot-password" className="text-sm font-semibold text-blue-700 underline-offset-4 hover:underline">
+          <Link href="/forgot-password" className="text-sm font-semibold text-gold hover:text-gold-bright">
             Запросить ссылку снова
           </Link>
         </div>
@@ -71,20 +71,20 @@ export default function ResetPasswordPage() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-gradient-to-br from-blue-50 via-white to-orange-50 px-4">
-      <div className="w-full max-w-md rounded-3xl border border-slate-200 bg-white/90 p-8 shadow-lg backdrop-blur">
+    <main className="page-bg flex min-h-screen items-center justify-center px-4">
+      <div className="w-full max-w-md surface p-8">
         <div className="mb-6 text-center">
-          <h1 className="mb-1 text-2xl font-bold text-slate-900">
+          <h1 className="mb-1 font-display text-2xl font-semibold text-white">
             Новый пароль
           </h1>
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-white/45">
             Введите новый пароль и подтвердите его. Пароль хранится в зашифрованном виде.
           </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4" noValidate>
           <div className="space-y-1.5">
-            <label htmlFor="password" className="text-sm font-medium text-slate-700">
+            <label htmlFor="password" className="text-sm font-medium text-white/70">
               Новый пароль <span className="text-red-500">*</span>
             </label>
             <input
@@ -93,17 +93,17 @@ export default function ResetPasswordPage() {
               autoComplete="new-password"
               value={password}
               onChange={(e) => { setPassword(e.target.value); setFieldErrors((e) => ({ ...e, password: undefined, confirm: undefined })); }}
-              className={`w-full rounded-xl border bg-slate-50 px-3 py-2.5 text-base outline-none ring-offset-2 focus:ring-2 ${
-                fieldErrors.password ? "border-red-300 focus:border-red-500 focus:ring-red-500" : "border-slate-200 focus:border-blue-500 focus:ring-blue-500"
+              className={`input-dark ${
+                fieldErrors.password ? "border-red-400/70 focus:border-red-400 focus:ring-red-400/30" : ""
               }`}
               placeholder="Минимум 6 символов"
               aria-required
             />
-            {fieldErrors.password && <p className="text-xs text-red-600" role="alert">{fieldErrors.password}</p>}
+            {fieldErrors.password && <p className="text-xs text-red-300" role="alert">{fieldErrors.password}</p>}
           </div>
 
           <div className="space-y-1.5">
-            <label htmlFor="confirmPassword" className="text-sm font-medium text-slate-700">
+            <label htmlFor="confirmPassword" className="text-sm font-medium text-white/70">
               Подтверждение пароля <span className="text-red-500">*</span>
             </label>
             <input
@@ -112,24 +112,24 @@ export default function ResetPasswordPage() {
               autoComplete="new-password"
               value={confirmPassword}
               onChange={(e) => { setConfirmPassword(e.target.value); setFieldErrors((e) => ({ ...e, confirm: undefined })); }}
-              className={`w-full rounded-xl border bg-slate-50 px-3 py-2.5 text-base outline-none ring-offset-2 focus:ring-2 ${
-                fieldErrors.confirm ? "border-red-300 focus:border-red-500 focus:ring-red-500" : "border-slate-200 focus:border-blue-500 focus:ring-blue-500"
+              className={`input-dark ${
+                fieldErrors.confirm ? "border-red-400/70 focus:border-red-400 focus:ring-red-400/30" : ""
               }`}
               placeholder="Повторите пароль"
               aria-required
             />
-            {fieldErrors.confirm && <p className="text-xs text-red-600" role="alert">{fieldErrors.confirm}</p>}
+            {fieldErrors.confirm && <p className="text-xs text-red-300" role="alert">{fieldErrors.confirm}</p>}
           </div>
 
           {error && (
-            <div className="rounded-xl bg-red-50 px-3 py-2 text-xs text-red-600" role="alert">
+            <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-300" role="alert">
               {error}
             </div>
           )}
 
           <Button
             type="submit"
-            variant="secondary"
+            variant="default"
             size="lg"
             className="w-full justify-center gap-2"
             disabled={loading}
@@ -139,8 +139,8 @@ export default function ResetPasswordPage() {
           </Button>
         </form>
 
-        <div className="mt-4 text-center text-xs text-slate-500">
-          <Link href="/login" className="inline-block min-h-[44px] py-2 font-semibold leading-[44px] text-blue-700 underline-offset-4 hover:underline">
+        <div className="mt-4 text-center text-xs text-white/45">
+          <Link href="/login" className="inline-block min-h-[44px] py-2 font-semibold leading-[44px] text-gold hover:text-gold-bright">
             Вернуться к входу
           </Link>
         </div>

@@ -179,16 +179,16 @@ export default function AppNav() {
 
   if (loading && !user) {
     return (
-      <nav className="flex items-center gap-3">
+      <nav className="flex items-center gap-2">
         <Link
           href="/login"
-          className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50"
+          className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm font-medium text-white/90 hover:bg-white/10"
         >
           Войти
         </Link>
         <Link
           href="/register"
-          className="rounded-xl bg-blue-600 px-3 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700"
+          className="rounded-xl bg-gold px-3 py-2 text-sm font-semibold text-ink-900 shadow-glow hover:bg-gold-bright"
         >
           Регистрация
         </Link>
@@ -203,15 +203,15 @@ export default function AppNav() {
           {/* Поиск на десктопе */}
           <div className="hidden items-center gap-2 md:flex">
             <div className="relative" ref={searchRef}>
-            <div className="flex items-center rounded-xl border border-slate-200 bg-slate-50 px-2 py-1.5 focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-400/20">
-              <Search className="h-4 w-4 text-slate-400" aria-hidden />
+            <div className="flex items-center rounded-xl border border-white/10 bg-white/5 px-2 py-1.5 focus-within:border-gold/50 focus-within:ring-2 focus-within:ring-gold/20">
+              <Search className="h-4 w-4 text-white/40" aria-hidden />
               <input
                 type="search"
                 value={searchQuery}
                 onChange={(e) => { setSearchQuery(e.target.value); setSearchOpen(true); }}
                 onFocus={() => searchQuery.length >= 2 && setSearchOpen(true)}
-                placeholder="Поиск по игрокам..."
-                className="w-36 border-0 bg-transparent py-0.5 pl-2 pr-1 text-sm text-slate-800 placeholder-slate-400 outline-none sm:w-44"
+                placeholder="Поиск игроков..."
+                className="w-36 border-0 bg-transparent py-0.5 pl-2 pr-1 text-sm text-white placeholder-white/35 outline-none sm:w-44"
                 aria-label="Поиск по игрокам"
                 aria-expanded={searchOpen}
                 aria-autocomplete="list"
@@ -219,7 +219,7 @@ export default function AppNav() {
             </div>
             {searchOpen && searchResults.length > 0 && (
               <ul
-                className="absolute right-0 top-full z-50 mt-1 max-h-64 w-56 overflow-auto rounded-xl border border-slate-200 bg-white py-1 shadow-lg"
+                className="absolute right-0 top-full z-50 mt-1 max-h-64 w-56 overflow-auto rounded-xl border border-white/10 bg-ink-800 py-1 shadow-card"
                 role="listbox"
               >
                 {searchResults.map((hit) => (
@@ -227,11 +227,11 @@ export default function AppNav() {
                     <Link
                       href={hit.username ? `/user/${encodeURIComponent(hit.username)}` : "/profile"}
                       onClick={() => { setSearchOpen(false); setSearchQuery(""); }}
-                      className="block px-3 py-2 text-sm text-slate-700 hover:bg-slate-100"
+                      className="block px-3 py-2 text-sm text-white/85 hover:bg-white/5"
                     >
                       <span className="font-medium">{hit.display_name || hit.username || "—"}</span>
                       {hit.username && (
-                        <span className="ml-1 text-slate-400">{hit.username}</span>
+                        <span className="ml-1 text-white/40">{hit.username}</span>
                       )}
                     </Link>
                   </li>
@@ -245,7 +245,7 @@ export default function AppNav() {
           <button
             type="button"
             onClick={() => setSearchOpen(true)}
-            className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 shadow-sm hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 md:hidden"
+            className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-white/80 hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold md:hidden"
             aria-label="Поиск по игрокам"
           >
             <Search className="h-4 w-4" />
@@ -256,7 +256,7 @@ export default function AppNav() {
             <button
               type="button"
               onClick={() => setNotifOpen((o) => !o)}
-              className="relative flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 shadow-sm hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+              className="relative flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-white/80 hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold"
               aria-label="Уведомления"
               aria-expanded={notifOpen}
             >
@@ -271,48 +271,48 @@ export default function AppNav() {
             </button>
 
             {notifOpen && (
-              <div className="absolute right-0 top-full z-50 mt-1 w-80 max-w-[calc(100vw-2rem)] rounded-xl border border-slate-200 bg-white shadow-lg">
-                <div className="px-3 py-2 text-sm font-semibold text-slate-900">Уведомления</div>
-                <div className="border-t border-slate-100" />
+              <div className="absolute right-0 top-full z-50 mt-1 w-80 max-w-[calc(100vw-2rem)] rounded-xl border border-white/10 bg-ink-800 shadow-card">
+                <div className="px-3 py-2 text-sm font-semibold text-white">Уведомления</div>
+                <div className="border-t border-white/10" />
                 {incomingChallenges.length === 0 && incomingFriendRequests.length === 0 ? (
-                  <div className="px-3 py-3 text-sm text-slate-500">Нет новых уведомлений.</div>
+                  <div className="px-3 py-3 text-sm text-white/50">Нет новых уведомлений.</div>
                 ) : (
                   <ul className="max-h-80 overflow-auto py-1">
                     {incomingFriendRequests.map((r) => (
-                      <li key={r.id} className="flex items-center justify-between gap-3 px-3 py-2 hover:bg-slate-50">
+                      <li key={r.id} className="flex items-center justify-between gap-3 px-3 py-2 hover:bg-white/5">
                         <div className="min-w-0">
-                          <div className="truncate text-sm text-slate-800">
+                          <div className="truncate text-sm text-white/90">
                             <span className="font-medium">
                               {r.from_user.display_name || r.from_user.username || "Игрок"}
                             </span>
                             {r.from_user.username && (
-                              <span className="ml-1 text-slate-400">{r.from_user.username}</span>
+                              <span className="ml-1 text-white/40">{r.from_user.username}</span>
                             )}
-                            <span className="ml-2 text-amber-600 font-semibold">
+                            <span className="ml-2 font-semibold text-gold">
                               ({r.from_user.rating})
                             </span>
                           </div>
-                          <div className="text-xs text-slate-500">
+                          <div className="text-xs text-white/45">
                             Заявка в друзья · откройте вкладку «Друзья» в профиле
                           </div>
                         </div>
                         <Link
                           href={r.from_user.username ? `/user/${encodeURIComponent(r.from_user.username)}` : "/profile"}
-                          className="shrink-0 rounded-lg bg-blue-600 px-2 py-1 text-xs font-medium text-white hover:bg-blue-700"
+                          className="shrink-0 rounded-lg bg-gold px-2 py-1 text-xs font-semibold text-ink-900 hover:bg-gold-bright"
                         >
                           Открыть
                         </Link>
                       </li>
                     ))}
                     {incomingChallenges.map((c) => (
-                      <li key={c.id} className="group flex items-center justify-between gap-3 px-3 py-2 hover:bg-slate-50">
+                      <li key={c.id} className="group flex items-center justify-between gap-3 px-3 py-2 hover:bg-white/5">
                         <div className="min-w-0">
-                          <div className="truncate text-sm text-slate-800">
+                          <div className="truncate text-sm text-white/90">
                             <span className="font-medium">{c.from_user.display_name}</span>
-                            {c.from_user.username && <span className="ml-1 text-slate-400">{c.from_user.username}</span>}
-                            <span className="ml-2 text-amber-600 font-semibold">({c.from_user.rating})</span>
+                            {c.from_user.username && <span className="ml-1 text-white/40">{c.from_user.username}</span>}
+                            <span className="ml-2 font-semibold text-gold">({c.from_user.rating})</span>
                           </div>
-                          <div className="text-xs text-slate-500">
+                          <div className="text-xs text-white/45">
                             Вызов на партию · {Math.floor(c.time_control_seconds / 60)} мин · цвет:{" "}
                             {c.creator_color === "random" ? "случайный" : c.creator_color === "white" ? "белые" : "чёрные"}
                           </div>
@@ -369,11 +369,11 @@ export default function AppNav() {
           <button
             type="button"
             onClick={() => setMenuOpen((o) => !o)}
-            className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-2 py-1.5 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+            className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-2 py-1.5 text-sm font-medium text-white/90 hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold"
             aria-expanded={menuOpen}
             aria-haspopup="true"
           >
-            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-100 text-blue-700">
+            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gold/20 font-semibold text-gold">
               {getInitials(profile, user.email ?? undefined)}
             </span>
             <span className="hidden max-w-[120px] truncate sm:block">
@@ -382,13 +382,13 @@ export default function AppNav() {
           </button>
           {menuOpen && (
             <div
-              className="absolute right-0 top-full z-50 mt-1 min-w-[180px] rounded-xl border border-slate-200 bg-white py-1 shadow-lg"
+              className="absolute right-0 top-full z-50 mt-1 min-w-[180px] rounded-xl border border-white/10 bg-ink-800 py-1 shadow-card"
               role="menu"
             >
               <Link
                 href="/profile"
                 onClick={() => setMenuOpen(false)}
-                className="flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-100"
+                className="flex items-center gap-2 px-3 py-2 text-sm text-white/85 hover:bg-white/5"
                 role="menuitem"
               >
                 <UserIcon className="h-4 w-4" />
@@ -397,7 +397,7 @@ export default function AppNav() {
               <button
                 type="button"
                 onClick={handleSignOut}
-                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-100"
+                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-white/85 hover:bg-white/5"
                 role="menuitem"
               >
                 <LogOut className="h-4 w-4" />
@@ -410,13 +410,13 @@ export default function AppNav() {
         <div className="flex items-center gap-2">
           <Link
             href="/login"
-            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50"
+            className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm font-medium text-white/90 hover:bg-white/10"
           >
             Войти
           </Link>
           <Link
             href="/register"
-            className="rounded-xl bg-blue-600 px-3 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700"
+            className="rounded-xl bg-gold px-3 py-2 text-sm font-semibold text-ink-900 shadow-glow hover:bg-gold-bright"
           >
             Регистрация
           </Link>
@@ -425,24 +425,24 @@ export default function AppNav() {
 
       {/* Полноэкранный поиск на мобильных */}
       {user && searchOpen && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center bg-slate-900/40 backdrop-blur-sm md:hidden">
-          <div className="mx-4 mt-16 w-full max-w-md rounded-2xl bg-white px-4 py-3 shadow-xl">
+        <div className="fixed inset-0 z-50 flex items-start justify-center bg-ink-950/70 backdrop-blur-sm md:hidden">
+          <div className="mx-4 mt-16 w-full max-w-md rounded-2xl border border-white/10 bg-ink-800 px-4 py-3 shadow-card">
             <div className="mb-3 flex items-center gap-2">
-              <div className="flex flex-1 items-center rounded-xl border border-slate-200 bg-slate-50 px-2 py-1.5">
-                <Search className="h-4 w-4 text-slate-400" aria-hidden />
+              <div className="flex flex-1 items-center rounded-xl border border-white/10 bg-white/5 px-2 py-1.5">
+                <Search className="h-4 w-4 text-white/40" aria-hidden />
                 <input
                   type="search"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Поиск по игрокам..."
-                  className="w-full border-0 bg-transparent py-0.5 pl-2 pr-1 text-sm text-slate-800 placeholder-slate-400 outline-none"
+                  placeholder="Поиск игроков..."
+                  className="w-full border-0 bg-transparent py-0.5 pl-2 pr-1 text-sm text-white placeholder-white/35 outline-none"
                   autoFocus
                 />
               </div>
               <button
                 type="button"
                 onClick={() => { setSearchOpen(false); setSearchQuery(""); }}
-                className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200"
+                className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white/70 hover:bg-white/15"
                 aria-label="Закрыть поиск"
               >
                 <X className="h-4 w-4" />
@@ -455,18 +455,18 @@ export default function AppNav() {
                     <Link
                       href={hit.username ? `/user/${encodeURIComponent(hit.username)}` : "/profile"}
                       onClick={() => { setSearchOpen(false); setSearchQuery(""); }}
-                      className="block px-2 py-2 text-sm text-slate-700 hover:bg-slate-100 rounded-lg"
+                      className="block rounded-lg px-2 py-2 text-sm text-white/85 hover:bg-white/5"
                     >
                       <span className="font-medium">{hit.display_name || hit.username || "—"}</span>
                       {hit.username && (
-                        <span className="ml-1 text-slate-400">{hit.username}</span>
+                        <span className="ml-1 text-white/40">{hit.username}</span>
                       )}
                     </Link>
                   </li>
                 ))}
               </ul>
             ) : (
-              <p className="py-4 text-center text-sm text-slate-500">
+              <p className="py-4 text-center text-sm text-white/45">
                 Начните вводить логин игрока.
               </p>
             )}

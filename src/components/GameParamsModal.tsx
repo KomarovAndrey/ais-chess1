@@ -87,16 +87,16 @@ export default function GameParamsModal(props: {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-ink-950/70 backdrop-blur-sm"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
       >
-      <div className="relative mx-4 w-full max-w-md overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
+      <div className="relative mx-4 w-full max-w-md overflow-hidden rounded-3xl border border-white/10 bg-ink-800 shadow-card">
         <button
           type="button"
           onClick={onClose}
-          className="absolute right-3 top-3 rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+          className="absolute right-3 top-3 rounded-lg p-1.5 text-white/40 transition hover:bg-white/10 hover:text-white"
           aria-label="Закрыть"
         >
           <X className="h-5 w-5" />
@@ -104,20 +104,20 @@ export default function GameParamsModal(props: {
 
         <div className="max-h-[85dvh] overflow-y-auto px-6 pt-6 pb-6 space-y-6">
           <div className="pb-2">
-            <h3 className="text-center text-xl font-semibold tracking-wide text-slate-900">
+            <h3 className="text-center font-display text-xl font-semibold tracking-wide text-white">
               {title}
             </h3>
           </div>
           {topContent}
           <div>
-            <p className="mb-3 text-center text-sm font-medium text-slate-600">
+            <p className="mb-3 text-center text-sm font-medium text-white/50">
               Время
             </p>
 
             <div className="space-y-3">
               {TIME_GROUPS.map((group) => (
                 <div key={group.title}>
-                  <div className="mb-2 text-center text-xs font-semibold text-slate-500">
+                  <div className="mb-2 text-center text-xs font-semibold uppercase tracking-wider text-white/35">
                     {group.title}
                   </div>
                   <div className="grid grid-cols-2 gap-2">
@@ -128,8 +128,8 @@ export default function GameParamsModal(props: {
                         onClick={() => setTimeControlSeconds(opt.seconds)}
                         className={`rounded-xl px-3 py-3 text-sm font-bold transition ${
                           timeControlSeconds === opt.seconds
-                            ? "border-2 border-blue-600 bg-blue-600 text-white shadow-md"
-                            : "border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100"
+                            ? "border border-gold bg-gold text-ink-900 shadow-glow"
+                            : "border border-white/10 bg-white/5 text-white/80 hover:bg-white/10"
                         }`}
                       >
                         {opt.label}
@@ -141,14 +141,14 @@ export default function GameParamsModal(props: {
             </div>
 
             {!allTimeOptions.some((o) => o.seconds === timeControlSeconds) && (
-              <p className="mt-2 text-center text-xs text-slate-500">
+              <p className="mt-2 text-center text-xs text-white/40">
                 Выбрано нестандартное время: {Math.floor(timeControlSeconds / 60)} мин
               </p>
             )}
           </div>
 
           <div>
-            <p className="mb-3 text-center text-sm font-medium text-slate-600">
+            <p className="mb-3 text-center text-sm font-medium text-white/50">
               Сторона
             </p>
             <div className="grid grid-cols-3 gap-2">
@@ -159,8 +159,8 @@ export default function GameParamsModal(props: {
                   onClick={() => setCreatorColor(opt.id)}
                   className={`flex flex-col items-center gap-1.5 rounded-xl border px-3 py-4 text-sm font-medium transition ${
                     creatorColor === opt.id
-                      ? "border-2 border-blue-600 bg-blue-600 text-white shadow-md"
-                      : "border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100"
+                      ? "border-gold bg-gold text-ink-900 shadow-glow"
+                      : "border-white/10 bg-white/5 text-white/80 hover:bg-white/10"
                   }`}
                 >
                   <span className="text-2xl leading-none">{opt.icon}</span>
@@ -174,13 +174,13 @@ export default function GameParamsModal(props: {
             type="button"
             disabled={isSubmitting || submitDisabled}
             onClick={() => onSubmit({ creatorColor, timeControlSeconds })}
-            className="flex w-full items-center justify-center gap-3 rounded-xl bg-orange-500 px-4 py-4 text-base font-semibold text-white shadow-md transition hover:bg-orange-600 disabled:opacity-60"
+            className="flex w-full items-center justify-center gap-3 rounded-2xl bg-gold px-4 py-4 text-base font-semibold text-ink-900 shadow-glow transition hover:bg-gold-bright disabled:opacity-60"
           >
             {isSubmitting ? submittingLabel : submitLabel}
           </button>
 
           {errorText && (
-            <p className="text-center text-sm text-red-600">{errorText}</p>
+            <p className="text-center text-sm text-red-400">{errorText}</p>
           )}
         </div>
       </div>

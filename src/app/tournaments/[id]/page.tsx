@@ -62,18 +62,18 @@ export default function TournamentDetailPage() {
 
   if (loading) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-gradient-to-b from-blue-50 via-white to-orange-50">
-        <p className="text-slate-600">Загрузка...</p>
+      <main className="page-bg flex min-h-screen items-center justify-center">
+        <p className="text-white/55">Загрузка...</p>
       </main>
     );
   }
 
   if (!tournament) {
     return (
-      <main className="min-h-screen bg-gradient-to-b from-blue-50 via-white to-orange-50 px-4 py-6">
+      <main className="page-bg min-h-screen px-4 py-6">
         <div className="mx-auto max-w-2xl">
-          <Link href="/tournaments" className="text-sm text-slate-600 hover:text-slate-900">← К турнирам</Link>
-          <p className="mt-4 text-slate-600">Турнир не найден.</p>
+          <Link href="/tournaments" className="text-sm text-white/55 hover:text-white">← К турнирам</Link>
+          <p className="mt-4 text-white/55">Турнир не найден.</p>
         </div>
       </main>
     );
@@ -82,16 +82,16 @@ export default function TournamentDetailPage() {
   const statusLabel = tournament.status === "open" ? "Запись открыта" : tournament.status === "started" ? "Идёт" : "Завершён";
 
   return (
-    <main className="min-h-screen bg-gradient-to-b from-blue-50 via-white to-orange-50 px-4 py-6">
+    <main className="page-bg min-h-screen px-4 py-6">
       <div className="mx-auto max-w-2xl">
-        <Link href="/tournaments" className="text-sm text-slate-600 hover:text-slate-900">← К турнирам</Link>
+        <Link href="/tournaments" className="text-sm text-white/55 hover:text-white">← К турнирам</Link>
         <div className="mt-4 flex items-start justify-between gap-4">
           <div>
-            <h1 className="flex items-center gap-2 text-2xl font-bold text-slate-900">
-              <Trophy className="h-7 w-7 text-amber-600" />
+            <h1 className="flex items-center gap-2 font-display text-2xl font-semibold text-white">
+              <Trophy className="h-7 w-7 text-gold" />
               {tournament.title}
             </h1>
-            <p className="mt-1 text-sm text-slate-500">
+            <p className="mt-1 text-sm text-white/45">
               {statusLabel} · {tournament.format === "swiss" ? "Швейцарская система" : "Круговая"}
               {tournament.max_players != null && ` · до ${tournament.max_players} уч.`}
             </p>
@@ -101,25 +101,25 @@ export default function TournamentDetailPage() {
               type="button"
               onClick={handleJoin}
               disabled={joining}
-              className="inline-flex items-center gap-2 rounded-xl bg-amber-500 px-4 py-2 text-sm font-medium text-white hover:bg-amber-600 disabled:opacity-50"
+              className="inline-flex items-center gap-2 rounded-xl bg-gold px-4 py-2 text-sm font-medium text-white hover:bg-gold-bright disabled:opacity-50"
             >
               <UserPlus className="h-4 w-4" />
               {joining ? "Записываем…" : "Записаться"}
             </button>
           )}
         </div>
-        {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
+        {error && <p className="mt-2 text-sm text-red-300">{error}</p>}
 
-        <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-          <h2 className="mb-3 text-sm font-semibold text-slate-900">Участники ({tournament.players.length})</h2>
+        <div className="mt-6 surface p-4">
+          <h2 className="mb-3 text-sm font-semibold text-white">Участники ({tournament.players.length})</h2>
           {tournament.players.length === 0 ? (
-            <p className="text-sm text-slate-500">Пока никого нет.</p>
+            <p className="text-sm text-white/45">Пока никого нет.</p>
           ) : (
             <ul className="space-y-2">
               {tournament.players.map((p, i) => (
                 <li key={p.user_id || i} className="flex items-center justify-between text-sm">
-                  <span className="text-slate-700">{p.display_name || p.username || "Участник"}</span>
-                  <span className="text-slate-400">{new Date(p.joined_at).toLocaleDateString("ru")}</span>
+                  <span className="text-white/70">{p.display_name || p.username || "Участник"}</span>
+                  <span className="text-white/40">{new Date(p.joined_at).toLocaleDateString("ru")}</span>
                 </li>
               ))}
             </ul>

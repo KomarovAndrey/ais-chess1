@@ -117,37 +117,37 @@ export default function ReversiPage() {
 
   if (mode === "choice") {
     return (
-      <main className="min-h-screen bg-gradient-to-b from-green-50 via-white to-emerald-50 px-4 py-6">
+      <main className="page-bg min-h-screen px-4 py-6">
         <div className="mx-auto max-w-lg">
           <div className="mb-6 flex items-center justify-between">
-            <Link href="/" className="text-sm font-medium text-slate-600 hover:text-slate-900">
+            <Link href="/" className="text-sm font-medium text-white/55 transition hover:text-white">
               ← На главную
             </Link>
-            <h1 className="text-xl font-bold text-slate-900">Reversi</h1>
+            <h1 className="font-display text-xl font-semibold text-white">Reversi</h1>
           </div>
 
-          <div className="mb-6 rounded-2xl border border-slate-200 bg-white/90 p-6 shadow-md">
-            <h2 className="mb-4 text-center text-lg font-semibold text-slate-900">Выберите режим</h2>
+          <div className="mb-6 surface p-6">
+            <h2 className="mb-4 text-center font-display text-lg font-semibold text-white">Выберите режим</h2>
             <div className="flex flex-col gap-3">
               <button
                 type="button"
                 onClick={handleCreateByLink}
                 disabled={creating}
-                className="flex items-center justify-center gap-3 rounded-xl border border-slate-600 bg-slate-700 px-4 py-3.5 text-sm font-medium text-slate-100 shadow-sm transition hover:bg-slate-600 disabled:opacity-70"
+                className="flex items-center justify-center gap-3 rounded-xl border border-white/10 bg-white/5 px-4 py-3.5 text-sm font-medium text-white transition hover:bg-white/10 disabled:opacity-70"
               >
-                <Link2 className="h-5 w-5 shrink-0 text-slate-300" />
+                <Link2 className="h-5 w-5 shrink-0 text-white/50" />
                 {creating ? "Создаём игру…" : "Игра по ссылке (онлайн)"}
               </button>
               <button
                 type="button"
                 onClick={() => setMode("vsCpu")}
-                className="flex items-center justify-center gap-3 rounded-xl border border-slate-600 bg-slate-700 px-4 py-3.5 text-sm font-medium text-slate-100 shadow-sm transition hover:bg-slate-600"
+                className="flex items-center justify-center gap-3 rounded-xl border border-white/10 bg-white/5 px-4 py-3.5 text-sm font-medium text-white transition hover:bg-white/10"
               >
-                <Cpu className="h-5 w-5 shrink-0 text-slate-300" />
+                <Cpu className="h-5 w-5 shrink-0 text-white/50" />
                 С компьютером
               </button>
             </div>
-            {createError && <p className="mt-3 text-center text-sm text-red-600">{createError}</p>}
+            {createError && <p className="mt-3 text-center text-sm text-red-300">{createError}</p>}
           </div>
 
         </div>
@@ -156,32 +156,32 @@ export default function ReversiPage() {
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-b from-green-50 via-white to-emerald-50 px-4 py-6">
+    <main className="page-bg min-h-screen px-4 py-6">
       <div className="mx-auto max-w-lg">
         <div className="mb-4 flex items-center justify-between">
           <button
             type="button"
             onClick={() => setMode("choice")}
-            className="text-sm font-medium text-slate-600 hover:text-slate-900"
+            className="text-sm font-medium text-white/55 transition hover:text-white"
           >
             ← Выбор режима
           </button>
-          <h1 className="text-xl font-bold text-slate-900">Reversi — с компьютером</h1>
+          <h1 className="font-display text-xl font-semibold text-white">Reversi — с компьютером</h1>
         </div>
 
-        <div className="mb-4 flex items-center justify-between rounded-2xl border border-slate-200 bg-white/90 px-4 py-3 shadow-sm">
+        <div className="mb-4 flex items-center justify-between surface px-4 py-3">
           <div className="flex gap-6">
-            <span className="text-sm font-semibold text-slate-800">
-              Чёрные: <span className="text-amber-600">{black}</span>
+            <span className="text-sm font-semibold text-white/85">
+              Чёрные: <span className="text-gold">{black}</span>
             </span>
-            <span className="text-sm font-semibold text-slate-800">
-              Белые: <span className="text-slate-400">{white}</span>
+            <span className="text-sm font-semibold text-white/85">
+              Белые: <span className="text-white/40">{white}</span>
             </span>
           </div>
           <button
             type="button"
             onClick={startNewGame}
-            className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-100"
+            className="rounded-xl border border-white/10 bg-white/5 px-3 py-1.5 text-sm font-medium text-white/70 hover:bg-white/10"
           >
             Новая игра
           </button>
@@ -189,8 +189,8 @@ export default function ReversiPage() {
 
         {winner && (
           <div className="mb-3 rounded-2xl border border-emerald-200 bg-emerald-50/80 px-4 py-3">
-            <h3 className="text-sm font-semibold text-slate-900">Итог партии</h3>
-            <p className="mt-1 text-sm text-slate-700">
+            <h3 className="text-sm font-semibold text-white">Итог партии</h3>
+            <p className="mt-1 text-sm text-white/70">
               {winner === "draw" ? "Ничья" : `Победили ${winner === "black" ? "чёрные" : "белые"}`}.
               Ниже — итоговая позиция для просмотра.
             </p>
@@ -245,7 +245,7 @@ export default function ReversiPage() {
           </div>
         </div>
 
-        <p className="mt-4 rounded-xl border border-slate-200 bg-white/90 px-4 py-3 text-center text-sm text-slate-700">
+        <p className="mt-4 rounded-xl border border-white/10 bg-white/90 px-4 py-3 text-center text-sm text-white/70">
           {statusText}
         </p>
 

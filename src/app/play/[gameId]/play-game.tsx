@@ -590,21 +590,21 @@ export default function PlayGame({ initialGame }: PlayGameProps) {
   }, [gameRow.status, moveList.length, replayStep]);
 
   return (
-    <main className="min-h-screen bg-gradient-to-b from-blue-50 via-white to-orange-50 px-4 py-6">
+    <main className="page-bg min-h-screen px-4 py-6">
       <div className="mx-auto flex max-w-5xl flex-col gap-6 md:flex-row">
-        <section className="flex-1 rounded-3xl border border-slate-200 bg-white/90 p-4 shadow-lg backdrop-blur">
+        <section className="flex-1 surface p-4">
           <div className="mb-3 flex items-center justify-between">
             <div>
-              <h1 className="text-lg font-bold text-slate-900 md:text-xl">
+              <h1 className="font-display text-lg font-semibold text-white md:text-xl">
                 Онлайн-партия
               </h1>
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-white/45">
                 Игра по ссылке без регистрации · {Math.floor(gameRow.time_control_seconds / 60)} мин на игрока
               </p>
             </div>
             <button
               type="button"
-              className="rounded-full bg-slate-900 px-3 py-1 text-xs font-semibold text-white shadow"
+              className="rounded-full border border-white/10 bg-white/10 px-3 py-1 text-xs font-semibold text-white"
               onClick={() => {
                 navigator.clipboard
                   .writeText(window.location.href)
@@ -616,30 +616,30 @@ export default function PlayGame({ initialGame }: PlayGameProps) {
           </div>
 
           {gameRow.status === "waiting" && (
-            <div className="mb-4 rounded-2xl border-2 border-amber-200 bg-amber-50 px-4 py-3 text-center">
-              <p className="text-sm font-semibold text-amber-900">
+            <div className="mb-4 rounded-2xl border border-gold/30 bg-gold/10 px-4 py-3 text-center">
+              <p className="text-sm font-semibold text-gold">
                 Ожидание соперника
               </p>
-              <p className="mt-1 text-xs text-amber-800">
+              <p className="mt-1 text-xs text-gold/80">
                 Отправьте ссылку другу. Доска и таймер ниже — партия начнётся, когда он перейдёт по ссылке.
               </p>
             </div>
           )}
 
-          <div className="mb-3 flex items-center justify-between text-xs font-medium text-slate-700">
+          <div className="mb-3 flex items-center justify-between text-xs font-medium text-white/70">
             <div className="flex flex-col">
               <span>Вы играете:</span>
               <span className="text-sm font-semibold">
                 {player?.side === "white" ? "Белыми" : "Чёрными"}
               </span>
             </div>
-            <div className="rounded-full bg-slate-100 px-3 py-1 text-[11px]">
+            <div className="rounded-full bg-white/5 px-3 py-1 text-[11px]">
               {statusText}
             </div>
           </div>
 
           <div className="space-y-3">
-            <div className="flex items-center justify-between rounded-2xl bg-slate-900 px-4 py-2 text-sm font-mono text-white">
+            <div className="flex items-center justify-between rounded-2xl border border-white/10 bg-ink-950/80 px-4 py-2 text-sm font-mono text-white">
               <span>
                 {topSide === "white" ? "Белые" : "Чёрные"}
                 {topInfo.username != null ? (
@@ -656,7 +656,7 @@ export default function PlayGame({ initialGame }: PlayGameProps) {
             <div
               role="img"
               aria-label="Шахматная доска. Текущая позиция."
-              className="mx-auto overflow-hidden border border-slate-200 bg-slate-100"
+              className="mx-auto overflow-hidden border border-white/10 bg-white/5"
               style={{
                 width: "min(100vw - 2rem, 70vh, 480px)",
                 height: "min(100vw - 2rem, 70vh, 480px)",
@@ -678,7 +678,7 @@ export default function PlayGame({ initialGame }: PlayGameProps) {
             {moveList.length > 0 && (
               <div className="mt-2 flex items-center gap-2">
                 <p
-                  className="text-sm text-slate-600"
+                  className="text-sm text-white/55"
                   aria-live="polite"
                   aria-atomic="true"
                 >
@@ -698,7 +698,7 @@ export default function PlayGame({ initialGame }: PlayGameProps) {
                     void sendDrawAction("offer");
                   }}
                   title="Предложить ничью"
-                  className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-300 bg-white text-slate-700 shadow-sm hover:bg-slate-50 disabled:opacity-50"
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/15 bg-white/5 text-white/80 hover:bg-white/10 disabled:opacity-50"
                 >
                   <span className="text-lg">🤝</span>
                 </button>
@@ -709,14 +709,14 @@ export default function PlayGame({ initialGame }: PlayGameProps) {
                     void handleResign();
                   }}
                   title="Сдаться"
-                  className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-300 bg-white text-slate-700 shadow-sm hover:bg-slate-50 disabled:opacity-50"
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/15 bg-white/5 text-white/80 hover:bg-white/10 disabled:opacity-50"
                 >
                   <span className="text-lg">🏳️</span>
                 </button>
               </div>
             )}
 
-            <div className="flex items-center justify-between rounded-2xl bg-slate-900 px-4 py-2 text-sm font-mono text-white">
+            <div className="flex items-center justify-between rounded-2xl border border-white/10 bg-ink-950/80 px-4 py-2 text-sm font-mono text-white">
               <span>
                 {bottomSide === "white" ? "Белые" : "Чёрные"}
                 {bottomInfo.username != null ? (
@@ -732,9 +732,9 @@ export default function PlayGame({ initialGame }: PlayGameProps) {
             </div>
 
           {gameRow.status === "finished" && (
-            <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50/80 p-4 shadow-sm">
-              <h3 className="mb-2 text-sm font-semibold text-slate-900">Итог партии</h3>
-              <p className="text-slate-700">
+            <div className="mt-4 rounded-2xl border border-emerald-500/25 bg-emerald-500/10 p-4">
+              <h3 className="mb-2 text-sm font-semibold text-white">Итог партии</h3>
+              <p className="text-white/70">
                 {gameRow.winner === "draw"
                   ? "Ничья."
                   : gameRow.winner === "white"
@@ -742,7 +742,7 @@ export default function PlayGame({ initialGame }: PlayGameProps) {
                     : "Победили чёрные."}
               </p>
               {gameRow.started_at && (
-                <p className="mt-1 text-xs text-slate-500">
+                <p className="mt-1 text-xs text-white/45">
                   Партия заняла {moveList.length} ходов.
                 </p>
               )}
@@ -758,14 +758,14 @@ export default function PlayGame({ initialGame }: PlayGameProps) {
           )}
 
           {gameRow.status === "finished" && moveList.length > 0 && (
-            <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-              <h3 className="mb-3 text-sm font-semibold text-slate-900">Просмотр партии</h3>
+            <div className="mt-4 surface p-4">
+              <h3 className="mb-3 text-sm font-semibold text-white">Просмотр партии</h3>
               <div className="flex flex-wrap items-center gap-2">
                 <button
                   type="button"
                   onClick={() => setReplayStep(0)}
                   disabled={replayStep === 0}
-                  className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100 disabled:opacity-40"
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 bg-white/5 text-white/55 hover:bg-white/10 disabled:opacity-40"
                   aria-label="В начало"
                 >
                   <SkipBack className="h-4 w-4" />
@@ -774,19 +774,19 @@ export default function PlayGame({ initialGame }: PlayGameProps) {
                   type="button"
                   onClick={() => setReplayStep((s) => Math.max(0, s - 1))}
                   disabled={replayStep === 0}
-                  className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100 disabled:opacity-40"
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 bg-white/5 text-white/55 hover:bg-white/10 disabled:opacity-40"
                   aria-label="Назад"
                 >
                   <ChevronLeft className="h-4 w-4" />
                 </button>
-                <span className="min-w-[4rem] text-center text-sm text-slate-600">
+                <span className="min-w-[4rem] text-center text-sm text-white/55">
                   {replayStep} / {moveList.length}
                 </span>
                 <button
                   type="button"
                   onClick={() => setReplayStep((s) => Math.min(moveList.length, s + 1))}
                   disabled={replayStep === moveList.length}
-                  className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100 disabled:opacity-40"
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 bg-white/5 text-white/55 hover:bg-white/10 disabled:opacity-40"
                   aria-label="Вперёд"
                 >
                   <ChevronRight className="h-4 w-4" />
@@ -795,7 +795,7 @@ export default function PlayGame({ initialGame }: PlayGameProps) {
                   type="button"
                   onClick={() => setReplayStep(moveList.length)}
                   disabled={replayStep === moveList.length}
-                  className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100 disabled:opacity-40"
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 bg-white/5 text-white/55 hover:bg-white/10 disabled:opacity-40"
                   aria-label="В конец"
                 >
                   <SkipForward className="h-4 w-4" />
@@ -820,7 +820,7 @@ export default function PlayGame({ initialGame }: PlayGameProps) {
                     a.click();
                     URL.revokeObjectURL(url);
                   }}
-                  className="ml-2 inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 hover:bg-slate-100"
+                  className="ml-2 inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white/70 hover:bg-white/10"
                 >
                   <Download className="h-4 w-4" />
                   Скачать PGN
@@ -830,7 +830,7 @@ export default function PlayGame({ initialGame }: PlayGameProps) {
           )}
 
           {error && (
-            <p className="mt-3 text-xs text-red-600">
+            <p className="mt-3 text-xs text-red-300">
               {error}
             </p>
           )}
@@ -838,15 +838,15 @@ export default function PlayGame({ initialGame }: PlayGameProps) {
 
         {drawOfferedToMe && gameRow.status === "active" && (
           <div className="fixed inset-x-0 bottom-24 z-30 flex justify-center px-4 pb-[env(safe-area-inset-bottom)] md:bottom-20">
-            <div className="max-w-xs rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm shadow-lg">
-              <p className="mb-2 text-slate-800">Соперник предлагает ничью.</p>
+            <div className="max-w-xs rounded-2xl border border-white/10 bg-ink-800 px-4 py-3 text-sm shadow-card">
+              <p className="mb-2 text-white/85">Соперник предлагает ничью.</p>
               <div className="flex justify-end gap-2">
                 <button
                   type="button"
                   onClick={async () => {
                     await sendDrawAction("decline");
                   }}
-                  className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-slate-300 text-slate-600 hover:bg-slate-100"
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-white/15 text-white/55 hover:bg-white/10"
                   aria-label="Отклонить ничью"
                 >
                   ✕
@@ -865,11 +865,11 @@ export default function PlayGame({ initialGame }: PlayGameProps) {
         )}
 
         <aside className="w-full max-w-md space-y-4 md:w-80">
-          <div className="rounded-3xl border border-slate-200 bg-white/90 p-4 shadow-md">
-            <h2 className="mb-2 text-sm font-semibold text-slate-900">
+          <div className="surface p-4">
+            <h2 className="mb-2 text-sm font-semibold text-white">
               Как играть
             </h2>
-            <ol className="list-decimal space-y-1 pl-5 text-xs text-slate-700">
+            <ol className="list-decimal space-y-1 pl-5 text-xs text-white/70">
               <li>Создатель партии копирует ссылку и отправляет другу.</li>
               <li>Второй игрок открывает ссылку на своём устройстве.</li>
               <li>Когда оба подключены, партия автоматически стартует.</li>

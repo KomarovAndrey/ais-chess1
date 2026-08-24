@@ -147,35 +147,44 @@ export default function HomePage() {
   }, [showFriendModal]);
 
   return (
-    <main className="min-h-screen bg-gradient-to-b from-blue-50 via-white to-orange-50">
-      <div className="mx-auto flex max-w-5xl flex-col gap-10 px-4 py-10 md:py-16">
-        <section className="grid gap-10 md:grid-cols-[1.4fr_1fr] md:items-center">
-          <div className="space-y-6">
-            <p className="inline-flex items-center rounded-full bg-blue-50 px-3 py-1 text-xs font-medium uppercase tracking-[0.2em] text-blue-700">
-              Шахматы внутри школы
+    <main className="page-bg relative min-h-screen overflow-hidden">
+      {/* Hero: one composition */}
+      <section className="relative min-h-[calc(100dvh-4.5rem)]">
+        <div
+          className="pointer-events-none absolute inset-0 opacity-[0.35]"
+          aria-hidden
+        >
+          <div
+            className="animate-board-pulse absolute inset-y-0 right-0 w-full max-w-3xl translate-x-[8%] md:w-[58%]"
+            style={{
+              background:
+                "repeating-conic-gradient(#c9a06a 0% 25%, #1a140c 0% 50%) 50% / min(12vw, 72px) min(12vw, 72px)",
+              maskImage:
+                "linear-gradient(90deg, transparent 0%, black 28%, black 100%)",
+              WebkitMaskImage:
+                "linear-gradient(90deg, transparent 0%, black 28%, black 100%)",
+            }}
+          />
+          <div className="absolute inset-0 bg-gradient-to-r from-ink-900 via-ink-900/85 to-ink-900/40" />
+        </div>
+
+        <div className="relative mx-auto flex min-h-[calc(100dvh-4.5rem)] max-w-6xl flex-col justify-center px-4 py-12 md:py-16">
+          <div className="max-w-xl space-y-6">
+            <p className="animate-fade-up font-display text-4xl font-semibold tracking-tight text-white sm:text-5xl md:text-6xl">
+              AIS Chess
             </p>
-            <h1 className="text-3xl font-extrabold leading-tight text-slate-900 sm:text-4xl md:text-5xl">
-              Тренируйся, играй и{" "}
-              <span className="text-orange-500">становись сильнее</span> в AIS
-              Chess.
+            <h1 className="animate-fade-up-delay font-display text-2xl font-semibold leading-tight text-white/95 sm:text-3xl md:text-4xl">
+              Играй онлайн. <span className="text-gold">Расти в рейтинге.</span>
             </h1>
-            <p className="max-w-xl text-base text-slate-600 md:text-lg">
-              Простой и удобный сайт для школьных турниров, тренировок и
-              дружеских партий. Ничего лишнего — только шахматная доска,
-              соперник и твой план.
+            <p className="animate-fade-up-delay-2 max-w-md text-base leading-relaxed text-white/55 md:text-lg">
+              Партии с друзьями, рейтинг Bullet / Blitz / Rapid, пазлы и турниры —
+              быстрый старт без лишнего шума.
             </p>
-          </div>
 
-          {/* Action panel */}
-          <div className="mt-6 flex min-w-0 max-w-2xl flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white/90 p-6 shadow-md md:p-8">
-            <h2 className="mb-6 w-full text-center text-lg font-semibold text-slate-900">
-              Онлайн-партия
-            </h2>
-
-            <div className="flex flex-col gap-3">
+            <div className="animate-fade-up-delay-2 flex flex-col gap-3 pt-2 sm:flex-row sm:items-center">
               <button
                 type="button"
-                className="flex w-full items-center justify-center gap-3 rounded-xl border border-slate-600 bg-slate-700 px-4 py-3.5 text-center text-sm font-medium text-slate-100 shadow-sm transition hover:bg-slate-600"
+                className="btn-primary gap-2 transition hover:scale-[1.02] active:scale-[0.98]"
                 onClick={() => {
                   if (userId) {
                     setChallengeError(null);
@@ -187,51 +196,51 @@ export default function HomePage() {
                   }
                 }}
               >
-                <UserPlus className="h-5 w-5 shrink-0 text-slate-300" />
+                <UserPlus className="h-5 w-5 shrink-0" />
                 Бросить вызов
               </button>
-
               <button
                 type="button"
-                className="flex w-full items-center justify-center gap-3 rounded-xl border border-slate-600 bg-slate-700 px-4 py-3.5 text-center text-sm font-medium text-slate-100 shadow-sm transition hover:bg-slate-600"
+                className="btn-secondary gap-2 transition hover:scale-[1.02] active:scale-[0.98]"
                 onClick={() => {
                   setError(null);
                   setShowCpuModal(true);
                 }}
               >
-                <Cpu className="h-5 w-5 shrink-0 text-slate-300" />
-                Сыграть с компьютером
+                <Cpu className="h-5 w-5 shrink-0 text-gold" />
+                С компьютером
               </button>
             </div>
           </div>
-        </section>
+        </div>
+      </section>
 
-        {/* Quick action blocks: Рейтинги, Игра с компьютером, Партия, Головоломки, Турниры */}
-        <section
-          className="grid gap-4"
-          style={{ gridTemplateColumns: "repeat(auto-fill, minmax(min(100%, 240px), 1fr))" }}
-        >
+      {/* Below fold: secondary destinations */}
+      <section className="relative border-t border-white/5">
+        <div className="mx-auto grid max-w-6xl gap-3 px-4 py-10 sm:grid-cols-2 lg:grid-cols-5">
           <Link
             href="/ratings"
-            className="flex min-h-[72px] items-center gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-orange-200 hover:shadow-md"
+            className="group flex min-h-[88px] items-center gap-4 rounded-2xl border border-white/10 bg-white/[0.04] p-4 transition hover:border-gold/40 hover:bg-white/[0.07]"
           >
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-amber-100 text-amber-700">
-              <Trophy className="h-6 w-6 shrink-0" />
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gold/15 text-gold">
+              <Trophy className="h-6 w-6" />
             </div>
-            <div className="min-w-0 flex-1">
-              <h3 className="whitespace-nowrap font-semibold text-slate-900">Рейтинги</h3>
+            <div>
+              <h2 className="font-semibold text-white">Рейтинги</h2>
+              <p className="text-xs text-white/40">Топ игроков</p>
             </div>
           </Link>
           <button
             type="button"
             onClick={() => setShowCpuModal(true)}
-            className="flex min-h-[72px] items-center gap-4 rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm transition hover:border-orange-200 hover:shadow-md"
+            className="group flex min-h-[88px] items-center gap-4 rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-left transition hover:border-gold/40 hover:bg-white/[0.07]"
           >
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-blue-100 text-blue-700">
-              <Cpu className="h-6 w-6 shrink-0" />
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-blue-500/15 text-blue-300">
+              <Cpu className="h-6 w-6" />
             </div>
-            <div className="min-w-0 flex-1">
-              <h3 className="whitespace-nowrap font-semibold text-slate-900">С компьютером</h3>
+            <div>
+              <h2 className="font-semibold text-white">С компьютером</h2>
+              <p className="text-xs text-white/40">5 уровней</p>
             </div>
           </button>
           <button
@@ -246,39 +255,42 @@ export default function HomePage() {
                 setShowModal(true);
               }
             }}
-            className="flex min-h-[72px] items-center gap-4 rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm transition hover:border-orange-200 hover:shadow-md"
+            className="group flex min-h-[88px] items-center gap-4 rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-left transition hover:border-gold/40 hover:bg-white/[0.07]"
           >
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-emerald-100 text-emerald-700">
-              <UserPlus className="h-6 w-6 shrink-0" />
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-300">
+              <UserPlus className="h-6 w-6" />
             </div>
-            <div className="min-w-0 flex-1">
-              <h3 className="whitespace-nowrap font-semibold text-slate-900">Партия с другом</h3>
+            <div>
+              <h2 className="font-semibold text-white">С другом</h2>
+              <p className="text-xs text-white/40">Вызов или ссылка</p>
             </div>
           </button>
           <Link
             href="/puzzles"
-            className="flex min-h-[72px] items-center gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-orange-200 hover:shadow-md"
+            className="group flex min-h-[88px] items-center gap-4 rounded-2xl border border-white/10 bg-white/[0.04] p-4 transition hover:border-gold/40 hover:bg-white/[0.07]"
           >
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-violet-100 text-violet-700">
-              <Puzzle className="h-6 w-6 shrink-0" />
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-violet-500/15 text-violet-300">
+              <Puzzle className="h-6 w-6" />
             </div>
-            <div className="min-w-0 flex-1">
-              <h3 className="whitespace-nowrap font-semibold text-slate-900">Головоломки</h3>
+            <div>
+              <h2 className="font-semibold text-white">Головоломки</h2>
+              <p className="text-xs text-white/40">Тактика</p>
             </div>
           </Link>
           <Link
             href="/tournaments"
-            className="flex min-h-[72px] items-center gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-orange-200 hover:shadow-md"
+            className="group flex min-h-[88px] items-center gap-4 rounded-2xl border border-white/10 bg-white/[0.04] p-4 transition hover:border-gold/40 hover:bg-white/[0.07]"
           >
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-amber-100 text-amber-700">
-              <Swords className="h-6 w-6 shrink-0" />
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-rose-500/15 text-rose-300">
+              <Swords className="h-6 w-6" />
             </div>
-            <div className="min-w-0 flex-1">
-              <h3 className="whitespace-nowrap font-semibold text-slate-900">Турниры</h3>
+            <div>
+              <h2 className="font-semibold text-white">Турниры</h2>
+              <p className="text-xs text-white/40">Соревнования</p>
             </div>
           </Link>
-        </section>
-      </div>
+        </div>
+      </section>
 
       {/* Modal — Бросить вызов (создание игры по ссылке) */}
       <GameParamsModal
@@ -312,16 +324,16 @@ export default function HomePage() {
         onClose={() => setShowFriendModal(false)}
         topContent={
           <div className="space-y-2">
-            <p className="text-center text-sm font-medium text-slate-600">Кого вызвать</p>
+            <p className="text-center text-sm font-medium text-white/50">Кого вызвать</p>
             {friendsLoading ? (
-              <p className="text-center text-sm text-slate-500">Загрузка друзей…</p>
+              <p className="text-center text-sm text-white/40">Загрузка друзей…</p>
             ) : friends.length === 0 ? (
-              <p className="text-center text-sm text-slate-500">У вас пока нет добавленных друзей.</p>
+              <p className="text-center text-sm text-white/40">У вас пока нет добавленных друзей.</p>
             ) : (
               <select
                 value={selectedFriendId}
                 onChange={(e) => setSelectedFriendId(e.target.value)}
-                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+                className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-gold/50 focus:ring-2 focus:ring-gold/20"
               >
                 {friends.map((f) => (
                   <option key={f.id} value={f.id}>
@@ -330,7 +342,7 @@ export default function HomePage() {
                 ))}
               </select>
             )}
-            {challengeOk && <p className="text-center text-sm text-green-700">{challengeOk}</p>}
+            {challengeOk && <p className="text-center text-sm text-emerald-400">{challengeOk}</p>}
           </div>
         }
         onSubmit={async ({ creatorColor, timeControlSeconds }) => {
@@ -372,27 +384,27 @@ export default function HomePage() {
       {/* Modal — Сыграть с компьютером */}
       {showCpuModal && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-ink-950/70 backdrop-blur-sm"
           onClick={(e) => {
             if (e.target === e.currentTarget) setShowCpuModal(false);
           }}
         >
-          <div className="relative mx-4 w-full max-w-md overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
+          <div className="relative mx-4 w-full max-w-md overflow-hidden rounded-3xl border border-white/10 bg-ink-800 shadow-card">
             <button
               type="button"
               onClick={() => setShowCpuModal(false)}
-              className="absolute right-3 top-3 rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+              className="absolute right-3 top-3 rounded-lg p-1.5 text-white/40 transition hover:bg-white/10 hover:text-white"
             >
               <X className="h-5 w-5" />
             </button>
             <div className="max-h-[85dvh] overflow-y-auto px-6 pt-6 pb-6 space-y-6">
               <div className="pb-2">
-                <h3 className="text-center text-xl font-semibold tracking-wide text-slate-900">
+                <h3 className="text-center font-display text-xl font-semibold tracking-wide text-white">
                   Игра с компьютером
                 </h3>
               </div>
               <div>
-                <p className="mb-3 text-center text-sm font-medium text-slate-600">
+                <p className="mb-3 text-center text-sm font-medium text-white/50">
                   Минут на партию
                 </p>
                 <div className="grid grid-cols-3 gap-2">
@@ -403,8 +415,8 @@ export default function HomePage() {
                       onClick={() => setTimeControl(opt.seconds)}
                       className={`rounded-xl px-3 py-3 text-sm font-bold transition ${
                         timeControl === opt.seconds
-                          ? "border-2 border-blue-600 bg-blue-600 text-white shadow-md"
-                          : "border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100"
+                          ? "border border-gold bg-gold text-ink-900 shadow-glow"
+                          : "border border-white/10 bg-white/5 text-white/80 hover:bg-white/10"
                       }`}
                     >
                       {opt.label}
@@ -413,7 +425,7 @@ export default function HomePage() {
                 </div>
               </div>
               <div>
-                <p className="mb-3 text-center text-sm font-medium text-slate-600">
+                <p className="mb-3 text-center text-sm font-medium text-white/50">
                   Сторона
                 </p>
                 <div className="grid grid-cols-3 gap-2">
@@ -424,8 +436,8 @@ export default function HomePage() {
                       onClick={() => setCpuColorChoice(opt.id)}
                       className={`flex flex-col items-center gap-1.5 rounded-xl border px-3 py-4 text-sm font-medium transition ${
                         cpuColorChoice === opt.id
-                          ? "border-2 border-blue-600 bg-blue-600 text-white shadow-md"
-                          : "border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100"
+                          ? "border-gold bg-gold text-ink-900 shadow-glow"
+                          : "border-white/10 bg-white/5 text-white/80 hover:bg-white/10"
                       }`}
                     >
                       <span className="text-2xl leading-none">{opt.icon}</span>
@@ -435,7 +447,7 @@ export default function HomePage() {
                 </div>
               </div>
               <div>
-                <p className="mb-3 text-center text-sm font-medium text-slate-600">
+                <p className="mb-3 text-center text-sm font-medium text-white/50">
                   Уровень сложности
                 </p>
                 <div className="grid grid-cols-5 gap-2">
@@ -446,8 +458,8 @@ export default function HomePage() {
                       onClick={() => setCpuLevel(level)}
                       className={`flex flex-col rounded-xl border px-2 py-3 text-sm font-bold transition ${
                         cpuLevel === level
-                          ? "border-2 border-blue-600 bg-blue-600 text-white shadow-md"
-                          : "border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100"
+                          ? "border-gold bg-gold text-ink-900 shadow-glow"
+                          : "border-white/10 bg-white/5 text-white/80 hover:bg-white/10"
                       }`}
                       title={CPU_PERSONAS[level].name + " — " + CPU_PERSONAS[level].style}
                     >
@@ -458,7 +470,7 @@ export default function HomePage() {
                     </button>
                   ))}
                 </div>
-                <p className="mt-2 text-center text-xs text-slate-500">
+                <p className="mt-2 text-center text-xs text-white/40">
                   {CPU_LEVEL_DESCRIPTIONS[cpuLevel]}
                 </p>
               </div>
@@ -470,7 +482,7 @@ export default function HomePage() {
                     : cpuColorChoice;
                   router.push(`/chess?color=${color}&level=${cpuLevel}&time=${timeControl}`);
                 }}
-                className="flex w-full items-center justify-center gap-3 rounded-xl bg-orange-500 px-4 py-4 text-base font-semibold text-white shadow-md transition hover:bg-orange-600"
+                className="flex w-full items-center justify-center gap-3 rounded-2xl bg-gold px-4 py-4 text-base font-semibold text-ink-900 shadow-glow transition hover:bg-gold-bright"
               >
                 <Cpu className="h-5 w-5 shrink-0" />
                 Сыграть с компьютером

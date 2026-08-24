@@ -252,20 +252,20 @@ function ChessPageContent() {
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-b from-blue-50 via-white to-orange-50 px-4 py-6">
+    <main className="page-bg min-h-screen px-4 py-6">
       <div className="mx-auto flex max-w-5xl flex-col gap-6 md:flex-row">
-        <section className="flex-1 rounded-3xl border border-slate-200 bg-white/90 p-4 shadow-lg backdrop-blur">
+        <section className="flex-1 surface p-4">
           <div className="mb-3 flex items-center justify-between">
-            <h1 className="text-lg font-bold text-slate-900 md:text-xl">
+            <h1 className="font-display text-lg font-semibold text-white md:text-xl">
               Игра с компьютером
             </h1>
-            <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700">
+            <span className="rounded-full bg-gold/15 px-3 py-1 text-xs font-medium text-gold">
               AIS Chess
             </span>
           </div>
 
           {initialTimeMs > 0 && (
-            <div className="mb-3 flex items-center justify-between rounded-2xl bg-slate-900 px-4 py-2 text-sm font-mono text-white">
+            <div className="mb-3 flex items-center justify-between rounded-2xl border border-white/10 bg-ink-950/80 px-4 py-2 text-sm font-mono text-white">
               <span>Чёрные</span>
               <span className="text-lg">{formatMs(blackTimeMs)}</span>
             </div>
@@ -274,7 +274,7 @@ function ChessPageContent() {
           <div
             role="img"
             aria-label="Шахматная доска. Игра с компьютером. Текущая позиция."
-            className="mx-auto overflow-hidden border border-slate-200 bg-slate-100"
+            className="mx-auto overflow-hidden border border-white/10 bg-white/5"
             style={{
               width: "min(100vw - 2rem, 70vh, 480px)",
               height: "min(100vw - 2rem, 70vh, 480px)",
@@ -296,7 +296,7 @@ function ChessPageContent() {
           {history.length > 0 && (
             <div className="mt-2 flex items-center gap-2">
               <p
-                className="text-sm text-slate-600"
+                className="text-sm text-white/55"
                 aria-live="polite"
                 aria-atomic="true"
               >
@@ -308,22 +308,22 @@ function ChessPageContent() {
           )}
 
           {initialTimeMs > 0 && (
-            <div className="mt-3 flex items-center justify-between rounded-2xl bg-slate-900 px-4 py-2 text-sm font-mono text-white">
+            <div className="mt-3 flex items-center justify-between rounded-2xl border border-white/10 bg-ink-950/80 px-4 py-2 text-sm font-mono text-white">
               <span>Белые</span>
               <span className="text-lg">{formatMs(whiteTimeMs)}</span>
             </div>
           )}
 
-          <div className="mt-4 rounded-2xl bg-slate-50 px-4 py-3 text-sm text-slate-700">
+          <div className="mt-4 rounded-2xl bg-white/5 px-4 py-3 text-sm text-white/70">
             {status}
           </div>
 
           {gameOver && (
-            <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50/80 p-4 shadow-sm">
-              <h3 className="mb-2 text-sm font-semibold text-slate-900">Итог партии</h3>
-              <p className="text-slate-700">{status}</p>
+            <div className="mt-4 rounded-2xl border border-emerald-500/25 bg-emerald-500/10 p-4">
+              <h3 className="mb-2 text-sm font-semibold text-white">Итог партии</h3>
+              <p className="text-white/70">{status}</p>
               {history.length > 0 && (
-                <p className="mt-1 text-xs text-slate-500">Партия заняла {history.length} ходов.</p>
+                <p className="mt-1 text-xs text-white/45">Партия заняла {history.length} ходов.</p>
               )}
               <button
                 type="button"
@@ -336,14 +336,14 @@ function ChessPageContent() {
           )}
 
           {gameOver && history.length > 0 && (
-            <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-              <h3 className="mb-3 text-sm font-semibold text-slate-900">Просмотр партии</h3>
+            <div className="mt-4 surface p-4">
+              <h3 className="mb-3 text-sm font-semibold text-white">Просмотр партии</h3>
               <div className="flex flex-wrap items-center gap-2">
                 <button
                   type="button"
                   onClick={() => setReplayStep(0)}
                   disabled={replayStep === 0}
-                  className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100 disabled:opacity-40"
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 bg-white/5 text-white/55 hover:bg-white/10 disabled:opacity-40"
                   aria-label="В начало"
                 >
                   <SkipBack className="h-4 w-4" />
@@ -352,19 +352,19 @@ function ChessPageContent() {
                   type="button"
                   onClick={() => setReplayStep((s) => Math.max(0, s - 1))}
                   disabled={replayStep === 0}
-                  className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100 disabled:opacity-40"
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 bg-white/5 text-white/55 hover:bg-white/10 disabled:opacity-40"
                   aria-label="Назад"
                 >
                   <ChevronLeft className="h-4 w-4" />
                 </button>
-                <span className="min-w-[4rem] text-center text-sm text-slate-600">
+                <span className="min-w-[4rem] text-center text-sm text-white/55">
                   {replayStep} / {history.length}
                 </span>
                 <button
                   type="button"
                   onClick={() => setReplayStep((s) => Math.min(history.length, s + 1))}
                   disabled={replayStep === history.length}
-                  className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100 disabled:opacity-40"
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 bg-white/5 text-white/55 hover:bg-white/10 disabled:opacity-40"
                   aria-label="Вперёд"
                 >
                   <ChevronRight className="h-4 w-4" />
@@ -373,7 +373,7 @@ function ChessPageContent() {
                   type="button"
                   onClick={() => setReplayStep(history.length)}
                   disabled={replayStep === history.length}
-                  className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100 disabled:opacity-40"
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 bg-white/5 text-white/55 hover:bg-white/10 disabled:opacity-40"
                   aria-label="В конец"
                 >
                   <SkipForward className="h-4 w-4" />
@@ -404,7 +404,7 @@ function ChessPageContent() {
                     a.click();
                     URL.revokeObjectURL(url);
                   }}
-                  className="ml-2 inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 hover:bg-slate-100"
+                  className="ml-2 inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white/70 hover:bg-white/10"
                 >
                   <Download className="h-4 w-4" />
                   Скачать PGN
@@ -416,7 +416,7 @@ function ChessPageContent() {
         </section>
 
         <aside className="w-full max-w-md space-y-4 md:w-80">
-          <div className="rounded-3xl border border-slate-200 bg-white/90 p-4 shadow-md">
+          <div className="surface p-4">
             <Button
               variant="outline"
               size="sm"
@@ -426,38 +426,38 @@ function ChessPageContent() {
               Новая партия
             </Button>
           </div>
-          <div className="rounded-3xl border border-slate-200 bg-white/90 p-4 shadow-md">
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+          <div className="surface p-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-white/45">
               Уровень {difficulty}: {CPU_PERSONAS[difficulty].name}
             </p>
-            <p className="mt-1 text-sm text-slate-600">{CPU_LEVEL_DESCRIPTIONS[difficulty]}</p>
+            <p className="mt-1 text-sm text-white/55">{CPU_LEVEL_DESCRIPTIONS[difficulty]}</p>
           </div>
         </aside>
       </div>
 
       {showNewGameModal && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-ink-950/70 backdrop-blur-sm"
           onClick={(e) => {
             if (e.target === e.currentTarget) setShowNewGameModal(false);
           }}
         >
-          <div className="relative mx-4 w-full max-w-md overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
+          <div className="relative mx-4 w-full max-w-md overflow-hidden rounded-3xl border border-white/10 bg-ink-800 shadow-card">
             <button
               type="button"
               onClick={() => setShowNewGameModal(false)}
-              className="absolute right-3 top-3 rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+              className="absolute right-3 top-3 rounded-lg p-1.5 text-white/40 transition hover:bg-white/10 hover:text-white"
             >
               <X className="h-5 w-5" />
             </button>
             <div className="px-6 pt-6 pb-2">
-              <h3 className="text-center text-xl font-semibold tracking-wide text-slate-900">
+              <h3 className="text-center text-xl font-semibold tracking-wide text-white">
                 Новая партия
               </h3>
             </div>
             <div className="px-6 pb-6 pt-2 space-y-6">
               <div>
-                <p className="mb-3 text-center text-sm font-medium text-slate-600">
+                <p className="mb-3 text-center text-sm font-medium text-white/55">
                   Минут на партию
                 </p>
                 <div className="grid grid-cols-4 gap-2">
@@ -468,8 +468,8 @@ function ChessPageContent() {
                       onClick={() => setModalTime(opt.seconds)}
                       className={`rounded-xl border px-3 py-3 text-sm font-bold transition ${
                         modalTime === opt.seconds
-                          ? "border-2 border-blue-600 bg-blue-600 text-white shadow-md"
-                          : "border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100"
+                          ? "border border-gold bg-gold text-ink-900 shadow-glow"
+                          : "border border-white/10 bg-white/5 text-white/70 hover:bg-white/10"
                       }`}
                     >
                       {opt.label}
@@ -478,7 +478,7 @@ function ChessPageContent() {
                 </div>
               </div>
               <div>
-                <p className="mb-3 text-center text-sm font-medium text-slate-600">
+                <p className="mb-3 text-center text-sm font-medium text-white/55">
                   Сторона
                 </p>
                 <div className="grid grid-cols-3 gap-2">
@@ -489,8 +489,8 @@ function ChessPageContent() {
                       onClick={() => setModalColor(opt.id)}
                       className={`flex flex-col items-center gap-1.5 rounded-xl border px-3 py-4 text-sm font-medium transition ${
                         modalColor === opt.id
-                          ? "border-2 border-blue-600 bg-blue-600 text-white shadow-md"
-                          : "border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100"
+                          ? "border border-gold bg-gold text-ink-900 shadow-glow"
+                          : "border border-white/10 bg-white/5 text-white/70 hover:bg-white/10"
                       }`}
                     >
                       <span className="text-2xl leading-none">{opt.icon}</span>
@@ -500,7 +500,7 @@ function ChessPageContent() {
                 </div>
               </div>
               <div>
-                <p className="mb-3 text-center text-sm font-medium text-slate-600">
+                <p className="mb-3 text-center text-sm font-medium text-white/55">
                   Уровень сложности
                 </p>
                 <div className="grid grid-cols-5 gap-2">
@@ -511,8 +511,8 @@ function ChessPageContent() {
                       onClick={() => setModalLevel(level)}
                       className={`flex flex-col rounded-xl border px-2 py-3 text-sm font-bold transition ${
                         modalLevel === level
-                          ? "border-2 border-blue-600 bg-blue-600 text-white shadow-md"
-                          : "border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100"
+                          ? "border border-gold bg-gold text-ink-900 shadow-glow"
+                          : "border border-white/10 bg-white/5 text-white/70 hover:bg-white/10"
                       }`}
                       title={CPU_PERSONAS[level].name + " — " + CPU_PERSONAS[level].style}
                     >
@@ -523,7 +523,7 @@ function ChessPageContent() {
                     </button>
                   ))}
                 </div>
-                <p className="mt-2 text-center text-xs text-slate-500">
+                <p className="mt-2 text-center text-xs text-white/45">
                   {CPU_LEVEL_DESCRIPTIONS[modalLevel]}
                 </p>
               </div>
@@ -546,8 +546,8 @@ function ChessPageContent() {
 export default function ChessPage() {
   return (
     <Suspense fallback={
-      <main className="flex min-h-screen items-center justify-center bg-gradient-to-b from-blue-50 via-white to-orange-50">
-        <p className="text-slate-600">Загрузка...</p>
+      <main className="page-bg flex min-h-screen items-center justify-center">
+        <p className="text-white/55">Загрузка...</p>
       </main>
     }>
       <ChessPageContent />

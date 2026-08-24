@@ -218,7 +218,7 @@ export default function ReversiPlayClient({
   if (joining || !playerId) {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <p className="text-slate-600">Подключение…</p>
+        <p className="text-white/55">Подключение…</p>
       </div>
     );
   }
@@ -226,8 +226,8 @@ export default function ReversiPlayClient({
   if (error && !game) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-4 px-4">
-        <p className="text-red-600">{error}</p>
-        <Link href="/reversi" className="text-sm text-slate-600 underline hover:text-slate-900">
+        <p className="text-red-300">{error}</p>
+        <Link href="/reversi" className="text-sm text-white/55 underline hover:text-white">
           Назад к Reversi
         </Link>
       </div>
@@ -243,7 +243,7 @@ export default function ReversiPlayClient({
   return (
     <div className="mx-auto max-w-lg px-4 py-6">
       <div className="mb-4 flex items-center justify-between">
-        <Link href="/reversi" className="text-sm font-medium text-slate-600 hover:text-slate-900">
+        <Link href="/reversi" className="text-sm font-medium text-white/55 transition hover:text-white">
           ← Reversi
         </Link>
         <button
@@ -251,31 +251,31 @@ export default function ReversiPlayClient({
           onClick={() => {
             navigator.clipboard.writeText(typeof window !== "undefined" ? window.location.href : "").catch(() => {});
           }}
-          className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+          className="rounded-xl border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-medium text-white/70 hover:bg-white/10"
         >
           Копировать ссылку
         </button>
       </div>
 
       {game?.status === "waiting" && (
-        <div className="mb-4 rounded-2xl border-2 border-amber-200 bg-amber-50 px-4 py-3 text-center">
+        <div className="mb-4 rounded-2xl border border-gold/30 bg-gold/10 px-4 py-3 text-center">
           <p className="font-semibold text-amber-900">Ожидаем соперника</p>
           <p className="mt-1 text-sm text-amber-800">Отправьте ссылку на эту страницу второму игроку.</p>
         </div>
       )}
 
-      <div className="mb-4 flex items-center justify-between rounded-2xl border border-slate-200 bg-white/90 px-4 py-3 shadow-sm">
+      <div className="mb-4 flex items-center justify-between surface px-4 py-3">
         <div className="flex gap-6">
-          <span className="text-sm font-semibold text-slate-800">
-            Чёрные: <span className="text-amber-600">{black}</span>
-            {mySide === "black" && <span className="ml-1 text-xs text-slate-500">(вы)</span>}
+          <span className="text-sm font-semibold text-white/85">
+            Чёрные: <span className="text-gold">{black}</span>
+            {mySide === "black" && <span className="ml-1 text-xs text-white/45">(вы)</span>}
           </span>
-          <span className="text-sm font-semibold text-slate-800">
-            Белые: <span className="text-slate-400">{white}</span>
-            {mySide === "white" && <span className="ml-1 text-xs text-slate-500">(вы)</span>}
+          <span className="text-sm font-semibold text-white/85">
+            Белые: <span className="text-white/40">{white}</span>
+            {mySide === "white" && <span className="ml-1 text-xs text-white/45">(вы)</span>}
           </span>
         </div>
-        <p className="text-xs text-slate-500">
+        <p className="text-xs text-white/45">
           {game?.status === "finished"
             ? game.winner === "draw"
               ? "Ничья"
@@ -288,8 +288,8 @@ export default function ReversiPlayClient({
 
       {game?.status === "finished" && (
         <div className="mb-3 rounded-2xl border border-emerald-200 bg-emerald-50/80 px-4 py-3">
-          <h3 className="text-sm font-semibold text-slate-900">Итог партии</h3>
-          <p className="mt-1 text-sm text-slate-700">
+          <h3 className="text-sm font-semibold text-white">Итог партии</h3>
+          <p className="mt-1 text-sm text-white/70">
             {game.winner === "draw"
               ? "Ничья"
               : `Победили ${game.winner === "black" ? "чёрные" : "белые"}`}
@@ -346,7 +346,7 @@ export default function ReversiPlayClient({
         </div>
       </div>
 
-      {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
+      {error && <p className="mt-2 text-sm text-red-300">{error}</p>}
 
       {game?.status === "finished" && (
         <div className="mt-4 space-y-3">
@@ -356,18 +356,18 @@ export default function ReversiPlayClient({
                 type="button"
                 onClick={() => setReplayStep((s) => Math.max(0, s - 1))}
                 disabled={effectiveReplayStep <= 0}
-                className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-40"
+                className="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-sm font-medium text-white/70 hover:bg-white/10 disabled:opacity-40"
               >
                 ← Назад
               </button>
-              <span className="text-sm text-slate-600">
+              <span className="text-sm text-white/55">
                 Ход {effectiveReplayStep + 1} из {replayBoards.length}
               </span>
               <button
                 type="button"
                 onClick={() => setReplayStep((s) => Math.min(replayBoards.length - 1, s + 1))}
                 disabled={effectiveReplayStep >= replayBoards.length - 1}
-                className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-40"
+                className="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-sm font-medium text-white/70 hover:bg-white/10 disabled:opacity-40"
               >
                 Вперёд →
               </button>

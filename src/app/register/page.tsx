@@ -116,16 +116,16 @@ export default function RegisterPage() {
 
   if (success) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-gradient-to-br from-blue-50 via-white to-orange-50 px-4">
-        <div className="w-full max-w-md rounded-3xl border border-slate-200 bg-white/90 p-8 shadow-lg backdrop-blur text-center">
-          <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-full bg-green-100 text-green-600">
+      <main className="page-bg flex min-h-screen items-center justify-center px-4">
+        <div className="w-full max-w-md surface p-8 text-center">
+          <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-300">
             <UserPlus className="h-6 w-6" />
           </div>
-          <h1 className="mb-2 text-xl font-bold text-slate-900">Регистрация отправлена</h1>
-          <p className="mb-6 text-sm text-slate-600">
-            На адрес <strong className="text-slate-800">{email}</strong> отправлено письмо с подтверждением. Перейдите по ссылке в письме, чтобы активировать аккаунт.
+          <h1 className="mb-2 font-display text-xl font-semibold text-white">Регистрация отправлена</h1>
+          <p className="mb-6 text-sm text-white/55">
+            На адрес <strong className="text-white/85">{email}</strong> отправлено письмо с подтверждением. Перейдите по ссылке в письме, чтобы активировать аккаунт.
           </p>
-          <Link href="/login" className="text-sm font-semibold text-blue-700 underline-offset-4 hover:underline">
+          <Link href="/login" className="text-sm font-semibold text-gold hover:text-gold-bright">
             Перейти к входу
           </Link>
         </div>
@@ -134,20 +134,20 @@ export default function RegisterPage() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-gradient-to-br from-blue-50 via-white to-orange-50 px-4 py-8">
-      <div className="w-full max-w-md rounded-3xl border border-slate-200 bg-white/90 p-8 shadow-lg backdrop-blur">
+    <main className="page-bg flex min-h-screen items-center justify-center px-4 py-8">
+      <div className="w-full max-w-md surface p-8">
         <div className="mb-6 text-center">
-          <h1 className="mb-1 text-2xl font-bold text-slate-900">
+          <h1 className="mb-1 font-display text-2xl font-semibold text-white">
             Регистрация в AIS Chess
           </h1>
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-white/45">
             Заполните все поля. Пароль хранится в зашифрованном виде.
           </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4" noValidate>
           <div className="space-y-1.5">
-            <label htmlFor="login" className="text-sm font-medium text-slate-700">
+            <label htmlFor="login" className="text-sm font-medium text-white/70">
               Логин <span className="text-red-500">*</span>
             </label>
             <input
@@ -166,8 +166,8 @@ export default function RegisterPage() {
                   if (!available) setFieldErrors((prev) => ({ ...prev, login: "Этот логин уже занят" }));
                 }
               }}
-              className={`w-full rounded-xl border bg-slate-50 px-3 py-2.5 text-base outline-none ring-offset-2 focus:ring-2 ${
-                fieldErrors.login ? "border-red-300 focus:border-red-500 focus:ring-red-500" : "border-slate-200 focus:border-blue-500 focus:ring-blue-500"
+              className={`input-dark ${
+                fieldErrors.login ? "border-red-400/70 focus:border-red-400 focus:ring-red-400/30" : ""
               }`}
               placeholder="Латиница, цифры, подчёркивание, 3–30 символов"
               aria-required
@@ -175,13 +175,13 @@ export default function RegisterPage() {
               aria-describedby={fieldErrors.login ? "login-error" : undefined}
             />
             {fieldErrors.login && (
-              <p id="login-error" className="text-xs text-red-600" role="alert">{fieldErrors.login}</p>
+              <p id="login-error" className="text-xs text-red-300" role="alert">{fieldErrors.login}</p>
             )}
-            {checkingLogin && <p className="text-xs text-slate-500">Проверка доступности...</p>}
+            {checkingLogin && <p className="text-xs text-white/45">Проверка доступности...</p>}
           </div>
 
           <div className="space-y-1.5">
-            <label htmlFor="email" className="text-sm font-medium text-slate-700">
+            <label htmlFor="email" className="text-sm font-medium text-white/70">
               Электронная почта <span className="text-red-500">*</span>
             </label>
             <input
@@ -190,8 +190,8 @@ export default function RegisterPage() {
               autoComplete="email"
               value={email}
               onChange={(e) => { setEmail(e.target.value); setFieldErrors((e) => ({ ...e, email: undefined })); }}
-              className={`w-full rounded-xl border bg-slate-50 px-3 py-2.5 text-base outline-none ring-offset-2 focus:ring-2 ${
-                fieldErrors.email ? "border-red-300 focus:border-red-500 focus:ring-red-500" : "border-slate-200 focus:border-blue-500 focus:ring-blue-500"
+              className={`input-dark ${
+                fieldErrors.email ? "border-red-400/70 focus:border-red-400 focus:ring-red-400/30" : ""
               }`}
               placeholder="you@school.com"
               aria-required
@@ -199,12 +199,12 @@ export default function RegisterPage() {
               aria-describedby={fieldErrors.email ? "email-error" : undefined}
             />
             {fieldErrors.email && (
-              <p id="email-error" className="text-xs text-red-600" role="alert">{fieldErrors.email}</p>
+              <p id="email-error" className="text-xs text-red-300" role="alert">{fieldErrors.email}</p>
             )}
           </div>
 
           <div className="space-y-1.5">
-            <label htmlFor="password" className="text-sm font-medium text-slate-700">
+            <label htmlFor="password" className="text-sm font-medium text-white/70">
               Пароль <span className="text-red-500">*</span>
             </label>
             <input
@@ -213,8 +213,8 @@ export default function RegisterPage() {
               autoComplete="new-password"
               value={password}
               onChange={(e) => { setPassword(e.target.value); setFieldErrors((e) => ({ ...e, password: undefined, confirmPassword: undefined })); }}
-              className={`w-full rounded-xl border bg-slate-50 px-3 py-2.5 text-base outline-none ring-offset-2 focus:ring-2 ${
-                fieldErrors.password ? "border-red-300 focus:border-red-500 focus:ring-red-500" : "border-slate-200 focus:border-blue-500 focus:ring-blue-500"
+              className={`input-dark ${
+                fieldErrors.password ? "border-red-400/70 focus:border-red-400 focus:ring-red-400/30" : ""
               }`}
               placeholder="Минимум 6 символов"
               aria-required
@@ -222,12 +222,12 @@ export default function RegisterPage() {
               aria-describedby={fieldErrors.password ? "password-error" : undefined}
             />
             {fieldErrors.password && (
-              <p id="password-error" className="text-xs text-red-600" role="alert">{fieldErrors.password}</p>
+              <p id="password-error" className="text-xs text-red-300" role="alert">{fieldErrors.password}</p>
             )}
           </div>
 
           <div className="space-y-1.5">
-            <label htmlFor="confirmPassword" className="text-sm font-medium text-slate-700">
+            <label htmlFor="confirmPassword" className="text-sm font-medium text-white/70">
               Подтверждение пароля <span className="text-red-500">*</span>
             </label>
             <input
@@ -236,8 +236,8 @@ export default function RegisterPage() {
               autoComplete="new-password"
               value={confirmPassword}
               onChange={(e) => { setConfirmPassword(e.target.value); setFieldErrors((e) => ({ ...e, confirmPassword: undefined })); }}
-              className={`w-full rounded-xl border bg-slate-50 px-3 py-2.5 text-base outline-none ring-offset-2 focus:ring-2 ${
-                fieldErrors.confirmPassword ? "border-red-300 focus:border-red-500 focus:ring-red-500" : "border-slate-200 focus:border-blue-500 focus:ring-blue-500"
+              className={`input-dark ${
+                fieldErrors.confirmPassword ? "border-red-400/70 focus:border-red-400 focus:ring-red-400/30" : ""
               }`}
               placeholder="Повторите пароль"
               aria-required
@@ -245,47 +245,47 @@ export default function RegisterPage() {
               aria-describedby={fieldErrors.confirmPassword ? "confirmPassword-error" : undefined}
             />
             {fieldErrors.confirmPassword && (
-              <p id="confirmPassword-error" className="text-xs text-red-600" role="alert">{fieldErrors.confirmPassword}</p>
+              <p id="confirmPassword-error" className="text-xs text-red-300" role="alert">{fieldErrors.confirmPassword}</p>
             )}
           </div>
 
           <div className="space-y-2">
-            <label className="flex items-start gap-3 text-sm text-slate-700">
+            <label className="flex items-start gap-3 text-sm text-white/70">
               <input
                 type="checkbox"
                 checked={acceptTerms}
                 onChange={(e) => { setAcceptTerms(e.target.checked); setFieldErrors((e) => ({ ...e, terms: undefined })); }}
-                className="mt-1 h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                className="mt-1 h-4 w-4 rounded border-white/30 bg-white/5 text-gold focus:ring-gold"
                 aria-required
                 aria-invalid={!!fieldErrors.terms}
               />
-              <span>Я принимаю <Link href="/terms" className="font-medium text-blue-700 underline-offset-4 hover:underline">условия использования</Link> <span className="text-red-500">*</span></span>
+              <span>Я принимаю <Link href="/terms" className="font-medium text-gold hover:text-gold-bright">условия использования</Link> <span className="text-red-500">*</span></span>
             </label>
-            <label className="flex items-start gap-3 text-sm text-slate-700">
+            <label className="flex items-start gap-3 text-sm text-white/70">
               <input
                 type="checkbox"
                 checked={acceptPrivacy}
                 onChange={(e) => { setAcceptPrivacy(e.target.checked); setFieldErrors((e) => ({ ...e, terms: undefined })); }}
-                className="mt-1 h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                className="mt-1 h-4 w-4 rounded border-white/30 bg-white/5 text-gold focus:ring-gold"
                 aria-required
                 aria-invalid={!!fieldErrors.terms}
               />
-              <span>Я принимаю <Link href="/privacy" className="font-medium text-blue-700 underline-offset-4 hover:underline">политику конфиденциальности</Link> <span className="text-red-500">*</span></span>
+              <span>Я принимаю <Link href="/privacy" className="font-medium text-gold hover:text-gold-bright">политику конфиденциальности</Link> <span className="text-red-500">*</span></span>
             </label>
             {fieldErrors.terms && (
-              <p className="text-xs text-red-600" role="alert">{fieldErrors.terms}</p>
+              <p className="text-xs text-red-300" role="alert">{fieldErrors.terms}</p>
             )}
           </div>
 
           {error && (
-            <div className="rounded-xl bg-red-50 px-3 py-2 text-xs text-red-600" role="alert">
+            <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-300" role="alert">
               {error}
             </div>
           )}
 
           <Button
             type="submit"
-            variant="secondary"
+            variant="default"
             size="lg"
             className="w-full justify-center gap-2"
             disabled={loading}
@@ -295,9 +295,9 @@ export default function RegisterPage() {
           </Button>
         </form>
 
-        <div className="mt-4 text-center text-xs text-slate-500">
+        <div className="mt-4 text-center text-xs text-white/45">
           Уже есть аккаунт?{" "}
-          <Link href="/login" className="inline-block min-h-[44px] py-2 font-semibold leading-[44px] text-blue-700 underline-offset-4 hover:underline">
+          <Link href="/login" className="inline-block min-h-[44px] py-2 font-semibold leading-[44px] text-gold hover:text-gold-bright">
             Войти
           </Link>
         </div>
