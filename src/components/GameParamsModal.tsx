@@ -3,23 +3,22 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { X } from "lucide-react";
 import type { ReactNode } from "react";
+import { TIME_PRESETS } from "@/lib/timeControls";
 
 const SIDE_OPTIONS: { id: "black" | "random" | "white"; label: string; icon: string }[] = [
   { id: "black", label: "Чёрные", icon: "♚" },
   { id: "random", label: "Случайный цвет", icon: "♔♚" },
-  { id: "white", label: "Белые", icon: "♔" }
-];
-
-const TIME_GROUPS: { title: string; options: { seconds: number; label: string }[] }[] = [
-  { title: "Bullet", options: [{ seconds: 60, label: "1 мин" }, { seconds: 120, label: "2 мин" }] },
-  { title: "Blitz", options: [{ seconds: 180, label: "3 мин" }, { seconds: 300, label: "5 мин" }] },
-  { title: "Rapid", options: [{ seconds: 600, label: "10 мин" }, { seconds: 900, label: "15 мин" }] }
+  { id: "white", label: "Белые", icon: "♔" },
 ];
 
 export type GameParams = {
   creatorColor: "white" | "black" | "random";
   timeControlSeconds: number;
+  incrementSeconds: number;
+  rated: boolean;
 };
+
+const GROUPS = ["Bullet", "Blitz", "Rapid"] as const;
 
 export default function GameParamsModal(props: {
   open: boolean;
@@ -29,6 +28,9 @@ export default function GameParamsModal(props: {
   submittingLabel?: string;
   initialCreatorColor?: "white" | "black" | "random";
   initialTimeControlSeconds?: number;
+  initialIncrementSeconds?: number;
+  initialRated?: boolean;
+  showRatedToggle?: boolean;
   isSubmitting?: boolean;
   submitDisabled?: boolean;
   errorText?: string | null;
@@ -43,23 +45,28 @@ export default function GameParamsModal(props: {
     submittingLabel = "Отправка…",
     initialCreatorColor = "random",
     initialTimeControlSeconds = 300,
+    initialIncrementSeconds = 0,
+    initialRated = true,
+    showRatedToggle = true,
     isSubmitting = false,
     submitDisabled = false,
     errorText,
     onClose,
-    onSubmit
+    onSubmit,
   } = props;
 
   const [creatorColor, setCreatorColor] = useState<"white" | "black" | "random">(initialCreatorColor);
-  const [timeControlSeconds, setTimeControlSeconds] = useState<number>(initialTimeControlSeconds);
+  const [timeControlSeconds, setTimeControlSeconds] = useState(initialTimeControlSeconds);
+  const [incrementSeconds, setIncrementSeconds] = useState(initialIncrementSeconds);
+  const [rated, setRated] = useState(initialRated);
 
   useEffect(() => {
     if (!open) return;
     setCreatorColor(initialCreatorColor);
     setTimeControlSeconds(initialTimeControlSeconds);
-  }, [open, initialCreatorColor, initialTimeControlSeconds]);
-
-  const modalOpen = open;
+    setIncrementSeconds(initialIncrementSeconds);
+    setRated(initialRated);
+  }, [open, initialCreatorColor, initialTimeControlSeconds, initialIncrementSeconds, initialRated]);
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
@@ -69,7 +76,7 @@ export default function GameParamsModal(props: {
   );
 
   useEffect(() => {
-    if (modalOpen) {
+    if (open) {
       document.addEventListener("keydown", handleKeyDown);
       document.body.style.overflow = "hidden";
     } else {
@@ -79,9 +86,12 @@ export default function GameParamsModal(props: {
       document.removeEventListener("keydown", handleKeyDown);
       document.body.style.overflow = "";
     };
-  }, [modalOpen, handleKeyDown]);
+  }, [open, handleKeyDown]);
 
-  const allTimeOptions = useMemo(() => TIME_GROUPS.flatMap((g) => g.options), []);
+  const selectedKey = useMemo(
+    () => `${timeControlSeconds}+${incrementSeconds}`,
+    [timeControlSeconds, incrementSeconds]
+  );
 
   if (!open) return null;
 
@@ -91,7 +101,7 @@ export default function GameParamsModal(props: {
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
-      >
+    >
       <div className="relative mx-4 w-full max-w-md overflow-hidden rounded-3xl border border-white/10 bg-ink-800 shadow-card">
         <button
           type="button"
@@ -102,7 +112,7 @@ export default function GameParamsModal(props: {
           <X className="h-5 w-5" />
         </button>
 
-        <div className="max-h-[85dvh] overflow-y-auto px-6 pt-6 pb-6 space-y-6">
+        <div className="max-h-[85dvh] space-y-6 overflow-y-auto px-6 pb-6 pt-6">
           <div className="pb-2">
             <h3 className="text-center font-display text-xl font-semibold tracking-wide text-white">
               {title}
@@ -110,47 +120,43 @@ export default function GameParamsModal(props: {
           </div>
           {topContent}
           <div>
-            <p className="mb-3 text-center text-sm font-medium text-white/50">
-              Время
-            </p>
-
+            <p className="mb-3 text-center text-sm font-medium text-white/50">Контроль времени</p>
             <div className="space-y-3">
-              {TIME_GROUPS.map((group) => (
-                <div key={group.title}>
+              {GROUPS.map((group) => (
+                <div key={group}>
                   <div className="mb-2 text-center text-xs font-semibold uppercase tracking-wider text-white/35">
-                    {group.title}
+                    {group}
                   </div>
                   <div className="grid grid-cols-2 gap-2">
-                    {group.options.map((opt) => (
-                      <button
-                        key={opt.seconds}
-                        type="button"
-                        onClick={() => setTimeControlSeconds(opt.seconds)}
-                        className={`rounded-xl px-3 py-3 text-sm font-bold transition ${
-                          timeControlSeconds === opt.seconds
-                            ? "border border-gold bg-gold text-ink-900 shadow-glow"
-                            : "border border-white/10 bg-white/5 text-white/80 hover:bg-white/10"
-                        }`}
-                      >
-                        {opt.label}
-                      </button>
-                    ))}
+                    {TIME_PRESETS.filter((p) => p.group === group).map((opt) => {
+                      const key = `${opt.seconds}+${opt.increment}`;
+                      const active = selectedKey === key;
+                      return (
+                        <button
+                          key={key}
+                          type="button"
+                          onClick={() => {
+                            setTimeControlSeconds(opt.seconds);
+                            setIncrementSeconds(opt.increment);
+                          }}
+                          className={`rounded-xl px-3 py-3 text-sm font-bold transition ${
+                            active
+                              ? "border border-gold bg-gold text-ink-900 shadow-glow"
+                              : "border border-white/10 bg-white/5 text-white/80 hover:bg-white/10"
+                          }`}
+                        >
+                          {opt.label}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               ))}
             </div>
-
-            {!allTimeOptions.some((o) => o.seconds === timeControlSeconds) && (
-              <p className="mt-2 text-center text-xs text-white/40">
-                Выбрано нестандартное время: {Math.floor(timeControlSeconds / 60)} мин
-              </p>
-            )}
           </div>
 
           <div>
-            <p className="mb-3 text-center text-sm font-medium text-white/50">
-              Сторона
-            </p>
+            <p className="mb-3 text-center text-sm font-medium text-white/50">Сторона</p>
             <div className="grid grid-cols-3 gap-2">
               {SIDE_OPTIONS.map((opt) => (
                 <button
@@ -170,21 +176,47 @@ export default function GameParamsModal(props: {
             </div>
           </div>
 
+          {showRatedToggle && (
+            <div className="flex items-center justify-center gap-2">
+              <button
+                type="button"
+                onClick={() => setRated(true)}
+                className={`rounded-xl px-4 py-2 text-sm font-semibold transition ${
+                  rated
+                    ? "border border-gold bg-gold text-ink-900"
+                    : "border border-white/10 bg-white/5 text-white/70"
+                }`}
+              >
+                Рейтинговая
+              </button>
+              <button
+                type="button"
+                onClick={() => setRated(false)}
+                className={`rounded-xl px-4 py-2 text-sm font-semibold transition ${
+                  !rated
+                    ? "border border-gold bg-gold text-ink-900"
+                    : "border border-white/10 bg-white/5 text-white/70"
+                }`}
+              >
+                Товарищеская
+              </button>
+            </div>
+          )}
+
           <button
             type="button"
             disabled={isSubmitting || submitDisabled}
-            onClick={() => onSubmit({ creatorColor, timeControlSeconds })}
+            onClick={() =>
+              onSubmit({ creatorColor, timeControlSeconds, incrementSeconds, rated })
+            }
             className="flex w-full items-center justify-center gap-3 rounded-2xl bg-gold px-4 py-4 text-base font-semibold text-ink-900 shadow-glow transition hover:bg-gold-bright disabled:opacity-60"
           >
             {isSubmitting ? submittingLabel : submitLabel}
           </button>
 
-          {errorText && (
-            <p className="text-center text-sm text-red-400">{errorText}</p>
-          )}
+          {errorText && <p className="text-center text-sm text-red-400">{errorText}</p>}
         </div>
       </div>
     </div>
   );
 }
-

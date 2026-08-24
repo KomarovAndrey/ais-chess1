@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { UserPlus, Cpu, X, Trophy, Puzzle, Swords } from "lucide-react";
+import { UserPlus, Cpu, X, Trophy, Puzzle, Swords, Search } from "lucide-react";
 import GameParamsModal from "@/components/GameParamsModal";
 import { CPU_LEVEL_DESCRIPTIONS, CPU_PERSONAS } from "@/lib/cpu-levels";
 import { supabase } from "@/lib/supabaseClient";
@@ -30,27 +30,35 @@ export default function HomePage() {
   const [showModal, setShowModal] = useState(false);
   const [showFriendModal, setShowFriendModal] = useState(false);
   const [showCpuModal, setShowCpuModal] = useState(false);
+  const [showSeekModal, setShowSeekModal] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [isSendingChallenge, setIsSendingChallenge] = useState(false);
+  const [isSeeking, setIsSeeking] = useState(false);
+  const [seekId, setSeekId] = useState<string | null>(null);
   const [colorChoice, setColorChoice] = useState<"white" | "black" | "random">("random");
   const [timeControl, setTimeControl] = useState<number>(300);
+  const [increment, setIncrement] = useState(0);
+  const [ratedDefault, setRatedDefault] = useState(true);
   const [cpuColorChoice, setCpuColorChoice] = useState<"white" | "black" | "random">("random");
   const [cpuLevel, setCpuLevel] = useState<CpuLevel>(3);
   const [error, setError] = useState<string | null>(null);
   const [challengeError, setChallengeError] = useState<string | null>(null);
   const [challengeOk, setChallengeOk] = useState<string | null>(null);
+  const [seekError, setSeekError] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const [friends, setFriends] = useState<{ id: string; username: string | null; display_name: string; rating: number }[]>([]);
   const [friendsLoading, setFriendsLoading] = useState(false);
   const [selectedFriendId, setSelectedFriendId] = useState<string>("");
   const router = useRouter();
+  const seekPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const modalOpen = showModal || showFriendModal || showCpuModal;
+  const modalOpen = showModal || showFriendModal || showCpuModal || showSeekModal;
 
   useEffect(() => {
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
       if (params.get("open") === "cpu") setShowCpuModal(true);
+      if (params.get("open") === "play") setShowSeekModal(true);
     }
   }, []);
 
@@ -58,16 +66,43 @@ export default function HomePage() {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUserId(session?.user?.id ?? null);
     });
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_e, session) => {
       setUserId(session?.user?.id ?? null);
     });
     return () => subscription.unsubscribe();
+  }, []);
+
+  const cancelSeek = useCallback(async () => {
+    if (seekPollRef.current) {
+      clearInterval(seekPollRef.current);
+      seekPollRef.current = null;
+    }
+    try {
+      await fetch("/api/seeks", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ seekId }),
+      });
+    } catch {
+      /* ignore */
+    }
+    setIsSeeking(false);
+    setSeekId(null);
+  }, [seekId]);
+
+  useEffect(() => {
+    return () => {
+      if (seekPollRef.current) clearInterval(seekPollRef.current);
+    };
   }, []);
 
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     if (e.key === "Escape") {
       setShowModal(false);
       setShowCpuModal(false);
+      setShowSeekModal(false);
     }
   }, []);
 
@@ -84,7 +119,12 @@ export default function HomePage() {
     };
   }, [modalOpen, handleKeyDown]);
 
-  async function handleCreateGame(opts?: { creatorColor: "white" | "black" | "random"; timeControlSeconds: number }) {
+  async function handleCreateGame(opts?: {
+    creatorColor: "white" | "black" | "random";
+    timeControlSeconds: number;
+    incrementSeconds?: number;
+    rated?: boolean;
+  }) {
     setError(null);
     setIsCreating(true);
     const existingId = window.localStorage.getItem("ais_chess_player_id");
@@ -92,6 +132,8 @@ export default function HomePage() {
     if (!existingId) window.localStorage.setItem("ais_chess_player_id", playerId);
     const creatorColor = opts?.creatorColor ?? colorChoice;
     const timeControlSeconds = opts?.timeControlSeconds ?? timeControl;
+    const incrementSeconds = opts?.incrementSeconds ?? increment;
+    const rated = opts?.rated ?? false;
     try {
       const res = await fetch("/api/games", {
         method: "POST",
@@ -99,6 +141,8 @@ export default function HomePage() {
         body: JSON.stringify({
           creatorColor,
           timeControlSeconds,
+          incrementSeconds,
+          rated,
           playerId,
         }),
       });
@@ -108,15 +152,69 @@ export default function HomePage() {
       }
       const data = await res.json();
       const url =
-        typeof window !== "undefined"
-          ? `${window.location.origin}/play/${data.gameId}`
-          : "";
-      await navigator.clipboard.writeText(url);
+        typeof window !== "undefined" ? `${window.location.origin}/play/${data.gameId}` : "";
+      await navigator.clipboard.writeText(url).catch(() => {});
       router.push(`/play/${data.gameId}`);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Произошла ошибка");
     } finally {
       setIsCreating(false);
+    }
+  }
+
+  function startSeekPolling() {
+    if (seekPollRef.current) clearInterval(seekPollRef.current);
+    seekPollRef.current = setInterval(async () => {
+      try {
+        const res = await fetch("/api/seeks");
+        if (!res.ok) return;
+        const data = await res.json();
+        const seek = data.seek;
+        if (seek?.status === "matched" && seek.game_id) {
+          if (seekPollRef.current) clearInterval(seekPollRef.current);
+          seekPollRef.current = null;
+          setIsSeeking(false);
+          router.push(`/play/${seek.game_id}`);
+        }
+      } catch {
+        /* ignore */
+      }
+    }, 1500);
+  }
+
+  async function handleSeek(opts: {
+    creatorColor: "white" | "black" | "random";
+    timeControlSeconds: number;
+    incrementSeconds: number;
+    rated: boolean;
+  }) {
+    setSeekError(null);
+    setIsSeeking(true);
+    setShowSeekModal(false);
+    try {
+      const res = await fetch("/api/seeks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          creatorColor: opts.creatorColor,
+          timeControlSeconds: opts.timeControlSeconds,
+          incrementSeconds: opts.incrementSeconds,
+          rated: opts.rated,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Не удалось начать поиск");
+      if (data.gameId) {
+        setIsSeeking(false);
+        router.push(`/play/${data.gameId}`);
+        return;
+      }
+      setSeekId(data.seekId ?? null);
+      startSeekPolling();
+    } catch (e) {
+      setIsSeeking(false);
+      setSeekError(e instanceof Error ? e.message : "Ошибка поиска");
+      setShowSeekModal(true);
     }
   }
 
@@ -148,21 +246,15 @@ export default function HomePage() {
 
   return (
     <main className="page-bg relative min-h-screen overflow-hidden">
-      {/* Hero: one composition */}
       <section className="relative min-h-[calc(100dvh-4.5rem)]">
-        <div
-          className="pointer-events-none absolute inset-0 opacity-[0.35]"
-          aria-hidden
-        >
+        <div className="pointer-events-none absolute inset-0 opacity-[0.35]" aria-hidden>
           <div
             className="animate-board-pulse absolute inset-y-0 right-0 w-full max-w-3xl translate-x-[8%] md:w-[58%]"
             style={{
               background:
                 "repeating-conic-gradient(#c9a06a 0% 25%, #1a140c 0% 50%) 50% / min(12vw, 72px) min(12vw, 72px)",
-              maskImage:
-                "linear-gradient(90deg, transparent 0%, black 28%, black 100%)",
-              WebkitMaskImage:
-                "linear-gradient(90deg, transparent 0%, black 28%, black 100%)",
+              maskImage: "linear-gradient(90deg, transparent 0%, black 28%, black 100%)",
+              WebkitMaskImage: "linear-gradient(90deg, transparent 0%, black 28%, black 100%)",
             }}
           />
           <div className="absolute inset-0 bg-gradient-to-r from-ink-900 via-ink-900/85 to-ink-900/40" />
@@ -177,14 +269,28 @@ export default function HomePage() {
               Играй онлайн. <span className="text-gold">Расти в рейтинге.</span>
             </h1>
             <p className="animate-fade-up-delay-2 max-w-md text-base leading-relaxed text-white/55 md:text-lg">
-              Партии с друзьями, рейтинг Bullet / Blitz / Rapid, пазлы и турниры —
-              быстрый старт без лишнего шума.
+              Рейтинговый лобби, вызовы друзьям и партии по ссылке — быстрый старт без лишнего шума.
             </p>
 
-            <div className="animate-fade-up-delay-2 flex flex-col gap-3 pt-2 sm:flex-row sm:items-center">
+            <div className="animate-fade-up-delay-2 flex flex-col gap-3 pt-2 sm:flex-row sm:flex-wrap sm:items-center">
               <button
                 type="button"
                 className="btn-primary gap-2 transition hover:scale-[1.02] active:scale-[0.98]"
+                onClick={() => {
+                  if (userId) {
+                    setSeekError(null);
+                    setShowSeekModal(true);
+                  } else {
+                    router.push("/login?next=/");
+                  }
+                }}
+              >
+                <Search className="h-5 w-5 shrink-0" />
+                Искать игру
+              </button>
+              <button
+                type="button"
+                className="btn-secondary gap-2 transition hover:scale-[1.02] active:scale-[0.98]"
                 onClick={() => {
                   if (userId) {
                     setChallengeError(null);
@@ -215,7 +321,6 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Below fold: secondary destinations */}
       <section className="relative border-t border-white/5">
         <div className="mx-auto grid max-w-6xl gap-3 px-4 py-10 sm:grid-cols-2 lg:grid-cols-5">
           <Link
@@ -292,32 +397,73 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Modal — Бросить вызов (создание игры по ссылке) */}
+      {isSeeking && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-ink-950/80 backdrop-blur-sm">
+          <div className="mx-4 w-full max-w-sm rounded-3xl border border-white/10 bg-ink-800 p-8 text-center shadow-card">
+            <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-2 border-gold border-t-transparent" />
+            <p className="font-display text-lg font-semibold text-white">Ищем соперника…</p>
+            <p className="mt-2 text-sm text-white/50">Ожидание в лобби. Можно отменить.</p>
+            <button
+              type="button"
+              onClick={() => void cancelSeek()}
+              className="btn-secondary mt-6 w-full justify-center"
+            >
+              Отменить поиск
+            </button>
+          </div>
+        </div>
+      )}
+
       <GameParamsModal
-        open={showModal}
-        title="Параметры игры"
-        submitLabel="Бросить вызов"
-        submittingLabel="Создаётся…"
+        open={showSeekModal}
+        title="Искать игру"
+        submitLabel="Искать"
+        submittingLabel="Поиск…"
         initialCreatorColor={colorChoice}
         initialTimeControlSeconds={timeControl}
-        isSubmitting={isCreating}
-        errorText={error}
-        onClose={() => setShowModal(false)}
-        onSubmit={async ({ creatorColor, timeControlSeconds }) => {
-          setColorChoice(creatorColor);
-          setTimeControl(timeControlSeconds);
-          await handleCreateGame({ creatorColor, timeControlSeconds });
+        initialIncrementSeconds={increment}
+        initialRated={ratedDefault}
+        errorText={seekError}
+        onClose={() => setShowSeekModal(false)}
+        onSubmit={async (params) => {
+          setColorChoice(params.creatorColor);
+          setTimeControl(params.timeControlSeconds);
+          setIncrement(params.incrementSeconds);
+          setRatedDefault(params.rated);
+          await handleSeek(params);
         }}
       />
 
-      {/* Modal — Бросить вызов (через уведомления, для зарегистрированных) */}
+      <GameParamsModal
+        open={showModal}
+        title="Партия по ссылке"
+        submitLabel="Создать ссылку"
+        submittingLabel="Создаётся…"
+        initialCreatorColor={colorChoice}
+        initialTimeControlSeconds={timeControl}
+        initialIncrementSeconds={increment}
+        initialRated={false}
+        showRatedToggle={false}
+        isSubmitting={isCreating}
+        errorText={error}
+        onClose={() => setShowModal(false)}
+        onSubmit={async (params) => {
+          setColorChoice(params.creatorColor);
+          setTimeControl(params.timeControlSeconds);
+          setIncrement(params.incrementSeconds);
+          await handleCreateGame(params);
+        }}
+      />
+
       <GameParamsModal
         open={showFriendModal}
-        title="Параметры игры"
+        title="Вызов другу"
         submitLabel="Отправить вызов"
         submittingLabel="Отправка…"
         initialCreatorColor={colorChoice}
         initialTimeControlSeconds={timeControl}
+        initialIncrementSeconds={increment}
+        initialRated={ratedDefault}
         isSubmitting={isSendingChallenge}
         submitDisabled={friendsLoading || isSendingChallenge}
         errorText={challengeError}
@@ -337,19 +483,29 @@ export default function HomePage() {
               >
                 {friends.map((f) => (
                   <option key={f.id} value={f.id}>
-                    {(f.display_name || f.username || "Игрок") + (f.username ? ` (${f.username})` : "") + ` · ${f.rating ?? 1500}`}
+                    {(f.display_name || f.username || "Игрок") +
+                      (f.username ? ` (${f.username})` : "") +
+                      ` · ${f.rating ?? 1500}`}
                   </option>
                 ))}
               </select>
             )}
             {challengeOk && <p className="text-center text-sm text-emerald-400">{challengeOk}</p>}
+            <button
+              type="button"
+              className="w-full text-center text-xs text-white/40 underline hover:text-white/70"
+              onClick={() => {
+                setShowFriendModal(false);
+                setShowModal(true);
+              }}
+            >
+              Или создать партию по ссылке
+            </button>
           </div>
         }
-        onSubmit={async ({ creatorColor, timeControlSeconds }) => {
+        onSubmit={async (params) => {
           setChallengeError(null);
           setChallengeOk(null);
-
-          // Если выбран друг — отправляем ему вызов
           if (selectedFriendId) {
             setIsSendingChallenge(true);
             try {
@@ -358,9 +514,11 @@ export default function HomePage() {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                   toUserId: selectedFriendId,
-                  creatorColor,
-                  timeControlSeconds
-                })
+                  creatorColor: params.creatorColor,
+                  timeControlSeconds: params.timeControlSeconds,
+                  incrementSeconds: params.incrementSeconds,
+                  rated: params.rated,
+                }),
               });
               const data = await res.json().catch(() => ({}));
               if (!res.ok) throw new Error(data.error ?? "Не удалось отправить вызов");
@@ -373,15 +531,13 @@ export default function HomePage() {
             }
             return;
           }
-
-          // Если друг не выбран — создаём обычную партию по ссылке
-          setColorChoice(creatorColor);
-          setTimeControl(timeControlSeconds);
-          await handleCreateGame({ creatorColor, timeControlSeconds });
+          setColorChoice(params.creatorColor);
+          setTimeControl(params.timeControlSeconds);
+          setIncrement(params.incrementSeconds);
+          await handleCreateGame({ ...params, rated: false });
         }}
       />
 
-      {/* Modal — Сыграть с компьютером */}
       {showCpuModal && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-ink-950/70 backdrop-blur-sm"
@@ -397,16 +553,14 @@ export default function HomePage() {
             >
               <X className="h-5 w-5" />
             </button>
-            <div className="max-h-[85dvh] overflow-y-auto px-6 pt-6 pb-6 space-y-6">
+            <div className="max-h-[85dvh] space-y-6 overflow-y-auto px-6 pb-6 pt-6">
               <div className="pb-2">
                 <h3 className="text-center font-display text-xl font-semibold tracking-wide text-white">
                   Игра с компьютером
                 </h3>
               </div>
               <div>
-                <p className="mb-3 text-center text-sm font-medium text-white/50">
-                  Минут на партию
-                </p>
+                <p className="mb-3 text-center text-sm font-medium text-white/50">Минут на партию</p>
                 <div className="grid grid-cols-3 gap-2">
                   {TIME_OPTIONS.map((opt) => (
                     <button
@@ -425,9 +579,7 @@ export default function HomePage() {
                 </div>
               </div>
               <div>
-                <p className="mb-3 text-center text-sm font-medium text-white/50">
-                  Сторона
-                </p>
+                <p className="mb-3 text-center text-sm font-medium text-white/50">Сторона</p>
                 <div className="grid grid-cols-3 gap-2">
                   {SIDE_OPTIONS.map((opt) => (
                     <button
@@ -437,7 +589,7 @@ export default function HomePage() {
                       className={`flex flex-col items-center gap-1.5 rounded-xl border px-3 py-4 text-sm font-medium transition ${
                         cpuColorChoice === opt.id
                           ? "border-gold bg-gold text-ink-900 shadow-glow"
-                          : "border-white/10 bg-white/5 text-white/80 hover:bg-white/10"
+                          : "border border-white/10 bg-white/5 text-white/80 hover:bg-white/10"
                       }`}
                     >
                       <span className="text-2xl leading-none">{opt.icon}</span>
@@ -447,9 +599,7 @@ export default function HomePage() {
                 </div>
               </div>
               <div>
-                <p className="mb-3 text-center text-sm font-medium text-white/50">
-                  Уровень сложности
-                </p>
+                <p className="mb-3 text-center text-sm font-medium text-white/50">Уровень сложности</p>
                 <div className="grid grid-cols-5 gap-2">
                   {CPU_LEVELS.map((level) => (
                     <button
@@ -459,7 +609,7 @@ export default function HomePage() {
                       className={`flex flex-col rounded-xl border px-2 py-3 text-sm font-bold transition ${
                         cpuLevel === level
                           ? "border-gold bg-gold text-ink-900 shadow-glow"
-                          : "border-white/10 bg-white/5 text-white/80 hover:bg-white/10"
+                          : "border border-white/10 bg-white/5 text-white/80 hover:bg-white/10"
                       }`}
                       title={CPU_PERSONAS[level].name + " — " + CPU_PERSONAS[level].style}
                     >
@@ -470,16 +620,17 @@ export default function HomePage() {
                     </button>
                   ))}
                 </div>
-                <p className="mt-2 text-center text-xs text-white/40">
-                  {CPU_LEVEL_DESCRIPTIONS[cpuLevel]}
-                </p>
+                <p className="mt-2 text-center text-xs text-white/40">{CPU_LEVEL_DESCRIPTIONS[cpuLevel]}</p>
               </div>
               <button
                 type="button"
                 onClick={() => {
-                  const color = cpuColorChoice === "random"
-                    ? (Math.random() < 0.5 ? "white" : "black")
-                    : cpuColorChoice;
+                  const color =
+                    cpuColorChoice === "random"
+                      ? Math.random() < 0.5
+                        ? "white"
+                        : "black"
+                      : cpuColorChoice;
                   router.push(`/chess?color=${color}&level=${cpuLevel}&time=${timeControl}`);
                 }}
                 className="flex w-full items-center justify-center gap-3 rounded-2xl bg-gold px-4 py-4 text-base font-semibold text-ink-900 shadow-glow transition hover:bg-gold-bright"

@@ -214,13 +214,25 @@ export default function ProfilePage() {
     if (res.ok) loadFriends();
   }
 
-  async function sendChallenge(friendId: string, creatorColor: "white" | "black" | "random", timeControlSeconds: number) {
+  async function sendChallenge(
+    friendId: string,
+    creatorColor: "white" | "black" | "random",
+    timeControlSeconds: number,
+    incrementSeconds = 0,
+    rated = true
+  ) {
     setChallengingId(friendId);
     try {
       const res = await fetch("/api/challenges", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ toUserId: friendId, creatorColor, timeControlSeconds })
+        body: JSON.stringify({
+          toUserId: friendId,
+          creatorColor,
+          timeControlSeconds,
+          incrementSeconds,
+          rated,
+        })
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error ?? "Не удалось отправить вызов");
@@ -670,11 +682,11 @@ export default function ProfilePage() {
               title="Параметры игры"
               submitLabel="Бросить вызов"
               onClose={() => setChallengeModalOpenFor(null)}
-              onSubmit={async ({ creatorColor, timeControlSeconds }) => {
+              onSubmit={async ({ creatorColor, timeControlSeconds, incrementSeconds, rated }) => {
                 const f = challengeModalOpenFor;
                 setChallengeModalOpenFor(null);
                 if (!f) return;
-                await sendChallenge(f.id, creatorColor, timeControlSeconds);
+                await sendChallenge(f.id, creatorColor, timeControlSeconds, incrementSeconds, rated);
               }}
             />
 

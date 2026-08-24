@@ -3,7 +3,7 @@ import { Chess } from "chess.js";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export type GameWinner = "white" | "black" | "draw";
-export type GameStatus = "waiting" | "active" | "finished";
+export type GameStatus = "waiting" | "active" | "finished" | "aborted";
 
 export type GamePlayerRow = { player_id: string; side: "white" | "black" | null };
 
@@ -32,6 +32,21 @@ export function computeClocksAfterElapsed(
     black = Math.max(0, currentBlack - elapsed);
   }
   return { whiteTimeLeft: white, blackTimeLeft: black };
+}
+
+/** Fischer increment: add after a successful move by the side that just moved. */
+export function applyIncrement(
+  whiteTimeLeft: number,
+  blackTimeLeft: number,
+  movedSide: "w" | "b",
+  incrementSeconds: number
+): { whiteTimeLeft: number; blackTimeLeft: number } {
+  const addMs = Math.max(0, Math.floor(incrementSeconds || 0)) * 1000;
+  if (addMs <= 0) return { whiteTimeLeft, blackTimeLeft };
+  if (movedSide === "w") {
+    return { whiteTimeLeft: whiteTimeLeft + addMs, blackTimeLeft };
+  }
+  return { whiteTimeLeft, blackTimeLeft: blackTimeLeft + addMs };
 }
 
 export function computeStatusAndWinner(

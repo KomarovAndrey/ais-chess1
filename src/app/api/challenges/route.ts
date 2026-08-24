@@ -97,6 +97,8 @@ export async function POST(req: NextRequest) {
     toUserId?: string;
     creatorColor?: "white" | "black" | "random";
     timeControlSeconds?: number;
+    incrementSeconds?: number;
+    rated?: boolean;
   };
   try {
     body = await req.json();
@@ -122,6 +124,16 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Некорректный контроль времени" }, { status: 400 });
   }
 
+  const incrementSeconds =
+    typeof body.incrementSeconds === "number" && Number.isFinite(body.incrementSeconds)
+      ? Math.floor(body.incrementSeconds)
+      : 0;
+  if (incrementSeconds < 0 || incrementSeconds > 120) {
+    return NextResponse.json({ error: "Некорректный инкремент" }, { status: 400 });
+  }
+
+  const rated = body.rated !== false;
+
   // Если уже есть pending-вызов — вернём его id (чтобы можно было показать "Отменить вызов")
   const { data: existing } = await supabase
     .from("game_challenges")
@@ -135,17 +147,34 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true, challengeId: existing.id, alreadyPending: true }, { status: 200 });
   }
 
-  const { data: inserted, error: insertErr } = await supabase
+  const insertPayload: Record<string, unknown> = {
+    from_user_id: me,
+    to_user_id: toUserId,
+    status: "pending",
+    creator_color: creatorColor,
+    time_control_seconds: timeControlSeconds,
+    increment_seconds: incrementSeconds,
+    rated,
+  };
+
+  let { data: inserted, error: insertErr } = await supabase
     .from("game_challenges")
-    .insert({
+    .insert(insertPayload)
+    .select("id")
+    .single();
+
+  if (insertErr && (insertErr.message?.includes("increment_seconds") || insertErr.message?.includes("rated"))) {
+    const legacy = {
       from_user_id: me,
       to_user_id: toUserId,
       status: "pending",
       creator_color: creatorColor,
-      time_control_seconds: timeControlSeconds
-    })
-    .select("id")
-    .single();
+      time_control_seconds: timeControlSeconds,
+    };
+    const retry = await supabase.from("game_challenges").insert(legacy).select("id").single();
+    inserted = retry.data;
+    insertErr = retry.error;
+  }
 
   if (insertErr) {
     // Частый кейс: уже есть pending (partial unique index)

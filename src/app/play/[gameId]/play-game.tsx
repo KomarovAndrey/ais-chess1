@@ -1,14 +1,15 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { Chess } from "chess.js";
 import { Chessboard } from "react-chessboard";
 import { ChevronLeft, ChevronRight, SkipBack, SkipForward, Download } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
+import { ABORT_MAX_PLIES, formatTimeControl } from "@/lib/timeControls";
 
-type GameStatus = "waiting" | "active" | "finished";
+type GameStatus = "waiting" | "active" | "finished" | "aborted";
 
 interface GameRow {
   id: string;
@@ -16,6 +17,8 @@ interface GameRow {
   fen: string;
   creator_color: "white" | "black" | "random";
   time_control_seconds: number;
+  increment_seconds?: number;
+  rated?: boolean;
   active_color: "w" | "b";
   started_at: string | null;
   winner: "white" | "black" | "draw" | null;
@@ -23,6 +26,8 @@ interface GameRow {
   black_time_left: number;
   last_move_at: string | null;
   draw_offer_from?: string | null;
+  rematch_offer_from?: string | null;
+  rematch_game_id?: string | null;
   moves?: string[];
 }
 
@@ -113,6 +118,7 @@ function buildPgn(
 
 export default function PlayGame({ initialGame }: PlayGameProps) {
   const params = useParams<{ gameId: string }>();
+  const router = useRouter();
   const gameId = params.gameId;
 
   const [game] = useState(() => new Chess());
@@ -121,6 +127,8 @@ export default function PlayGame({ initialGame }: PlayGameProps) {
   const [playerId, setPlayerId] = useState<string | null>(null);
   const [isJoining, setIsJoining] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [rematchBusy, setRematchBusy] = useState(false);
+  const [rematchWaiting, setRematchWaiting] = useState(false);
 
   const [whiteTime, setWhiteTime] = useState(initialGame.white_time_left);
   const [blackTime, setBlackTime] = useState(initialGame.black_time_left);
@@ -553,10 +561,79 @@ export default function PlayGame({ initialGame }: PlayGameProps) {
     }
   }
 
+  async function handleAbort() {
+    if (!playerId) return;
+    try {
+      const res = await fetch(`/api/games/${gameId}/abort`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ playerId }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error((data as { error?: string }).error || "Не удалось отменить");
+      }
+      const updated = (data as { game: GameRow }).game;
+      setGameRow(updated);
+      setError(null);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Не удалось отменить");
+    }
+  }
+
+  async function handleRematch() {
+    if (!playerId || rematchBusy) return;
+    setRematchBusy(true);
+    try {
+      const res = await fetch(`/api/games/${gameId}/rematch`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error((data as { error?: string }).error || "Не удалось предложить реванш");
+      }
+      if ((data as { gameId?: string }).gameId) {
+        router.push(`/play/${(data as { gameId: string }).gameId}`);
+        return;
+      }
+      setRematchWaiting(true);
+      setGameRow((prev) => ({ ...prev, rematch_offer_from: playerId }));
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Ошибка реванша");
+    } finally {
+      setRematchBusy(false);
+    }
+  }
+
+  const moveCount = (gameRow.moves ?? []).length;
+  const canAbortEarly =
+    gameRow.status === "active" && moveCount < ABORT_MAX_PLIES && !!player;
+  const rematchOfferedToMe =
+    gameRow.status === "finished" &&
+    !!playerId &&
+    !!gameRow.rematch_offer_from &&
+    gameRow.rematch_offer_from !== playerId;
+  const rematchOfferedByMe =
+    rematchWaiting ||
+    (gameRow.status === "finished" &&
+      !!playerId &&
+      gameRow.rematch_offer_from === playerId);
+
+  // When opponent accepts rematch, follow into the new game
+  useEffect(() => {
+    if (gameRow.rematch_game_id && gameRow.status === "finished") {
+      router.push(`/play/${gameRow.rematch_game_id}`);
+    }
+  }, [gameRow.rematch_game_id, gameRow.status, router]);
+
   const statusText = (() => {
     if (!player) return "Подключаемся к партии...";
     if (gameRow.status === "waiting") {
       return "Ожидаем второго игрока. Отправьте ссылку другу.";
+    }
+    if (gameRow.status === "aborted") {
+      return "Партия отменена.";
     }
     if (gameRow.status === "finished") {
       if (gameRow.winner === "draw") return "Игра завершена. Ничья.";
@@ -567,6 +644,11 @@ export default function PlayGame({ initialGame }: PlayGameProps) {
     if (!isMyTurn) return "Ход соперника.";
     return "Ваш ход.";
   })();
+
+  const tcLabel = formatTimeControl(
+    gameRow.time_control_seconds,
+    gameRow.increment_seconds ?? 0
+  );
 
   const moveList = gameRow.moves ?? [];
   const replayFen =
@@ -599,7 +681,8 @@ export default function PlayGame({ initialGame }: PlayGameProps) {
                 Онлайн-партия
               </h1>
               <p className="text-xs text-white/45">
-                Игра по ссылке без регистрации · {Math.floor(gameRow.time_control_seconds / 60)} мин на игрока
+                {tcLabel}
+                {gameRow.rated === false ? " · товарищеская" : " · рейтинговая"}
               </p>
             </div>
             <button
@@ -623,6 +706,15 @@ export default function PlayGame({ initialGame }: PlayGameProps) {
               <p className="mt-1 text-xs text-gold/80">
                 Отправьте ссылку другу. Доска и таймер ниже — партия начнётся, когда он перейдёт по ссылке.
               </p>
+              {player && (
+                <button
+                  type="button"
+                  onClick={() => void handleAbort()}
+                  className="mt-3 rounded-xl border border-white/15 bg-white/5 px-4 py-2 text-xs font-semibold text-white/80 hover:bg-white/10"
+                >
+                  Отменить партию
+                </button>
+              )}
             </div>
           )}
 
@@ -691,28 +783,41 @@ export default function PlayGame({ initialGame }: PlayGameProps) {
 
             {gameRow.status === "active" && (
               <div className="flex items-center justify-center gap-3">
-                <button
-                  type="button"
-                  disabled={!player || drawOfferedByMe}
-                  onClick={() => {
-                    void sendDrawAction("offer");
-                  }}
-                  title="Предложить ничью"
-                  className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/15 bg-white/5 text-white/80 hover:bg-white/10 disabled:opacity-50"
-                >
-                  <span className="text-lg">🤝</span>
-                </button>
-                <button
-                  type="button"
-                  disabled={!player}
-                  onClick={() => {
-                    void handleResign();
-                  }}
-                  title="Сдаться"
-                  className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/15 bg-white/5 text-white/80 hover:bg-white/10 disabled:opacity-50"
-                >
-                  <span className="text-lg">🏳️</span>
-                </button>
+                {canAbortEarly ? (
+                  <button
+                    type="button"
+                    onClick={() => void handleAbort()}
+                    title="Отменить партию"
+                    className="rounded-full border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-semibold text-white/80 hover:bg-white/10"
+                  >
+                    Отмена
+                  </button>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      disabled={!player || drawOfferedByMe}
+                      onClick={() => {
+                        void sendDrawAction("offer");
+                      }}
+                      title="Предложить ничью"
+                      className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/15 bg-white/5 text-white/80 hover:bg-white/10 disabled:opacity-50"
+                    >
+                      <span className="text-lg">🤝</span>
+                    </button>
+                    <button
+                      type="button"
+                      disabled={!player}
+                      onClick={() => {
+                        void handleResign();
+                      }}
+                      title="Сдаться"
+                      className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/15 bg-white/5 text-white/80 hover:bg-white/10 disabled:opacity-50"
+                    >
+                      <span className="text-lg">🏳️</span>
+                    </button>
+                  </>
+                )}
               </div>
             )}
 
@@ -731,27 +836,49 @@ export default function PlayGame({ initialGame }: PlayGameProps) {
             </div>
             </div>
 
-          {gameRow.status === "finished" && (
+          {(gameRow.status === "finished" || gameRow.status === "aborted") && (
             <div className="mt-4 rounded-2xl border border-emerald-500/25 bg-emerald-500/10 p-4">
               <h3 className="mb-2 text-sm font-semibold text-white">Итог партии</h3>
               <p className="text-white/70">
-                {gameRow.winner === "draw"
-                  ? "Ничья."
-                  : gameRow.winner === "white"
-                    ? "Победили белые."
-                    : "Победили чёрные."}
+                {gameRow.status === "aborted"
+                  ? "Партия отменена. Рейтинг не изменился."
+                  : gameRow.winner === "draw"
+                    ? "Ничья."
+                    : gameRow.winner === "white"
+                      ? "Победили белые."
+                      : "Победили чёрные."}
               </p>
-              {gameRow.started_at && (
+              {gameRow.status === "finished" && gameRow.started_at && (
                 <p className="mt-1 text-xs text-white/45">
-                  Партия заняла {moveList.length} ходов.
+                  Партия заняла {moveList.length} полуходов.
                 </p>
               )}
-              <div className="mt-3">
+              <div className="mt-3 flex flex-wrap gap-2">
+                {gameRow.status === "finished" && player && (
+                  <button
+                    type="button"
+                    disabled={rematchBusy || rematchOfferedByMe}
+                    onClick={() => void handleRematch()}
+                    className="inline-flex items-center rounded-xl bg-gold px-4 py-2 text-sm font-semibold text-ink-900 hover:bg-gold-bright disabled:opacity-60"
+                  >
+                    {rematchOfferedToMe
+                      ? "Принять реванш"
+                      : rematchOfferedByMe
+                        ? "Ожидание реванша…"
+                        : "Реванш"}
+                  </button>
+                )}
+                <Link
+                  href="/?open=play"
+                  className="inline-flex items-center rounded-xl border border-white/15 bg-white/5 px-4 py-2 text-sm font-medium text-white hover:bg-white/10"
+                >
+                  Искать игру
+                </Link>
                 <Link
                   href="/"
-                  className="inline-flex items-center rounded-xl bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700"
+                  className="inline-flex items-center rounded-xl border border-white/15 bg-white/5 px-4 py-2 text-sm font-medium text-white/70 hover:bg-white/10"
                 >
-                  Сыграть ещё
+                  На главную
                 </Link>
               </div>
             </div>

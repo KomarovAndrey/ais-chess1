@@ -1,17 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { ratingCategoryFromTimeControlSeconds } from "@/lib/timeControls";
 
 const UUID_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 export type PlayerInfo = { username: string | null; rating: number | null };
-
-function ratingCategoryFromTimeControlSeconds(t: number | null | undefined): "bullet" | "blitz" | "rapid" {
-  const v = typeof t === "number" && Number.isFinite(t) ? t : 300;
-  if (v <= 120) return "bullet";
-  if (v <= 300) return "blitz";
-  return "rapid";
-}
 
 export async function GET(
   _req: NextRequest,

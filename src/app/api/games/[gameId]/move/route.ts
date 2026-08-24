@@ -5,6 +5,7 @@ import { checkRateLimit } from "@/lib/rateLimit";
 import { moveBodySchema } from "@/lib/validations/games";
 import {
   applyGameRatings,
+  applyIncrement,
   computeClocksAfterElapsed,
   computeStatusAndWinner,
   findPlayer,
@@ -67,7 +68,7 @@ export async function POST(
     const { data: currentGame, error: gameError } = await writeClient
       .from("games")
       .select(
-        "id, status, fen, active_color, white_time_left, black_time_left, last_move_at, moves"
+        "id, status, fen, active_color, white_time_left, black_time_left, last_move_at, moves, increment_seconds"
       )
       .eq("id", gameId)
       .single();
@@ -141,9 +142,17 @@ export async function POST(
       return NextResponse.json({ error: "Недопустимый ход" }, { status: 400 });
     }
 
+    const movedSide = currentActive;
+    const inc = typeof currentGame.increment_seconds === "number"
+      ? currentGame.increment_seconds
+      : 0;
+    const withInc = applyIncrement(clockWhite, clockBlack, movedSide, inc);
+    let nextWhite = withInc.whiteTimeLeft;
+    let nextBlack = withInc.blackTimeLeft;
+
     const newFen = chess.fen();
     const nextActive = chess.turn() as "w" | "b";
-    const { status, winner } = computeStatusAndWinner(newFen, clockWhite, clockBlack);
+    const { status, winner } = computeStatusAndWinner(newFen, nextWhite, nextBlack);
 
     const currentMoves: string[] = Array.isArray(currentGame.moves)
       ? currentGame.moves
@@ -154,8 +163,8 @@ export async function POST(
     const payload = {
       fen: newFen,
       active_color: nextActive,
-      white_time_left: clockWhite,
-      black_time_left: clockBlack,
+      white_time_left: nextWhite,
+      black_time_left: nextBlack,
       last_move_at: new Date().toISOString(),
       moves: [...currentMoves, uci],
       status,

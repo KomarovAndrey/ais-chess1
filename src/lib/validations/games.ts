@@ -14,7 +14,26 @@ export const createGameSchema = z.object({
     .int()
     .min(1, "Time control must be at least 1 second")
     .max(86400, "Time control must be at most 24 hours"),
+  incrementSeconds: z
+    .number()
+    .int()
+    .min(0)
+    .max(120)
+    .optional()
+    .default(0),
+  rated: z.boolean().optional().default(false),
   playerId: z.string().optional()
+});
+
+export const createSeekSchema = z.object({
+  creatorColor: z.enum(["white", "black", "random"]).default("random"),
+  timeControlSeconds: z
+    .number()
+    .int()
+    .min(1)
+    .max(86400),
+  incrementSeconds: z.number().int().min(0).max(120).optional().default(0),
+  rated: z.boolean().optional().default(true)
 });
 
 export const joinGameSchema = z.object({

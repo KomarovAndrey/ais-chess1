@@ -334,7 +334,7 @@ export default function PublicProfilePage() {
                 title="Параметры игры"
                 submitLabel="Бросить вызов"
                 onClose={() => setChallengeModalOpen(false)}
-                onSubmit={async ({ creatorColor, timeControlSeconds }) => {
+                onSubmit={async ({ creatorColor, timeControlSeconds, incrementSeconds, rated }) => {
                   setChallengeModalOpen(false);
                   setAddFriendMessage(null);
                   setAddFriendLoading(true);
@@ -345,7 +345,9 @@ export default function PublicProfilePage() {
                       body: JSON.stringify({
                         toUserId: profile.id,
                         creatorColor,
-                        timeControlSeconds
+                        timeControlSeconds,
+                        incrementSeconds,
+                        rated,
                       })
                     });
                     const data = await res.json().catch(() => ({}));

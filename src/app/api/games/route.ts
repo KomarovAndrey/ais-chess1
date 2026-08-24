@@ -22,7 +22,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: message }, { status: 400 });
     }
 
-    const { creatorColor, timeControlSeconds, playerId: bodyPlayerId } = parsed.data;
+    const {
+      creatorColor,
+      timeControlSeconds,
+      incrementSeconds = 0,
+      rated: ratedBody = false,
+      playerId: bodyPlayerId,
+    } = parsed.data;
     const playerId = user?.id ?? bodyPlayerId;
     if (!playerId || (user === null && (!bodyPlayerId || !UUID_REGEX.test(bodyPlayerId)))) {
       return NextResponse.json(
@@ -38,23 +44,40 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Link games: guests always casual; rated only when both will be accounts (seek/challenge)
+    const rated = user ? Boolean(ratedBody) : false;
+
     const whiteInitial = timeControlSeconds * 1000;
     const blackInitial = timeControlSeconds * 1000;
 
-    const { data: game, error: gameError } = await writeClient
+    const insertPayload: Record<string, unknown> = {
+      status: "waiting",
+      fen: "startpos",
+      creator_color: creatorColor,
+      time_control_seconds: timeControlSeconds,
+      active_color: "w",
+      white_time_left: whiteInitial,
+      black_time_left: blackInitial,
+      last_move_at: null,
+      increment_seconds: incrementSeconds,
+      rated,
+    };
+
+    let { data: game, error: gameError } = await writeClient
       .from("games")
-      .insert({
-        status: "waiting",
-        fen: "startpos",
-        creator_color: creatorColor,
-        time_control_seconds: timeControlSeconds,
-        active_color: "w",
-        white_time_left: whiteInitial,
-        black_time_left: blackInitial,
-        last_move_at: null
-      })
+      .insert(insertPayload)
       .select("*")
       .single();
+
+    // Backward-compatible if migration not applied yet
+    if (gameError && (gameError.message?.includes("increment_seconds") || gameError.message?.includes("rated"))) {
+      const legacy = { ...insertPayload };
+      delete legacy.increment_seconds;
+      delete legacy.rated;
+      const retry = await writeClient.from("games").insert(legacy).select("*").single();
+      game = retry.data;
+      gameError = retry.error;
+    }
 
     if (gameError || !game) {
       console.error("Error creating game:", gameError);

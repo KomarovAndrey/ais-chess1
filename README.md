@@ -46,6 +46,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=...
      4. `supabase-schema-games.sql` — таблицы для игр (games, game_players)
      5. `supabase-migration-games-allow-anon.sql` — разрешить игру без регистрации
      6. `supabase-migration-game-integrity.sql` — серверная целостность партий (после настройки `SUPABASE_SERVICE_ROLE_KEY`)
+     7. `supabase-migration-matchmaking-phase-a.sql` — лобби (seeks), инкремент часов, rated/casual, abort/rematch
    - Для каждого скрипта: скопируйте весь код из файла и вставьте в редактор, затем нажмите **Run** (или Ctrl+Enter).
    - Должно выполниться без ошибок. Схема подхватится автоматически.
    - Если в проекте раньше был Soft Skills: выполните `supabase-drop-soft-skills.sql`, чтобы удалить таблицы `children` / ratings.
