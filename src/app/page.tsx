@@ -5,7 +5,12 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { UserPlus, Cpu, X, Trophy, Puzzle, Swords, Search } from "lucide-react";
 import GameParamsModal from "@/components/GameParamsModal";
-import { CPU_LEVEL_DESCRIPTIONS, CPU_PERSONAS } from "@/lib/cpu-levels";
+import {
+  CPU_LEVEL_DESCRIPTIONS,
+  CPU_LEVELS,
+  CPU_PERSONAS,
+  type CpuLevel,
+} from "@/lib/cpu-levels";
 import { supabase } from "@/lib/supabaseClient";
 
 const TIME_OPTIONS = [
@@ -22,9 +27,6 @@ const SIDE_OPTIONS: { id: "black" | "random" | "white"; label: string; icon: str
   { id: "random", label: "Случайный цвет", icon: "♔♚" },
   { id: "white", label: "Белые", icon: "♔" },
 ];
-
-const CPU_LEVELS = [1, 2, 3, 4, 5] as const;
-type CpuLevel = (typeof CPU_LEVELS)[number];
 
 export default function HomePage() {
   const [showModal, setShowModal] = useState(false);
@@ -345,7 +347,7 @@ export default function HomePage() {
             </div>
             <div>
               <h2 className="font-semibold text-white">С компьютером</h2>
-              <p className="text-xs text-white/40">5 уровней</p>
+              <p className="text-xs text-white/40">Stockfish · 8 уровней</p>
             </div>
           </button>
           <button
@@ -600,7 +602,7 @@ export default function HomePage() {
               </div>
               <div>
                 <p className="mb-3 text-center text-sm font-medium text-white/50">Уровень сложности</p>
-                <div className="grid grid-cols-5 gap-2">
+                <div className="grid grid-cols-4 gap-2">
                   {CPU_LEVELS.map((level) => (
                     <button
                       key={level}
