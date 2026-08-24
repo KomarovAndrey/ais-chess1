@@ -17,6 +17,9 @@ alter table public.games
 alter table public.games
   add column if not exists end_reason text;
 
+alter table public.games
+  add column if not exists created_by text;
+
 -- Allow aborted status (drop/recreate check)
 do $$
 declare
@@ -222,10 +225,12 @@ begin
 
   insert into public.games (
     status, fen, creator_color, time_control_seconds, increment_seconds, rated,
-    active_color, started_at, winner, white_time_left, black_time_left, last_move_at
+    active_color, started_at, winner, white_time_left, black_time_left, last_move_at,
+    created_by
   ) values (
     'active', 'startpos', 'random', p_time, p_increment, p_rated,
-    'w', v_now, null, v_initial, v_initial, v_now
+    'w', v_now, null, v_initial, v_initial, v_now,
+    v_me::text
   ) returning id into v_game_id;
 
   insert into public.game_players (game_id, side, player_id)
@@ -299,10 +304,12 @@ begin
 
   insert into public.games (
     status, fen, creator_color, time_control_seconds, increment_seconds, rated,
-    active_color, started_at, winner, white_time_left, black_time_left, last_move_at
+    active_color, started_at, winner, white_time_left, black_time_left, last_move_at,
+    created_by
   ) values (
     'active', 'startpos', v_creator_color, v_time, v_inc, v_rated,
-    'w', v_now, null, v_initial, v_initial, v_now
+    'w', v_now, null, v_initial, v_initial, v_now,
+    v_from::text
   ) returning id into v_game_id;
 
   if v_creator_color = 'white' then

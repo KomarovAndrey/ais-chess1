@@ -28,6 +28,7 @@ interface GameRow {
   draw_offer_from?: string | null;
   rematch_offer_from?: string | null;
   rematch_game_id?: string | null;
+  created_by?: string | null;
   moves?: string[];
 }
 
@@ -706,7 +707,7 @@ export default function PlayGame({ initialGame }: PlayGameProps) {
               <p className="mt-1 text-xs text-gold/80">
                 Отправьте ссылку другу. Доска и таймер ниже — партия начнётся, когда он перейдёт по ссылке.
               </p>
-              {player && (
+              {(player || (playerId && gameRow.created_by === playerId)) && (
                 <button
                   type="button"
                   onClick={() => void handleAbort()}

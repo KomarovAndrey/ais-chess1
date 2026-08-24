@@ -61,6 +61,7 @@ export async function POST(req: NextRequest) {
       last_move_at: null,
       increment_seconds: incrementSeconds,
       rated,
+      created_by: playerId,
     };
 
     let { data: game, error: gameError } = await writeClient
@@ -70,10 +71,16 @@ export async function POST(req: NextRequest) {
       .single();
 
     // Backward-compatible if migration not applied yet
-    if (gameError && (gameError.message?.includes("increment_seconds") || gameError.message?.includes("rated"))) {
+    if (
+      gameError &&
+      (gameError.message?.includes("increment_seconds") ||
+        gameError.message?.includes("rated") ||
+        gameError.message?.includes("created_by"))
+    ) {
       const legacy = { ...insertPayload };
       delete legacy.increment_seconds;
       delete legacy.rated;
+      delete legacy.created_by;
       const retry = await writeClient.from("games").insert(legacy).select("*").single();
       game = retry.data;
       gameError = retry.error;

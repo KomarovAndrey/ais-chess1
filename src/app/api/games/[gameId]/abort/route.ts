@@ -40,7 +40,7 @@ export async function POST(
 
     const { data: game, error: gameError } = await writeClient
       .from("games")
-      .select("id, status, moves")
+      .select("id, status, moves, created_by")
       .eq("id", gameId)
       .single();
 
@@ -54,10 +54,12 @@ export async function POST(
       .eq("game_id", gameId);
 
     const playerRow = findPlayer(players as GamePlayerRow[] | null, playerId);
+    const isCreator =
+      typeof game.created_by === "string" && game.created_by === playerId;
 
     if (game.status === "waiting") {
-      // Creator (or only seated player) may cancel
-      if (!playerRow && (players?.length ?? 0) > 0) {
+      // Only a seated player or the creator may cancel a waiting game
+      if (!playerRow && !isCreator) {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
       }
       const { data, error } = await writeClient
