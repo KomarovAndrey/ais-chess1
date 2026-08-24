@@ -1,17 +1,27 @@
-/** Descriptions and optional "personas" for CPU difficulty levels (1–5). */
+/** CPU difficulty levels powered by Stockfish Skill Level (1–8). */
 
-export const CPU_LEVEL_DESCRIPTIONS: Record<1 | 2 | 3 | 4 | 5, string> = {
-  1: "Новичок — случайные ходы, подойдёт для первых партий.",
-  2: "Любитель — иногда забирает фигуры, легко обыграть.",
-  3: "Клубный — чаще забирает материал, нужна внимательность.",
-  4: "Сильный — предпочитает выгодные размены, тактичен.",
-  5: "Продвинутый — считает материал и стремится к лучшим ходам."
+export type CpuLevel = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
+
+export const CPU_LEVELS: CpuLevel[] = [1, 2, 3, 4, 5, 6, 7, 8];
+
+export const CPU_LEVEL_DESCRIPTIONS: Record<CpuLevel, string> = {
+  1: "Новичок — Stockfish почти «спит», много ошибок.",
+  2: "Любитель — слабый движок, подходит для старта.",
+  3: "Клубный — уже считает короткие тактики.",
+  4: "Средний — уверенная игра, нужны аккуратные ходы.",
+  5: "Сильный — серьёзный спарринг.",
+  6: "Кандидат — глубокий поиск, мало прощает.",
+  7: "Мастер — очень сильный движок.",
+  8: "Максимум — почти полный Stockfish lite.",
 };
 
-export const CPU_PERSONAS: Record<1 | 2 | 3 | 4 | 5, { name: string; style: string }> = {
-  1: { name: "Пешка", style: "Только учится. Ходит как придётся." },
-  2: { name: "Конёк", style: "Любит погонять за фигуры." },
-  3: { name: "Слон", style: "Уже думает на шаг вперёд." },
-  4: { name: "Ладья", style: "Считает материал и не дарит фигуры." },
-  5: { name: "Ферзь", style: "Серьёзный соперник для тренировки." }
+export const CPU_PERSONAS: Record<CpuLevel, { name: string; style: string }> = {
+  1: { name: "Пешка", style: "Skill 0" },
+  2: { name: "Конёк", style: "Skill 3" },
+  3: { name: "Слон", style: "Skill 6" },
+  4: { name: "Ладья", style: "Skill 10" },
+  5: { name: "Ферзь", style: "Skill 13" },
+  6: { name: "Король", style: "Skill 16" },
+  7: { name: "Гросс", style: "Skill 18" },
+  8: { name: "Stockfish", style: "Skill 20" },
 };

@@ -1,13 +1,20 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Chess } from "chess.js";
 import { Cpu, X, ChevronLeft, ChevronRight, SkipBack, SkipForward, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { CPU_LEVEL_DESCRIPTIONS, CPU_PERSONAS } from "@/lib/cpu-levels";
+import {
+  CPU_LEVEL_DESCRIPTIONS,
+  CPU_LEVELS,
+  CPU_PERSONAS,
+  type CpuLevel,
+} from "@/lib/cpu-levels";
 import BoardShell from "@/components/chess/BoardShell";
+import AnalysisPanel from "@/components/chess/AnalysisPanel";
 import { chessSounds } from "@/lib/chessSounds";
+import { levelToEngineParams, stockfishAnalyze } from "@/lib/stockfishEngine";
 
 const TIME_OPTIONS = [
   { seconds: 180, label: "3 мин" },
@@ -22,9 +29,6 @@ const SIDE_OPTIONS: { id: "white" | "black" | "random"; label: string; icon: str
   { id: "white", label: "Белые", icon: "♔" },
 ];
 
-const CPU_LEVELS = [1, 2, 3, 4, 5] as const;
-
-type DifficultyLevel = 1 | 2 | 3 | 4 | 5;
 type PlayerColor = "white" | "black";
 
 function ChessPageContent() {
@@ -35,17 +39,17 @@ function ChessPageContent() {
 
   const initialColor: PlayerColor =
     colorParam === "black" ? "black" : colorParam === "white" ? "white" : "white";
-  const initialLevel: DifficultyLevel =
-    levelParam && [1, 2, 3, 4, 5].includes(Number(levelParam))
-      ? (Number(levelParam) as DifficultyLevel)
-      : 3;
+  const parsedLevel = Number(levelParam);
+  const initialLevel: CpuLevel = CPU_LEVELS.includes(parsedLevel as CpuLevel)
+    ? (parsedLevel as CpuLevel)
+    : 3;
   const timePerSideSeconds = timeParam && Number(timeParam) > 0 ? Number(timeParam) : 0;
   const initialTimeMs = timePerSideSeconds * 1000;
 
   const [game] = useState(() => new Chess());
   const [fen, setFen] = useState(game.fen());
   const [playerColor, setPlayerColor] = useState<PlayerColor>(initialColor);
-  const [difficulty, setDifficulty] = useState<DifficultyLevel>(initialLevel);
+  const [difficulty, setDifficulty] = useState<CpuLevel>(initialLevel);
   const [status, setStatus] = useState<string>("Ваш ход");
   const [initialized, setInitialized] = useState(false);
   const [whiteTimeMs, setWhiteTimeMs] = useState(initialTimeMs);
@@ -54,10 +58,12 @@ function ChessPageContent() {
   const [showNewGameModal, setShowNewGameModal] = useState(false);
   const [modalTime, setModalTime] = useState(300);
   const [modalColor, setModalColor] = useState<"white" | "black" | "random">("random");
-  const [modalLevel, setModalLevel] = useState<DifficultyLevel>(3);
+  const [modalLevel, setModalLevel] = useState<CpuLevel>(3);
+  const [showAnalysis, setShowAnalysis] = useState(false);
   /** Replay step for finished game: 0 = start, history.length = end. */
   const [replayStep, setReplayStep] = useState(0);
   const router = useRouter();
+  const aiBusyRef = useRef(false);
 
   const gameOver = game.isGameOver() || gameOverByTime;
   const history = game.history();
@@ -175,60 +181,60 @@ function ChessPageContent() {
     }
   }
 
-  const pieceValues: Record<string, number> = useMemo(
-    () => ({ p: 1, n: 3, b: 3, r: 5, q: 9, k: 100 }),
-    []
-  );
-
-  function makeAIMove() {
+  async function makeAIMove() {
+    if (aiBusyRef.current) return;
     if (game.isGameOver() || gameOverByTime) return;
     if (initialTimeMs > 0 && (whiteTimeMs <= 0 || blackTimeMs <= 0)) return;
     const moves = game.moves({ verbose: true });
     if (moves.length === 0) return;
 
-    let chosenMove = moves[0];
+    aiBusyRef.current = true;
+    setStatus("Ход компьютера…");
+    try {
+      const params = levelToEngineParams(difficulty);
+      const fenNow = game.fen();
+      const result = await stockfishAnalyze(fenNow, {
+        skill: params.skill,
+        depth: params.depth,
+        movetime: params.movetime,
+      });
 
-    if (difficulty === 1) {
-      chosenMove = moves[Math.floor(Math.random() * moves.length)];
-    } else if (difficulty === 2) {
-      const captures = moves.filter((m) => m.captured);
-      chosenMove =
-        captures[Math.floor(Math.random() * captures.length)] ??
-        moves[Math.floor(Math.random() * moves.length)];
-    } else if (difficulty === 3) {
-      const captures = moves.filter((m) => m.captured);
-      chosenMove =
-        captures[Math.floor(Math.random() * captures.length)] ??
-        moves[Math.floor(Math.random() * moves.length)];
-    } else if (difficulty === 4 || difficulty === 5) {
-      let bestScore = -Infinity;
-      const candidates: typeof moves = [];
-      for (const m of moves) {
-        const score = m.captured ? pieceValues[m.captured.toLowerCase()] ?? 0 : 0;
-        if (score > bestScore) {
-          bestScore = score;
-          candidates.length = 0;
-          candidates.push(m);
-        } else if (score === bestScore && score > 0) {
-          candidates.push(m);
+      let played = false;
+      if (result.bestMove && result.bestMove.length >= 4) {
+        const from = result.bestMove.slice(0, 2);
+        const to = result.bestMove.slice(2, 4);
+        const promotion = result.bestMove.length > 4 ? result.bestMove[4] : undefined;
+        const move = game.move({
+          from,
+          to,
+          promotion: promotion as "q" | "r" | "b" | "n" | undefined,
+        });
+        if (move) {
+          played = true;
+          setFen(game.fen());
+          if (move.captured) chessSounds.capture();
+          else chessSounds.move();
+          if (game.isCheck()) chessSounds.check();
+          if (game.isGameOver()) chessSounds.gameEnd();
+          updateStatus();
         }
       }
-      if (difficulty === 5 && candidates.length > 0) {
-        chosenMove = candidates[Math.floor(Math.random() * candidates.length)];
-      } else if (candidates.length > 0) {
-        chosenMove = candidates[0];
-      } else {
-        chosenMove = moves[Math.floor(Math.random() * moves.length)];
+      if (!played) {
+        const fallback = moves[Math.floor(Math.random() * moves.length)];
+        game.move(fallback);
+        setFen(game.fen());
+        chessSounds.move();
+        updateStatus();
       }
+    } catch {
+      const fallback = moves[Math.floor(Math.random() * moves.length)];
+      game.move(fallback);
+      setFen(game.fen());
+      chessSounds.move();
+      updateStatus();
+    } finally {
+      aiBusyRef.current = false;
     }
-
-    game.move(chosenMove);
-    setFen(game.fen());
-    if (chosenMove.captured) chessSounds.capture();
-    else chessSounds.move();
-    if (game.isCheck()) chessSounds.check();
-    if (game.isGameOver()) chessSounds.gameEnd();
-    updateStatus();
   }
 
   function formatMs(ms: number) {
@@ -359,15 +365,26 @@ function ChessPageContent() {
               {history.length > 0 && (
                 <p className="mt-1 text-xs text-white/45">Партия заняла {history.length} ходов.</p>
               )}
-              <button
-                type="button"
-                onClick={openNewGameModal}
-                className="mt-3 inline-flex items-center rounded-xl bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700"
-              >
-                Новая партия
-              </button>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={openNewGameModal}
+                  className="inline-flex items-center rounded-xl bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700"
+                >
+                  Новая партия
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowAnalysis((v) => !v)}
+                  className="inline-flex items-center rounded-xl border border-white/15 bg-white/5 px-4 py-2 text-sm font-medium text-white hover:bg-white/10"
+                >
+                  {showAnalysis ? "Скрыть анализ" : "Анализ"}
+                </button>
+              </div>
             </div>
           )}
+
+          <AnalysisPanel fen={displayFen} open={showAnalysis && gameOver} />
 
           {gameOver && history.length > 0 && (
             <div className="mt-4 surface p-4">
@@ -537,7 +554,7 @@ function ChessPageContent() {
                 <p className="mb-3 text-center text-sm font-medium text-white/55">
                   Уровень сложности
                 </p>
-                <div className="grid grid-cols-5 gap-2">
+                <div className="grid grid-cols-4 gap-2">
                   {CPU_LEVELS.map((level) => (
                     <button
                       key={level}

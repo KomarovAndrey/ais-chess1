@@ -8,6 +8,7 @@ import { ChevronLeft, ChevronRight, SkipBack, SkipForward, Download } from "luci
 import { supabase } from "@/lib/supabaseClient";
 import { ABORT_MAX_PLIES, formatTimeControl } from "@/lib/timeControls";
 import BoardShell from "@/components/chess/BoardShell";
+import AnalysisPanel from "@/components/chess/AnalysisPanel";
 import { chessSounds } from "@/lib/chessSounds";
 
 type GameStatus = "waiting" | "active" | "finished" | "aborted";
@@ -131,6 +132,7 @@ export default function PlayGame({ initialGame }: PlayGameProps) {
   const [error, setError] = useState<string | null>(null);
   const [rematchBusy, setRematchBusy] = useState(false);
   const [rematchWaiting, setRematchWaiting] = useState(false);
+  const [showAnalysis, setShowAnalysis] = useState(false);
 
   const [whiteTime, setWhiteTime] = useState(initialGame.white_time_left);
   const [blackTime, setBlackTime] = useState(initialGame.black_time_left);
@@ -910,6 +912,15 @@ export default function PlayGame({ initialGame }: PlayGameProps) {
                 >
                   Искать игру
                 </Link>
+                {gameRow.status === "finished" && (
+                  <button
+                    type="button"
+                    onClick={() => setShowAnalysis((v) => !v)}
+                    className="inline-flex items-center rounded-xl border border-white/15 bg-white/5 px-4 py-2 text-sm font-medium text-white hover:bg-white/10"
+                  >
+                    {showAnalysis ? "Скрыть анализ" : "Анализ"}
+                  </button>
+                )}
                 <Link
                   href="/"
                   className="inline-flex items-center rounded-xl border border-white/15 bg-white/5 px-4 py-2 text-sm font-medium text-white/70 hover:bg-white/10"
@@ -919,6 +930,11 @@ export default function PlayGame({ initialGame }: PlayGameProps) {
               </div>
             </div>
           )}
+
+          <AnalysisPanel
+            fen={displayFen}
+            open={showAnalysis && gameRow.status === "finished"}
+          />
 
           {gameRow.status === "finished" && moveList.length > 0 && (
             <div className="mt-4 surface p-4">
