@@ -51,6 +51,10 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=...
      8. `supabase-migration-zadachi.sql` — каталог **Задач**, рейтинг задач, попытки
      9. `supabase-migration-tournaments-arena.sql` — Arena-турниры (партии через seeks + таблица)
      10. `supabase-migration-live-protocol-phase-f.sql` — ТВ/зрители, чат партии, presence
+     11. `supabase-migration-trust-phase-g.sql` — provisional Elo, публичная история, rate buckets, жалобы
+
+   В production обязателен `SUPABASE_SERVICE_ROLE_KEY` (без него ходы/рейтинг вернут 503).
+   Опционально: `USE_DB_RATE_LIMIT=1` — распределённый лимит через таблицу `rate_limit_buckets`.
    - Для каждого скрипта: скопируйте весь код из файла и вставьте в редактор, затем нажмите **Run** (или Ctrl+Enter).
    - Должно выполниться без ошибок. Схема подхватится автоматически.
    - Если в проекте раньше был Soft Skills: выполните `supabase-drop-soft-skills.sql`, чтобы удалить таблицы `children` / ratings.

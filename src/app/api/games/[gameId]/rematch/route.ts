@@ -4,6 +4,7 @@ import { checkRateLimit } from "@/lib/rateLimit";
 import {
   findPlayer,
   getGameWriteClient,
+  SERVICE_ROLE_MISSING,
   type GamePlayerRow,
 } from "@/lib/games/integrity";
 
@@ -24,9 +25,12 @@ export async function POST(
   if ("response" in auth) return auth.response;
   const { supabase, user } = auth;
   const writeClient = getGameWriteClient(supabase);
+  if (!writeClient) {
+    return NextResponse.json(SERVICE_ROLE_MISSING, { status: 503 });
+  }
   const me = user.id;
 
-  if (!checkRateLimit(me)) {
+  if (!await checkRateLimit(me)) {
     return NextResponse.json({ error: "Too many requests" }, { status: 429 });
   }
 

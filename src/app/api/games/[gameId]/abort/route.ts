@@ -4,6 +4,8 @@ import { checkRateLimit } from "@/lib/rateLimit";
 import {
   findPlayer,
   getGameWriteClient,
+  SERVICE_ROLE_MISSING,
+  requireAuthForRated,
   type GamePlayerRow,
 } from "@/lib/games/integrity";
 import { ABORT_MAX_PLIES } from "@/lib/timeControls";
@@ -20,6 +22,9 @@ export async function POST(
   if ("response" in auth) return auth.response;
   const { supabase, user } = auth;
   const writeClient = getGameWriteClient(supabase);
+  if (!writeClient) {
+    return NextResponse.json(SERVICE_ROLE_MISSING, { status: 503 });
+  }
 
   try {
     const body = await req.json().catch(() => ({}));
@@ -29,7 +34,7 @@ export async function POST(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    if (!checkRateLimit(playerId)) {
+    if (!await checkRateLimit(playerId)) {
       return NextResponse.json({ error: "Too many requests" }, { status: 429 });
     }
 
@@ -40,12 +45,17 @@ export async function POST(
 
     const { data: game, error: gameError } = await writeClient
       .from("games")
-      .select("id, status, moves, created_by")
+      .select("id, status, moves, created_by, rated")
       .eq("id", gameId)
       .single();
 
     if (gameError || !game) {
       return NextResponse.json({ error: "Game not found" }, { status: 404 });
+    }
+
+    const ratedBlock = requireAuthForRated(game.rated, user);
+    if (ratedBlock) {
+      return NextResponse.json({ error: ratedBlock }, { status: 401 });
     }
 
     const { data: players } = await writeClient

@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSupabaseAndUser } from "@/lib/apiAuth";
+import { getSupabaseOptionalUser } from "@/lib/apiAuth";
 
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ username: string }> }
 ) {
-  const auth = await getSupabaseAndUser();
+  const auth = await getSupabaseOptionalUser();
   if ("response" in auth) return auth.response;
-  const { supabase, user } = auth;
+  const { supabase } = auth;
 
   const { username: routeUsername } = await params;
   const username = decodeURIComponent(routeUsername).trim().toLowerCase();
@@ -17,7 +17,7 @@ export async function GET(
 
   const { data: profile, error: profileError } = await supabase
     .from("profiles")
-    .select("id, username, display_name, bio, updated_at, rating, rating_bullet, rating_blitz, rating_rapid")
+    .select("id, username, display_name, bio, updated_at, rating, rating_bullet, rating_blitz, rating_rapid, avatar_url, games_played_bullet, games_played_blitz, games_played_rapid")
     .ilike("username", username)
     .maybeSingle();
 
@@ -50,6 +50,11 @@ export async function GET(
         rating_bullet: (profile as any).rating_bullet ?? (profile as any).rating ?? 1500,
         rating_blitz: (profile as any).rating_blitz ?? (profile as any).rating ?? 1500,
         rating_rapid: (profile as any).rating_rapid ?? (profile as any).rating ?? 1500,
+        avatar_url: (profile as any).avatar_url ?? null,
+        games_played_bullet: (profile as any).games_played_bullet ?? 0,
+        games_played_blitz: (profile as any).games_played_blitz ?? 0,
+        games_played_rapid: (profile as any).games_played_rapid ?? 0,
+        provisional_blitz: ((profile as any).games_played_blitz ?? 0) < 20,
       },
       stats: { total: 0, wins: 0, losses: 0, draws: 0 },
       recent_games: [],
@@ -77,6 +82,11 @@ export async function GET(
         rating_bullet: (profile as any).rating_bullet ?? (profile as any).rating ?? 1500,
         rating_blitz: (profile as any).rating_blitz ?? (profile as any).rating ?? 1500,
         rating_rapid: (profile as any).rating_rapid ?? (profile as any).rating ?? 1500,
+        avatar_url: (profile as any).avatar_url ?? null,
+        games_played_bullet: (profile as any).games_played_bullet ?? 0,
+        games_played_blitz: (profile as any).games_played_blitz ?? 0,
+        games_played_rapid: (profile as any).games_played_rapid ?? 0,
+        provisional_blitz: ((profile as any).games_played_blitz ?? 0) < 20,
       },
       stats: { total: 0, wins: 0, losses: 0, draws: 0 },
       recent_games: [],
@@ -145,6 +155,11 @@ export async function GET(
       rating_bullet: (profile as any).rating_bullet ?? (profile as any).rating ?? 1500,
       rating_blitz: (profile as any).rating_blitz ?? (profile as any).rating ?? 1500,
       rating_rapid: (profile as any).rating_rapid ?? (profile as any).rating ?? 1500,
+      avatar_url: (profile as any).avatar_url ?? null,
+      games_played_bullet: (profile as any).games_played_bullet ?? 0,
+      games_played_blitz: (profile as any).games_played_blitz ?? 0,
+      games_played_rapid: (profile as any).games_played_rapid ?? 0,
+      provisional_blitz: ((profile as any).games_played_blitz ?? 0) < 20,
     },
     stats: {
       total: finishedGames.length,

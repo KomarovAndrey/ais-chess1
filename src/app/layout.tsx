@@ -19,12 +19,22 @@ const unbounded = Unbounded({
 export const metadata: Metadata = {
   title: "AIS Chess",
   description: "Онлайн-шахматы: партии, рейтинг, задачи и турниры",
+  manifest: "/manifest.webmanifest",
   viewport: {
     width: "device-width",
     initialScale: 1,
     maximumScale: 5
   },
-  themeColor: "#0c1017"
+  themeColor: "#0c1017",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "AIS Chess",
+  },
+  icons: {
+    icon: [{ url: "/icons/icon-192.svg", type: "image/svg+xml" }],
+    apple: [{ url: "/icons/icon-192.svg" }],
+  },
 };
 
 export default function RootLayout({

@@ -18,6 +18,8 @@ type ProfileInfo = {
   rating_bullet: number;
   rating_blitz: number;
   rating_rapid: number;
+  avatar_url?: string | null;
+  provisional_blitz?: boolean;
 };
 
 type FriendStatus = "unknown" | "none" | "friends" | "pending_outgoing" | "pending_incoming" | "self";
@@ -220,12 +222,24 @@ export default function PublicProfilePage() {
         </Link>
 
         <div className="mb-6 flex flex-wrap items-center gap-4 surface p-4 md:p-6">
-          <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-blue-100 text-xl font-semibold text-gold">
-            {initials}
-          </div>
+          {profile.avatar_url ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={profile.avatar_url}
+              alt=""
+              className="h-16 w-16 shrink-0 rounded-full object-cover border border-white/10"
+            />
+          ) : (
+            <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-white/10 text-xl font-semibold text-gold">
+              {initials}
+            </div>
+          )}
           <div className="min-w-0 flex-1">
             <h1 className="font-display text-xl font-semibold text-white truncate">
               {profile.display_name || profile.username || "Игрок"}
+              {profile.provisional_blitz ? (
+                <span className="ml-2 text-xs font-medium text-white/45">провизорный</span>
+              ) : null}
             </h1>
             <div className="mt-1">
               <span className="text-sm font-semibold text-white/70">Логин: </span>
@@ -436,6 +450,30 @@ export default function PublicProfilePage() {
                 </button>
               ) : null}
               {addFriendMessage && <p className="mt-1 text-xs text-white/55">{addFriendMessage}</p>}
+              {currentUserId && currentUserId !== profile.id && (
+                <button
+                  type="button"
+                  className="mt-2 text-xs text-white/40 underline hover:text-white/70"
+                  onClick={async () => {
+                    const reason = window.prompt("Причина жалобы (кратко):");
+                    if (!reason || reason.trim().length < 3) return;
+                    const res = await fetch("/api/reports", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        targetUserId: profile.id,
+                        reason: reason.trim(),
+                      }),
+                    });
+                    const data = await res.json().catch(() => ({}));
+                    setAddFriendMessage(
+                      res.ok ? "Жалоба отправлена." : data.error || "Не удалось отправить жалобу"
+                    );
+                  }}
+                >
+                  Пожаловаться
+                </button>
+              )}
             </div>
           )}
         </div>

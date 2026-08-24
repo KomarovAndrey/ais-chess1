@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
   if ("response" in auth) return auth.response;
   const { supabase, user } = auth;
 
-  if (!checkRateLimit(user.id)) {
+  if (!await checkRateLimit(user.id)) {
     return NextResponse.json({ error: "Too many requests" }, { status: 429 });
   }
 

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getSupabaseOptionalUser } from "@/lib/apiAuth";
 import { checkRateLimit } from "@/lib/rateLimit";
-import { getGameWriteClient } from "@/lib/games/integrity";
+import { getGameWriteClient, SERVICE_ROLE_MISSING, requireAuthForRated } from "@/lib/games/integrity";
 import { joinGameSchema } from "@/lib/validations/games";
 
 const UUID_REGEX =
@@ -51,6 +51,9 @@ export async function POST(req: NextRequest) {
   if ("response" in auth) return auth.response;
   const { supabase, user } = auth;
   const writeClient = getGameWriteClient(supabase);
+  if (!writeClient) {
+    return NextResponse.json(SERVICE_ROLE_MISSING, { status: 503 });
+  }
 
   try {
     const body = await req.json();
@@ -70,7 +73,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (!checkRateLimit(playerId)) {
+    if (!await checkRateLimit(playerId)) {
       return NextResponse.json(
         { error: "Too many requests" },
         { status: 429 }
@@ -88,6 +91,11 @@ export async function POST(req: NextRequest) {
         { error: "Game not found" },
         { status: 404 }
       );
+    }
+
+    const ratedBlock = requireAuthForRated(game.rated, user);
+    if (ratedBlock) {
+      return NextResponse.json({ error: ratedBlock }, { status: 401 });
     }
 
     const { data: players, error: playersError } = await writeClient

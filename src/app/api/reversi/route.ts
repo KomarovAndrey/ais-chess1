@@ -43,7 +43,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (!checkRateLimit(playerId)) {
+    if (!await checkRateLimit(playerId)) {
       return NextResponse.json({ error: "Too many requests" }, { status: 429 });
     }
 

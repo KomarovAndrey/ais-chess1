@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
     if (!UUID_REGEX.test(gameId)) {
       return NextResponse.json({ error: "Invalid game id" }, { status: 400 });
     }
-    if (!checkRateLimit(playerId)) {
+    if (!await checkRateLimit(playerId)) {
       return NextResponse.json({ error: "Too many requests" }, { status: 429 });
     }
 

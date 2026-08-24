@@ -56,7 +56,7 @@ export async function POST(
     if (row < 0 || row > 7 || col < 0 || col > 7) {
       return NextResponse.json({ error: "Недопустимая клетка" }, { status: 400 });
     }
-    if (!checkRateLimit(playerId)) {
+    if (!await checkRateLimit(playerId)) {
       return NextResponse.json({ error: "Too many requests" }, { status: 429 });
     }
 

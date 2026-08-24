@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSupabaseAndUser } from "@/lib/apiAuth";
+import { getSupabaseOptionalUser } from "@/lib/apiAuth";
 
 type GameRow = {
   id: string;
@@ -28,7 +28,7 @@ export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ username: string }> }
 ) {
-  const auth = await getSupabaseAndUser();
+  const auth = await getSupabaseOptionalUser();
   if ("response" in auth) return auth.response;
   const { supabase } = auth;
 

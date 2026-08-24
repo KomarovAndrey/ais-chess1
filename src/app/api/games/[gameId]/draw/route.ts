@@ -6,6 +6,8 @@ import {
   findPlayer,
   finishActiveGame,
   getGameWriteClient,
+  SERVICE_ROLE_MISSING,
+  requireAuthForRated,
   type GamePlayerRow,
 } from "@/lib/games/integrity";
 
@@ -22,6 +24,9 @@ export async function POST(
   if ("response" in auth) return auth.response;
   const { supabase, user } = auth;
   const writeClient = getGameWriteClient(supabase);
+  if (!writeClient) {
+    return NextResponse.json(SERVICE_ROLE_MISSING, { status: 503 });
+  }
 
   const { gameId } = await params;
   if (!UUID_REGEX.test(gameId)) {
@@ -44,20 +49,25 @@ export async function POST(
     );
   }
 
-  if (!checkRateLimit(effectivePlayerId)) {
+  if (!await checkRateLimit(effectivePlayerId)) {
     return NextResponse.json({ error: "Too many requests" }, { status: 429 });
   }
 
   const { data, error: gameError } = await writeClient
     .from("games")
     .select(
-      "id, status, fen, active_color, white_time_left, black_time_left, last_move_at, draw_offer_from"
+      "id, status, fen, active_color, white_time_left, black_time_left, last_move_at, draw_offer_from, rated"
     )
     .eq("id", gameId)
     .single();
 
   if (gameError || !data) {
     return NextResponse.json({ error: "Game not found" }, { status: 404 });
+  }
+
+  const ratedBlock = requireAuthForRated((data as { rated?: boolean }).rated, user);
+  if (ratedBlock) {
+    return NextResponse.json({ error: ratedBlock }, { status: 401 });
   }
 
   const game = data as {

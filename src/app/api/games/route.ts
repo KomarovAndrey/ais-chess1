@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseOptionalUser } from "@/lib/apiAuth";
 import { checkRateLimit } from "@/lib/rateLimit";
-import { getGameWriteClient } from "@/lib/games/integrity";
+import { getGameWriteClient, SERVICE_ROLE_MISSING } from "@/lib/games/integrity";
 import { createGameSchema } from "@/lib/validations/games";
 
 const UUID_REGEX =
@@ -12,6 +12,9 @@ export async function POST(req: NextRequest) {
   if ("response" in auth) return auth.response;
   const { supabase, user } = auth;
   const writeClient = getGameWriteClient(supabase);
+  if (!writeClient) {
+    return NextResponse.json(SERVICE_ROLE_MISSING, { status: 503 });
+  }
 
   try {
     const body = await req.json();
@@ -37,15 +40,28 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (!checkRateLimit(playerId)) {
+    if (!await checkRateLimit(playerId)) {
       return NextResponse.json(
         { error: "Too many requests" },
         { status: 429 }
       );
     }
 
-    // Link games: guests always casual; rated only when both will be accounts (seek/challenge)
+    // Link games: guests always casual; rated only for logged-in with profile
     const rated = user ? Boolean(ratedBody) : false;
+    if (rated) {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("id", user!.id)
+        .maybeSingle();
+      if (!profile) {
+        return NextResponse.json(
+          { error: "Для рейтинговой игры нужен профиль." },
+          { status: 400 }
+        );
+      }
+    }
 
     const whiteInitial = timeControlSeconds * 1000;
     const blackInitial = timeControlSeconds * 1000;

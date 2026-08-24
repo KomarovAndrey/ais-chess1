@@ -1,37 +1,45 @@
 /**
- * Simple in-memory rate limiter per identifier (e.g. user id).
- * For production at scale, use Redis or Supabase/Edge rate limiting.
+ * Rate limiter per identifier (user id / IP).
+ * Prefer Supabase RPC `check_rate_limit_bucket` when USE_DB_RATE_LIMIT=1 and service role is set;
+ * otherwise in-memory (fine for single-instance / local).
  */
 
-const WINDOW_MS = 60 * 1000; // 1 minute
+import { createAdminClient } from "@/lib/supabase/admin";
+
+const WINDOW_MS = 60 * 1000;
 const MAX_REQUESTS_PER_WINDOW = 60;
 
-const store = new Map<
-  string,
-  { count: number; resetAt: number }
->();
+const store = new Map<string, { count: number; resetAt: number }>();
 
-function getWindowKey(id: string): { count: number; resetAt: number } {
+function checkInMemory(identifier: string): boolean {
   const now = Date.now();
-  const entry = store.get(id);
-  if (entry && now < entry.resetAt) {
-    return entry;
+  let entry = store.get(identifier);
+  if (!entry || now >= entry.resetAt) {
+    entry = { count: 0, resetAt: now + WINDOW_MS };
+    store.set(identifier, entry);
   }
-  const resetAt = now + WINDOW_MS;
-  const newEntry = { count: 0, resetAt };
-  store.set(id, newEntry);
-  return newEntry;
+  if (entry.count >= MAX_REQUESTS_PER_WINDOW) return false;
+  entry.count += 1;
+  return true;
 }
 
 /**
- * Returns true if the request is within limit, false if rate limited.
- * Call this with user id (or other identifier) and return 429 if false.
+ * Returns true if within limit, false if rate limited.
  */
-export function checkRateLimit(identifier: string): boolean {
-  const window = getWindowKey(identifier);
-  if (window.count >= MAX_REQUESTS_PER_WINDOW) {
-    return false;
+export async function checkRateLimit(identifier: string): Promise<boolean> {
+  if (!identifier) return false;
+
+  if (process.env.USE_DB_RATE_LIMIT === "1") {
+    const admin = createAdminClient();
+    if (admin) {
+      const { data, error } = await admin.rpc("check_rate_limit_bucket", {
+        p_key: identifier,
+        p_limit: MAX_REQUESTS_PER_WINDOW,
+        p_window_seconds: 60,
+      });
+      if (!error && typeof data === "boolean") return data;
+    }
   }
-  window.count += 1;
-  return true;
+
+  return checkInMemory(identifier);
 }

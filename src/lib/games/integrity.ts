@@ -9,10 +9,33 @@ export type GamePlayerRow = { player_id: string; side: "white" | "black" | null 
 
 /**
  * Client used for authoritative game writes.
- * Prefers service role; falls back to the request-scoped client until the key is configured.
+ * Prefers service role. In production / Vercel fails closed (returns null) so callers can 503.
+ * Locally falls back to the request-scoped client when the key is not configured yet.
  */
-export function getGameWriteClient(fallback: SupabaseClient): SupabaseClient {
-  return createAdminClient() ?? fallback;
+export function getGameWriteClient(fallback: SupabaseClient): SupabaseClient | null {
+  const admin = createAdminClient();
+  if (admin) return admin;
+  const failClosed =
+    process.env.NODE_ENV === "production" ||
+    process.env.REQUIRE_SERVICE_ROLE === "1" ||
+    Boolean(process.env.VERCEL);
+  if (failClosed) return null;
+  return fallback;
+}
+
+export const SERVICE_ROLE_MISSING = {
+  error: "Сервер не настроен: задайте SUPABASE_SERVICE_ROLE_KEY.",
+} as const;
+
+/** Rated games require a real session — guest localStorage UUID is not identity. */
+export function requireAuthForRated(
+  rated: boolean | null | undefined,
+  user: { id: string } | null
+): string | null {
+  if (rated && !user) {
+    return "Рейтинговые партии только для вошедших пользователей.";
+  }
+  return null;
 }
 
 export function computeClocksAfterElapsed(
