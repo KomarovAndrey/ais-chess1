@@ -4,10 +4,11 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { Chess } from "chess.js";
-import { Chessboard } from "react-chessboard";
 import { ChevronLeft, ChevronRight, SkipBack, SkipForward, Download } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { ABORT_MAX_PLIES, formatTimeControl } from "@/lib/timeControls";
+import BoardShell from "@/components/chess/BoardShell";
+import { chessSounds } from "@/lib/chessSounds";
 
 type GameStatus = "waiting" | "active" | "finished" | "aborted";
 
@@ -427,7 +428,7 @@ export default function PlayGame({ initialGame }: PlayGameProps) {
     return data as { game: GameRow };
   }
 
-  const onDrop = (sourceSquare: string, targetSquare: string): boolean => {
+  const onBoardMove = (uci: string): boolean => {
     if (!canMove) return false;
 
     const now = Date.now();
@@ -451,6 +452,7 @@ export default function PlayGame({ initialGame }: PlayGameProps) {
           setBlackTime(data.game.black_time_left);
           lastMoveAtRef.current = data.game.last_move_at;
           if (data.game.fen && data.game.fen !== "startpos") game.load(data.game.fen);
+          chessSounds.gameEnd();
         })
         .catch((e: unknown) => {
           setError(e instanceof Error ? e.message : "Ход не принят");
@@ -458,13 +460,24 @@ export default function PlayGame({ initialGame }: PlayGameProps) {
       return false;
     }
 
+    const from = uci.slice(0, 2);
+    const to = uci.slice(2, 4);
+    const promotion = uci.length > 4 ? uci[4] : undefined;
     const move = game.move({
-      from: sourceSquare,
-      to: targetSquare,
-      promotion: "q"
+      from,
+      to,
+      promotion: promotion as "q" | "r" | "b" | "n" | undefined,
     });
 
-    if (move === null) return false;
+    if (move === null) {
+      chessSounds.illegal();
+      return false;
+    }
+
+    if (move.captured) chessSounds.capture();
+    else chessSounds.move();
+    if (game.isCheck()) chessSounds.check();
+    if (game.isGameOver()) chessSounds.gameEnd();
 
     const prevGameRow = gameRow;
     const prevWhite = whiteTime;
@@ -476,12 +489,13 @@ export default function PlayGame({ initialGame }: PlayGameProps) {
       active_color: game.turn() as "w" | "b",
       white_time_left: currentWhite,
       black_time_left: currentBlack,
-      status: game.isGameOver() ? "finished" : "active"
+      status: game.isGameOver() ? "finished" : "active",
+      moves: [...(prev.moves ?? []), uci],
     }));
     setWhiteTime(currentWhite);
     setBlackTime(currentBlack);
 
-    sendMove(move.lan)
+    sendMove(uci)
       .then((data) => {
         lastMoveAtRef.current = data.game.last_move_at;
         setGameRow(data.game);
@@ -495,6 +509,7 @@ export default function PlayGame({ initialGame }: PlayGameProps) {
         setGameRow(prevGameRow);
         setWhiteTime(prevWhite);
         setBlackTime(prevBlack);
+        chessSounds.illegal();
         setError(e instanceof Error ? e.message : "Ход не принят");
       });
     return true;
@@ -753,32 +768,52 @@ export default function PlayGame({ initialGame }: PlayGameProps) {
               style={{
                 width: "min(100vw - 2rem, 70vh, 480px)",
                 height: "min(100vw - 2rem, 70vh, 480px)",
-                touchAction: "manipulation"
+                touchAction: "manipulation",
               }}
             >
-              <Chessboard
-                position={displayFen}
-                onPieceDrop={gameRow.status === "active" ? onDrop : undefined}
-                boardOrientation={boardOrientation}
-                customDarkSquareStyle={{ backgroundColor: "#b58863" }}
-                customLightSquareStyle={{ backgroundColor: "#f0d9b5" }}
-                customBoardStyle={{
-                  borderRadius: 0,
-                  boxShadow: "0 15px 40px rgba(15,23,42,0.15)"
-                }}
+              <BoardShell
+                fen={displayFen}
+                orientation={boardOrientation}
+                interactive={!!canMove && gameRow.status === "active"}
+                allowPremoves={
+                  gameRow.status === "active" && !!player && !isMyTurn
+                }
+                onMove={onBoardMove}
+                lastMoveUci={
+                  moveList.length > 0
+                    ? moveList[Math.max(0, (gameRow.status === "finished" ? replayStep : moveList.length) - 1)]
+                    : null
+                }
+                sizeStyle={{ width: "100%", height: "100%" }}
               />
             </div>
             {moveList.length > 0 && (
-              <div className="mt-2 flex items-center gap-2">
+              <div className="mt-2 flex flex-wrap items-center gap-2">
                 <p
                   className="text-sm text-white/55"
                   aria-live="polite"
                   aria-atomic="true"
                 >
-                  {replayStep > 0
-                    ? `Ход ${replayStep}: ${moveList[replayStep - 1]?.replace(/([a-h])([1-8])/g, "$1-$2") ?? ""}`
+                  {replayStep > 0 || gameRow.status !== "finished"
+                    ? `Полуходы: ${gameRow.status === "finished" ? replayStep : moveList.length}`
                     : "Начальная позиция"}
                 </p>
+                <div className="max-h-16 flex-1 overflow-y-auto font-mono text-[11px] leading-relaxed text-white/40">
+                  {(() => {
+                    const c = new Chess();
+                    const sans: string[] = [];
+                    for (const u of moveList) {
+                      const m = c.move(u, { strict: false });
+                      if (!m) break;
+                      sans.push(m.san);
+                    }
+                    return sans
+                      .map((san, i) =>
+                        i % 2 === 0 ? `${Math.floor(i / 2) + 1}. ${san}` : san
+                      )
+                      .join(" ");
+                  })()}
+                </div>
               </div>
             )}
 
