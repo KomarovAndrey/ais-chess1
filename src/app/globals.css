@@ -61,6 +61,12 @@ select {
   @apply rounded-3xl border border-white/10 bg-white/[0.06] shadow-card backdrop-blur-xl;
 }
 
+/* No backdrop-filter: react-chessboard's drag layer uses position:fixed and
+   breaks (cursor/piece offset) inside a filter/backdrop-filter containing block. */
+.surface-board {
+  @apply rounded-3xl border border-white/10 bg-ink-800/95 shadow-card;
+}
+
 .surface-pad {
   @apply surface p-5 md:p-6;
 }
@@ -106,7 +112,7 @@ select {
 }
 
 .board-chrome {
-  @apply surface overflow-hidden;
+  @apply surface-board overflow-hidden;
 }
 
 @keyframes fade-up {

@@ -790,7 +790,7 @@ export default function PlayGame({ initialGame, forceWatch = false }: PlayGamePr
   return (
     <main className="page-bg min-h-screen px-4 py-6">
       <div className="mx-auto flex max-w-5xl flex-col gap-6 md:flex-row">
-        <section className="flex-1 surface p-4">
+        <section className="flex-1 surface-board p-4">
           <div className="mb-3 flex items-center justify-between">
             <div>
               <h1 className="font-display text-lg font-semibold text-white md:text-xl">

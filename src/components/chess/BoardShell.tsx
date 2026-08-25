@@ -79,12 +79,32 @@ export default function BoardShell({
   lastMoveUci,
   showBoardNotation = true,
 }: BoardShellProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [boardWidth, setBoardWidth] = useState<number | undefined>(undefined);
   const [selected, setSelected] = useState<Square | null>(null);
   const [pendingPromotion, setPendingPromotion] = useState<PendingPromotion | null>(null);
   const [pendingPremove, setPendingPremove] = useState<PendingPremove | null>(null);
   const lastInteractRef = useRef<{ sq: string; at: number } | null>(null);
 
   const position = resolveFen(fen);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+
+    const update = () => {
+      const w = Math.floor(el.getBoundingClientRect().width);
+      if (w > 0) setBoardWidth(w);
+    };
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    window.addEventListener("resize", update);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", update);
+    };
+  }, []);
 
   const lastFrom = lastMoveUci && lastMoveUci.length >= 4 ? lastMoveUci.slice(0, 2) : undefined;
   const lastTo = lastMoveUci && lastMoveUci.length >= 4 ? lastMoveUci.slice(2, 4) : undefined;
@@ -286,32 +306,47 @@ export default function BoardShell({
     : null;
 
   return (
-    <div className={`relative ${className ?? ""}`} style={sizeStyle}>
-      <Chessboard
-        position={position}
-        onPieceDrop={interactive || allowPremoves ? onPieceDrop : undefined}
-        onSquareClick={onSquareClick}
-        onPieceClick={(_piece, square) => onSquareClick(square)}
-        onPromotionCheck={() => false}
-        onSquareRightClick={() => {
-          setSelected(null);
-          setPendingPremove(null);
-          setPendingPromotion(null);
-        }}
-        isDraggablePiece={isDraggablePiece}
-        arePiecesDraggable={interactive || allowPremoves}
-        arePremovesAllowed={false}
-        boardOrientation={orientation}
-        showBoardNotation={showBoardNotation}
-        customDarkSquareStyle={{ backgroundColor: DARK }}
-        customLightSquareStyle={{ backgroundColor: LIGHT }}
-        customSquareStyles={customSquareStyles}
-        customBoardStyle={{
-          borderRadius: 0,
-          boxShadow: "0 15px 40px rgba(15,23,42,0.15)",
-        }}
-        animationDuration={200}
-      />
+    <div
+      ref={containerRef}
+      className={`relative ${className ?? ""}`}
+      style={{
+        ...sizeStyle,
+        // Avoid transform/filter here — they break react-chessboard drag coords.
+        transform: "none",
+        filter: "none",
+        backdropFilter: "none",
+        WebkitBackdropFilter: "none",
+      }}
+    >
+      {boardWidth ? (
+        <Chessboard
+          position={position}
+          boardWidth={boardWidth}
+          onPieceDrop={interactive || allowPremoves ? onPieceDrop : undefined}
+          onSquareClick={onSquareClick}
+          onPieceClick={(_piece, square) => onSquareClick(square)}
+          onPromotionCheck={() => false}
+          onSquareRightClick={() => {
+            setSelected(null);
+            setPendingPremove(null);
+            setPendingPromotion(null);
+          }}
+          isDraggablePiece={isDraggablePiece}
+          arePiecesDraggable={interactive || allowPremoves}
+          arePremovesAllowed={false}
+          snapToCursor
+          boardOrientation={orientation}
+          showBoardNotation={showBoardNotation}
+          customDarkSquareStyle={{ backgroundColor: DARK }}
+          customLightSquareStyle={{ backgroundColor: LIGHT }}
+          customSquareStyles={customSquareStyles}
+          customBoardStyle={{
+            borderRadius: 0,
+            boxShadow: "0 15px 40px rgba(15,23,42,0.15)",
+          }}
+          animationDuration={200}
+        />
+      ) : null}
 
       {pendingPromotion && promoBox && (
         <div

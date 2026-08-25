@@ -348,7 +348,7 @@ export default function ZadachiPage() {
                 : ""}
             </p>
 
-            <div className="surface p-4">
+            <div className="surface-board p-4">
               <div
                 key={boardKey}
                 className="mx-auto overflow-hidden border border-white/10 bg-white/5"
