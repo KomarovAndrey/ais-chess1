@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { UserPlus, Cpu, X, Trophy, Puzzle, Swords, Search } from "lucide-react";
 import GameParamsModal from "@/components/GameParamsModal";
+import SeekLobby from "@/components/SeekLobby";
 import TimePresetPicker from "@/components/TimePresetPicker";
 import {
   CPU_LEVEL_DESCRIPTIONS,
@@ -45,6 +46,7 @@ export default function HomePage() {
   const [selectedFriendId, setSelectedFriendId] = useState<string>("");
   const router = useRouter();
   const seekPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const seekChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
   const modalOpen = showModal || showFriendModal || showCpuModal || showSeekModal;
 
@@ -68,11 +70,19 @@ export default function HomePage() {
     return () => subscription.unsubscribe();
   }, []);
 
-  const cancelSeek = useCallback(async () => {
+  const stopSeekWatchers = useCallback(() => {
     if (seekPollRef.current) {
       clearInterval(seekPollRef.current);
       seekPollRef.current = null;
     }
+    if (seekChannelRef.current) {
+      supabase.removeChannel(seekChannelRef.current);
+      seekChannelRef.current = null;
+    }
+  }, []);
+
+  const cancelSeek = useCallback(async () => {
+    stopSeekWatchers();
     try {
       await fetch("/api/seeks", {
         method: "DELETE",
@@ -84,13 +94,13 @@ export default function HomePage() {
     }
     setIsSeeking(false);
     setSeekId(null);
-  }, [seekId]);
+  }, [seekId, stopSeekWatchers]);
 
   useEffect(() => {
     return () => {
-      if (seekPollRef.current) clearInterval(seekPollRef.current);
+      stopSeekWatchers();
     };
-  }, []);
+  }, [stopSeekWatchers]);
 
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     if (e.key === "Escape") {
@@ -156,24 +166,55 @@ export default function HomePage() {
     }
   }
 
-  function startSeekPolling() {
-    if (seekPollRef.current) clearInterval(seekPollRef.current);
-    seekPollRef.current = setInterval(async () => {
+  function goToMatchedGame(gameId: string) {
+    stopSeekWatchers();
+    setIsSeeking(false);
+    router.push(`/play/${gameId}`);
+  }
+
+  function startSeekWatchers(activeSeekId: string | null) {
+    stopSeekWatchers();
+
+    const checkMatched = async () => {
       try {
         const res = await fetch("/api/seeks");
         if (!res.ok) return;
         const data = await res.json();
         const seek = data.seek;
         if (seek?.status === "matched" && seek.game_id) {
-          if (seekPollRef.current) clearInterval(seekPollRef.current);
-          seekPollRef.current = null;
-          setIsSeeking(false);
-          router.push(`/play/${seek.game_id}`);
+          goToMatchedGame(seek.game_id);
         }
       } catch {
         /* ignore */
       }
-    }, 1500);
+    };
+
+    seekPollRef.current = setInterval(() => void checkMatched(), 2500);
+
+    if (userId) {
+      const filter = activeSeekId
+        ? `id=eq.${activeSeekId}`
+        : `user_id=eq.${userId}`;
+      const channel = supabase
+        .channel(`seek-wait:${userId}:${activeSeekId ?? "latest"}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "UPDATE",
+            schema: "public",
+            table: "game_seeks",
+            filter,
+          },
+          (payload) => {
+            const row = payload.new as { status?: string; game_id?: string | null };
+            if (row?.status === "matched" && row.game_id) {
+              goToMatchedGame(row.game_id);
+            }
+          }
+        )
+        .subscribe();
+      seekChannelRef.current = channel;
+    }
   }
 
   async function handleSeek(opts: {
@@ -204,12 +245,26 @@ export default function HomePage() {
         return;
       }
       setSeekId(data.seekId ?? null);
-      startSeekPolling();
+      startSeekWatchers(data.seekId ?? null);
     } catch (e) {
       setIsSeeking(false);
       setSeekError(e instanceof Error ? e.message : "Ошибка поиска");
       setShowSeekModal(true);
     }
+  }
+
+  async function handleAcceptLobbySeek(acceptSeekId: string) {
+    const res = await fetch("/api/seeks", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ acceptSeekId }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || "Не удалось принять вызов");
+    if (!data.gameId) throw new Error("Партия не создана");
+    stopSeekWatchers();
+    setIsSeeking(false);
+    router.push(`/play/${data.gameId}`);
   }
 
   async function loadFriends() {
@@ -314,6 +369,16 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+
+      <SeekLobby
+        userId={userId}
+        disabled={isSeeking}
+        onOpenSeek={() => {
+          setSeekError(null);
+          setShowSeekModal(true);
+        }}
+        onAccept={handleAcceptLobbySeek}
+      />
 
       <section className="relative border-t border-white/5">
         <div className="mx-auto grid max-w-6xl gap-3 px-4 py-10 sm:grid-cols-2 lg:grid-cols-5">

@@ -14,6 +14,7 @@ import {
   type GamePlayerRow,
 } from "@/lib/games/integrity";
 import { clocksAfterLegalMove, clocksBeforeMove } from "@/lib/clocks";
+import { voidBroadcastGameUpdate } from "@/lib/games/broadcast";
 
 const UUID_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -157,6 +158,7 @@ export async function POST(
         activeColor: currentActive,
         clearDrawOffer: true,
       });
+      voidBroadcastGameUpdate(gameId, game, "game");
       return NextResponse.json({ game }, { status: 200 });
     }
 
@@ -216,6 +218,7 @@ export async function POST(
       await applyGameRatings(writeClient, gameId, data.winner);
     }
 
+    voidBroadcastGameUpdate(gameId, data, "move");
     return NextResponse.json({ game: data }, { status: 200 });
   } catch (error) {
     console.error("Unexpected error in POST /api/games/[gameId]/move:", error);

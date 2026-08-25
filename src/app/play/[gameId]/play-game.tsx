@@ -316,6 +316,9 @@ export default function PlayGame({ initialGame, forceWatch = false }: PlayGamePr
       .on("broadcast", { event: "move" }, (payload) => {
         applyIncoming((payload.payload as { game?: GameRow })?.game ?? (payload.payload as GameRow));
       })
+      .on("broadcast", { event: "game" }, (payload) => {
+        applyIncoming((payload.payload as { game?: GameRow })?.game ?? (payload.payload as GameRow));
+      })
       .subscribe();
     moveChannelRef.current = channel;
 
