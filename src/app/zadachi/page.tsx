@@ -436,8 +436,15 @@ export default function ZadachiPage() {
 
             {data?.source === "seed" && (
               <p className="mt-3 text-center text-xs text-white/35">
-                Локальный набор. Для рейтинга и каталога выполните{" "}
-                <code className="text-white/50">supabase-migration-zadachi.sql</code>.
+                Локальный набор (~15 задач). Для каталога из 12 000 задач Lichess выполните{" "}
+                <code className="text-white/50">supabase-migration-zadachi.sql</code>
+                {" "}и{" "}
+                <code className="text-white/50">supabase-seed-zadachi-lichess.sql</code>.
+              </p>
+            )}
+            {data?.source === "db" && (
+              <p className="mt-3 text-center text-xs text-white/35">
+                Каталог из базы · рейтинг задачи {zadacha?.rating}
               </p>
             )}
           </>
