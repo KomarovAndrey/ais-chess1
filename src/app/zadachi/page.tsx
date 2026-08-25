@@ -173,36 +173,65 @@ export default function ZadachiPage() {
       const expected = zadacha.moves[step]?.toLowerCase();
       if (!expected) return false;
 
-      if (uci.toLowerCase() !== expected) {
-        chessSounds.illegal();
-        setStatus("wrong");
-        setSessionFail((n) => n + 1);
-        void reportAttempt(false, zadacha.id);
-        return false;
-      }
-
-      try {
+      const tryPlay = (moveUci: string) => {
         const c = new Chess(fen);
-        const from = uci.slice(0, 2);
-        const to = uci.slice(2, 4);
-        const promotion = uci.length > 4 ? uci[4] : undefined;
+        const from = moveUci.slice(0, 2);
+        const to = moveUci.slice(2, 4);
+        const promotion = moveUci.length > 4 ? moveUci[4] : undefined;
         const m = c.move({
           from,
           to,
           promotion: promotion as "q" | "r" | "b" | "n" | undefined,
         });
-        if (!m) {
+        return m ? c : null;
+      };
+
+      const isLastPlayerPly = step === zadacha.moves.length - 1 || step % 2 === 0;
+      const allowAnyMate =
+        isLastPlayerPly &&
+        (zadacha.themes.includes("mateIn1") ||
+          (zadacha.themes.includes("mate") && zadacha.moves.length - step <= 1));
+
+      let played = tryPlay(uci);
+      const matchesLine = uci.toLowerCase() === expected;
+
+      if (!matchesLine) {
+        // Lichess: any mating move wins mate-in-1 (not only the recorded UCI).
+        if (!allowAnyMate || !played || !played.isCheckmate()) {
           chessSounds.illegal();
+          setStatus("wrong");
+          setSessionFail((n) => n + 1);
+          void reportAttempt(false, zadacha.id);
           return false;
         }
-        if (m.captured) chessSounds.capture();
-        else chessSounds.move();
-        if (c.isCheck()) chessSounds.check();
+      } else if (!played) {
+        chessSounds.illegal();
+        return false;
+      }
 
-        let nextFen = c.fen();
+      try {
+        const mSan = played!.history({ verbose: true }).slice(-1)[0];
+        if (mSan?.captured) chessSounds.capture();
+        else chessSounds.move();
+        if (played!.isCheck()) chessSounds.check();
+
+        let nextFen = played!.fen();
         let nextStep = step + 1;
 
-        // Auto-play opponent reply
+        // If we accepted an alternate mate-in-1, the line is done.
+        if (!matchesLine && played!.isCheckmate()) {
+          chessSounds.gameEnd();
+          setFen(nextFen);
+          setStep(zadacha.moves.length);
+          setStatus("done");
+          setSessionOk((n) => n + 1);
+          void reportAttempt(true, zadacha.id);
+          if (data?.daily && data.dailyKey) {
+            setStreak(bumpStreak(data.dailyKey));
+          }
+          return true;
+        }
+
         const after = playOpponentIfNeeded(nextStep, nextFen, zadacha.moves);
         nextFen = after.fen;
         nextStep = after.step;

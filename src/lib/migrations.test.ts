@@ -9,15 +9,19 @@ const REQUIRED = [
   "supabase-migration-live-protocol-phase-f.sql",
   "supabase-migration-trust-phase-g.sql",
   "supabase-migration-lichess-clock-start.sql",
+  "supabase-seed-zadachi-lichess.sql",
+  "data/zadachi-lichess.json",
 ];
 
 describe("SQL migrations", () => {
-  it("keeps required migration files in the repo root", () => {
+  it("keeps required migration and seed files in the repo", () => {
     const root = process.cwd();
-    const sql = readdirSync(root).filter((f) => f.endsWith(".sql"));
+    const sql = new Set(readdirSync(root).filter((f) => f.endsWith(".sql")));
     for (const name of REQUIRED) {
-      expect(sql, name).toContain(name);
-      expect(existsSync(join(root, name))).toBe(true);
+      expect(existsSync(join(root, name)), name).toBe(true);
+      if (name.endsWith(".sql") && !name.includes("/")) {
+        expect(sql.has(name), name).toBe(true);
+      }
     }
   });
 });

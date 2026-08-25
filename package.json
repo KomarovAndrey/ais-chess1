@@ -10,7 +10,8 @@
     "copy-stockfish": "node scripts/copy-stockfish.js",
     "postinstall": "node scripts/copy-stockfish.js",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "import:zadachi": "node scripts/import-lichess-puzzles.cjs"
   },
   "dependencies": {
     "@radix-ui/react-slot": "^1.1.0",

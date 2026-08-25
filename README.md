@@ -49,9 +49,11 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=...
      6. `supabase-migration-game-integrity.sql` — серверная целостность партий (после настройки `SUPABASE_SERVICE_ROLE_KEY`)
      7. `supabase-migration-matchmaking-phase-a.sql` — лобби (seeks), инкремент часов, rated/casual, abort/rematch
      8. `supabase-migration-zadachi.sql` — каталог **Задач**, рейтинг задач, попытки
-     9. `supabase-migration-tournaments-arena.sql` — Arena-турниры (партии через seeks + таблица)
-     10. `supabase-migration-live-protocol-phase-f.sql` — ТВ/зрители, чат партии, presence
-     11. `supabase-migration-trust-phase-g.sql` — provisional Elo, публичная история, rate buckets, жалобы
+     9. `supabase-seed-zadachi-lichess.sql` — **12 000** задач из открытой базы Lichess (Wave 2; большой файл, можно гонять чанками)
+     10. `supabase-migration-tournaments-arena.sql` — Arena-турниры (партии через seeks + таблица)
+     11. `supabase-migration-live-protocol-phase-f.sql` — ТВ/зрители, чат партии, presence
+     12. `supabase-migration-trust-phase-g.sql` — provisional Elo, публичная история, rate buckets, жалобы
+     13. `supabase-migration-lichess-clock-start.sql` — часы стартуют после первых ходов (как на Lichess)
 
    В production обязателен `SUPABASE_SERVICE_ROLE_KEY` (без него ходы/рейтинг вернут 503).
    Опционально: `USE_DB_RATE_LIMIT=1` — распределённый лимит через таблицу `rate_limit_buckets`.
