@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { Menu, X } from "lucide-react";
 import AppNav from "@/components/AppNav";
+import type { HeaderProfile, HeaderUser } from "@/lib/auth/session";
 
 const NAV_LINKS = [
   { href: "/ratings", label: "Рейтинг" },
@@ -11,10 +12,14 @@ const NAV_LINKS = [
   { href: "/tournaments", label: "Турниры" },
   { href: "/reversi", label: "Reversi" },
   { href: "/soft-skills", label: "Soft Skills" },
-  { href: "/soft-skills/rating", label: "Рейтинг Soft Skills" },
 ] as const;
 
-export default function SiteHeader() {
+type SiteHeaderProps = {
+  initialUser: HeaderUser | null;
+  initialProfile: HeaderProfile | null;
+};
+
+export default function SiteHeader({ initialUser, initialProfile }: SiteHeaderProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
@@ -48,7 +53,7 @@ export default function SiteHeader() {
         </div>
 
         <div className="flex items-center gap-2">
-          <AppNav />
+          <AppNav initialUser={initialUser} initialProfile={initialProfile} />
           <button
             type="button"
             className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-white/80 transition hover:bg-white/10 md:hidden"

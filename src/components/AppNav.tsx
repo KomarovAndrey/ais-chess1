@@ -5,13 +5,10 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Search, User as UserIcon, LogOut, Bell, Check, X } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
-import type { User } from "@supabase/supabase-js";
+import type { HeaderProfile, HeaderUser } from "@/lib/auth/session";
 
-type ProfileInfo = {
-  username: string | null;
-  display_name: string | null;
-  rating_blitz?: number | null;
-};
+type ProfileInfo = HeaderProfile;
+type NavUser = HeaderUser;
 type SearchHit = { id: string; username: string | null; display_name: string | null };
 type IncomingChallenge = {
   id: string;
@@ -45,11 +42,16 @@ function getInitials(profile: ProfileInfo | null, email?: string): string {
   return "?";
 }
 
-export default function AppNav() {
+export default function AppNav({
+  initialUser,
+  initialProfile,
+}: {
+  initialUser: HeaderUser | null;
+  initialProfile: HeaderProfile | null;
+}) {
   const router = useRouter();
-  const [user, setUser] = useState<User | null>(null);
-  const [profile, setProfile] = useState<ProfileInfo | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState<NavUser | null>(initialUser);
+  const [profile, setProfile] = useState<ProfileInfo | null>(initialProfile);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<SearchHit[]>([]);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -65,18 +67,25 @@ export default function AppNav() {
   const debouncedQuery = useDebounce(searchQuery, 300);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
+    setUser(initialUser);
+    setProfile(initialProfile);
+  }, [initialUser, initialProfile]);
+
+  useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
+      if (session?.user) {
+        setUser({ id: session.user.id, email: session.user.email ?? null });
+      } else {
+        setUser(null);
+        setProfile(null);
+      }
     });
     return () => subscription.unsubscribe();
   }, []);
 
   useEffect(() => {
     if (!user) return;
+    if (initialProfile && initialUser?.id === user.id) return;
     fetch("/api/profile")
       .then((r) => r.ok ? r.json() : null)
       .then((data) => {
@@ -89,7 +98,7 @@ export default function AppNav() {
         }
       })
       .catch(() => {});
-  }, [user]);
+  }, [user, initialProfile, initialUser?.id]);
 
   useEffect(() => {
     if (debouncedQuery.length < 2) {
@@ -118,7 +127,13 @@ export default function AppNav() {
   }, [handleClickOutside]);
 
   async function handleSignOut() {
-    await supabase.auth.signOut();
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+    } catch {
+      // ignore network errors; still navigate away
+    }
+    setUser(null);
+    setProfile(null);
     setMenuOpen(false);
     router.push("/");
     router.refresh();
@@ -187,7 +202,7 @@ export default function AppNav() {
     };
   }, [user, router]);
 
-  if (loading && !user) {
+  if (!user) {
     return (
       <nav className="flex items-center gap-2">
         <Link

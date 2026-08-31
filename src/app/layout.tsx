@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Manrope, Unbounded } from "next/font/google";
 import "./globals.css";
-import SiteHeader from "@/components/SiteHeader";
+import SiteHeaderShell from "@/components/SiteHeaderShell";
 import PresenceHeartbeat from "@/components/PresenceHeartbeat";
 import RegisterServiceWorker from "@/components/RegisterServiceWorker";
 
@@ -46,7 +46,7 @@ export default function RootLayout({
   return (
     <html lang="ru">
       <body className={`${manrope.variable} ${unbounded.variable} font-sans page-bg min-h-screen`}>
-        <SiteHeader />
+        <SiteHeaderShell />
         <PresenceHeartbeat />
         <RegisterServiceWorker />
         {children}

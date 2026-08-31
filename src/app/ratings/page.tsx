@@ -3,6 +3,15 @@ import { createClient } from "@/lib/supabase/server";
 
 export const revalidate = 60;
 
+const SOFT_SKILLS_LEAGUES = [
+  { id: "1", label: "Лига 1" },
+  { id: "2", label: "Лига 2" },
+  { id: "3", label: "Лига 3" },
+  { id: "4", label: "Лига 4" },
+] as const;
+
+type SoftSkillsLeagueId = (typeof SOFT_SKILLS_LEAGUES)[number]["id"];
+
 type RatingRow = {
   id: string;
   username: string | null;
@@ -13,13 +22,70 @@ type RatingRow = {
   rating?: number | null;
 };
 
+type Section = "chess" | "soft-skills";
+
 export default async function RatingsPage({
   searchParams
 }: {
-  searchParams?: Promise<{ type?: string }>;
+  searchParams?: Promise<{ type?: string; section?: string; league?: string }>;
 }) {
   const sp = (await searchParams) ?? {};
-  const type = sp.type === "bullet" || sp.type === "rapid" || sp.type === "blitz" ? sp.type : "blitz";
+  const section: Section = sp.section === "soft-skills" ? "soft-skills" : "chess";
+  const type =
+    sp.type === "bullet" || sp.type === "rapid" || sp.type === "blitz" ? sp.type : "blitz";
+
+  if (section === "soft-skills") {
+    const leagueId: SoftSkillsLeagueId =
+      SOFT_SKILLS_LEAGUES.find((l) => l.id === sp.league)?.id ?? "1";
+    const leagueLabel =
+      SOFT_SKILLS_LEAGUES.find((l) => l.id === leagueId)?.label ?? "Лига 1";
+
+    return (
+      <main className="page-bg min-h-screen">
+        <div className="page-shell max-w-3xl">
+          <div className="mb-6 flex items-end justify-between gap-4">
+            <div>
+              <h1 className="page-title">Рейтинги</h1>
+              <p className="page-subtitle">Soft Skills · {leagueLabel}</p>
+            </div>
+            <Link href="/" className="btn-secondary">
+              На главную
+            </Link>
+          </div>
+
+          <div className="mb-4 flex flex-wrap gap-2">
+            <Link href="/ratings?section=chess&type=blitz" className="tab-pill">
+              Шахматы
+            </Link>
+            <span className="tab-pill-active">Soft Skills</span>
+          </div>
+
+          <div className="mb-4 flex flex-wrap gap-2">
+            {SOFT_SKILLS_LEAGUES.map((league) => (
+              <Link
+                key={league.id}
+                href={`/ratings?section=soft-skills&league=${league.id}`}
+                className={leagueId === league.id ? "tab-pill-active" : "tab-pill"}
+              >
+                {league.label}
+              </Link>
+            ))}
+          </div>
+
+          <div className="surface overflow-hidden">
+            <div className="grid grid-cols-[56px_1fr_72px] gap-0 border-b border-white/10 bg-white/[0.03] px-4 py-3 text-xs font-semibold uppercase tracking-wider text-white/45">
+              <div>#</div>
+              <div>Участник</div>
+              <div className="text-right">Балл</div>
+            </div>
+            <div className="px-4 py-6 text-sm text-white/55">
+              Пока нет данных в {leagueLabel.toLowerCase()}.
+            </div>
+          </div>
+        </div>
+      </main>
+    );
+  }
 
   const supabase = await createClient();
   if (!supabase) {
@@ -69,6 +135,13 @@ export default async function RatingsPage({
         </div>
 
         <div className="mb-4 flex flex-wrap gap-2">
+          <span className="tab-pill-active">Шахматы</span>
+          <Link href="/ratings?section=soft-skills&league=1" className="tab-pill">
+            Soft Skills
+          </Link>
+        </div>
+
+        <div className="mb-4 flex flex-wrap gap-2">
           {(
             [
               ["bullet", "Bullet"],
@@ -78,7 +151,7 @@ export default async function RatingsPage({
           ).map(([key, name]) => (
             <Link
               key={key}
-              href={`/ratings?type=${key}`}
+              href={`/ratings?section=chess&type=${key}`}
               className={type === key ? "tab-pill-active" : "tab-pill"}
             >
               {name}

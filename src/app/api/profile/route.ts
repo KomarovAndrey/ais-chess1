@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAndUser } from "@/lib/apiAuth";
+import { isStaffRole, resolveUserRole } from "@/lib/roles";
 
 export async function GET() {
   const auth = await getSupabaseAndUser();
@@ -9,7 +10,7 @@ export async function GET() {
   const { data, error } = await supabase
     .from("profiles")
     .select(
-      "username, display_name, bio, updated_at, rating, rating_bullet, rating_blitz, rating_rapid, rating_puzzle, avatar_url, games_played_bullet, games_played_blitz, games_played_rapid"
+      "username, display_name, bio, updated_at, rating, rating_bullet, rating_blitz, rating_rapid, rating_puzzle, avatar_url, games_played_bullet, games_played_blitz, games_played_rapid, role"
     )
     .eq("id", auth.user.id)
     .single();
@@ -33,6 +34,12 @@ export async function GET() {
     return NextResponse.json({ error: "Failed to load profile" }, { status: 500 });
   }
 
+  const role = await resolveUserRole(
+    supabase,
+    auth.user.id,
+    typeof row?.role === "string" ? row.role : null
+  );
+
   return NextResponse.json({
     username: row?.username ?? null,
     display_name: row?.display_name ?? "",
@@ -47,6 +54,8 @@ export async function GET() {
     games_played_bullet: row?.games_played_bullet ?? 0,
     games_played_blitz: row?.games_played_blitz ?? 0,
     games_played_rapid: row?.games_played_rapid ?? 0,
+    role,
+    is_staff: isStaffRole(role),
   });
 }
 
@@ -64,9 +73,16 @@ export async function PATCH(req: NextRequest) {
 
   const { data: existing } = await supabase
     .from("profiles")
-    .select("username, display_name, bio, avatar_url")
+    .select("username, display_name, bio, avatar_url, role")
     .eq("id", user.id)
     .single();
+
+  const staffRole = await resolveUserRole(
+    supabase,
+    user.id,
+    typeof existing?.role === "string" ? existing.role : null
+  );
+  const staff = isStaffRole(staffRole);
 
   const newUsername = existing?.username ?? null;
 
@@ -76,10 +92,15 @@ export async function PATCH(req: NextRequest) {
       typeof body.display_name === "string"
         ? body.display_name.slice(0, 100)
         : (existing?.display_name ?? ""),
-    bio:
-      typeof body.bio === "string" ? body.bio.slice(0, 2000) : (existing?.bio ?? ""),
     updated_at: new Date().toISOString(),
   };
+
+  if (!staff) {
+    merged.bio =
+      typeof body.bio === "string" ? body.bio.slice(0, 2000) : (existing?.bio ?? "");
+  } else {
+    merged.bio = existing?.bio ?? "";
+  }
 
   if (typeof body.avatar_url === "string") {
     merged.avatar_url = body.avatar_url.slice(0, 500) || null;
@@ -89,7 +110,7 @@ export async function PATCH(req: NextRequest) {
     .from("profiles")
     .upsert({ id: user.id, ...merged }, { onConflict: "id", ignoreDuplicates: false })
     .select(
-      "username, display_name, bio, updated_at, rating, rating_bullet, rating_blitz, rating_rapid, avatar_url, games_played_bullet, games_played_blitz, games_played_rapid"
+      "username, display_name, bio, updated_at, rating, rating_bullet, rating_blitz, rating_rapid, avatar_url, games_played_bullet, games_played_blitz, games_played_rapid, role"
     )
     .single();
 
@@ -97,6 +118,12 @@ export async function PATCH(req: NextRequest) {
     console.error("Profile PATCH error:", error);
     return NextResponse.json({ error: "Failed to save profile" }, { status: 500 });
   }
+
+  const patchRole = await resolveUserRole(
+    supabase,
+    user.id,
+    typeof data?.role === "string" ? data.role : staffRole
+  );
 
   return NextResponse.json({
     username: data?.username ?? null,
@@ -111,5 +138,7 @@ export async function PATCH(req: NextRequest) {
     games_played_bullet: data?.games_played_bullet ?? 0,
     games_played_blitz: data?.games_played_blitz ?? 0,
     games_played_rapid: data?.games_played_rapid ?? 0,
+    role: patchRole,
+    is_staff: isStaffRole(patchRole),
   });
 }

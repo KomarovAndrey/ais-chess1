@@ -4,7 +4,6 @@ import { FormEvent, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { LogIn } from "lucide-react";
-import { supabase } from "@/lib/supabaseClient";
 import { Button } from "@/components/ui/button";
 
 interface LoginFormProps {
@@ -23,16 +22,18 @@ export default function LoginForm({ resetSuccess = false }: LoginFormProps) {
     setError(null);
     setLoading(true);
     try {
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email,
-        password
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
       });
-      if (signInError) {
-        setError(signInError.message);
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(typeof data.error === "string" ? data.error : "Не удалось выполнить вход.");
         return;
       }
-      router.push("/");
       router.refresh();
+      router.push("/");
     } catch (err) {
       setError("Не удалось выполнить вход. Попробуйте ещё раз.");
     } finally {
@@ -49,14 +50,15 @@ export default function LoginForm({ resetSuccess = false }: LoginFormProps) {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-1.5">
-            <label className="label-dark">Email</label>
+            <label className="label-dark">Email или логин</label>
             <input
-              type="email"
+              type="text"
               required
+              autoComplete="username"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="input-dark"
-              placeholder="you@school.com"
+              placeholder="student1 или you@school.com"
             />
           </div>
 
