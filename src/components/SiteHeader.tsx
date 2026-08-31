@@ -11,6 +11,7 @@ const NAV_LINKS = [
   { href: "/tv", label: "ТВ" },
   { href: "/tournaments", label: "Турниры" },
   { href: "/reversi", label: "Reversi" },
+  { href: "/soft-skills", label: "Soft Skills" },
 ] as const;
 
 export default function SiteHeader() {
