@@ -10,7 +10,6 @@ const staticRoutes: { path: string; changeFrequency?: "yearly" | "monthly" | "we
   { path: "/zadachi", changeFrequency: "weekly", priority: 0.8 },
   { path: "/puzzles", changeFrequency: "weekly", priority: 0.3 },
   { path: "/tournaments", changeFrequency: "daily", priority: 0.8 },
-  { path: "/tv", changeFrequency: "daily", priority: 0.7 },
   { path: "/ratings", changeFrequency: "daily", priority: 0.9 },
   { path: "/privacy", changeFrequency: "yearly", priority: 0.3 },
   { path: "/terms", changeFrequency: "yearly", priority: 0.3 },
