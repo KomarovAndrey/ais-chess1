@@ -7,11 +7,12 @@ import AppNav from "@/components/AppNav";
 
 const NAV_LINKS = [
   { href: "/ratings", label: "Рейтинг" },
-  { href: "/soft-skills", label: "Рейтинг Soft Skills" },
   { href: "/zadachi", label: "Задачи" },
   { href: "/tv", label: "ТВ" },
   { href: "/tournaments", label: "Турниры" },
   { href: "/reversi", label: "Reversi" },
+  { href: "/soft-skills", label: "Soft Skills" },
+  { href: "/soft-skills/rating", label: "Рейтинг Soft Skills" },
 ] as const;
 
 export default function SiteHeader() {
