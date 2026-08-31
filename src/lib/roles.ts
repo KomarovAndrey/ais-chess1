@@ -1,5 +1,4 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { createAdminClient } from "@/lib/supabase/admin";
 
 export type UserRole = "student" | "teacher" | "admin";
 
@@ -16,22 +15,12 @@ export async function resolveUserRole(
     return rowRole;
   }
 
-  const admin = createAdminClient();
-  if (admin) {
-    const { data } = await admin
-      .from("profiles")
-      .select("role")
-      .eq("id", userId)
-      .maybeSingle();
-    const r = (data as { role?: string } | null)?.role;
-    if (r === "admin" || r === "teacher" || r === "student") return r;
-  }
-
   const { data: self } = await supabase
     .from("profiles")
     .select("role")
     .eq("id", userId)
     .maybeSingle();
+
   const selfRole = (self as { role?: string } | null)?.role;
   if (selfRole === "admin" || selfRole === "teacher" || selfRole === "student") {
     return selfRole;

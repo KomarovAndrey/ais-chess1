@@ -11,7 +11,8 @@
     "postinstall": "node scripts/copy-stockfish.js",
     "test": "vitest run",
     "test:watch": "vitest",
-    "import:zadachi": "node scripts/import-lichess-puzzles.cjs"
+    "import:zadachi": "node scripts/import-lichess-puzzles.cjs",
+    "audit:supabase": "node scripts/audit-supabase.mjs"
   },
   "dependencies": {
     "@radix-ui/react-slot": "^1.1.0",
