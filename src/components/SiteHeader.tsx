@@ -12,6 +12,7 @@ const NAV_LINKS = [
   { href: "/tournaments", label: "Турниры" },
   { href: "/reversi", label: "Reversi" },
   { href: "/soft-skills", label: "Soft Skills" },
+  { href: "/soft-skills/rating", label: "Рейтинг Soft Skills" },
 ] as const;
 
 export default function SiteHeader() {
