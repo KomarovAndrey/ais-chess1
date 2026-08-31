@@ -41,6 +41,7 @@ export async function GET() {
   );
 
   return NextResponse.json({
+    id: auth.user.id,
     username: row?.username ?? null,
     display_name: row?.display_name ?? "",
     bio: row?.bio ?? "",

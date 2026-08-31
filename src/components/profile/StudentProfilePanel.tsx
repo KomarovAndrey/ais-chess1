@@ -77,22 +77,30 @@ export default function StudentProfilePanel() {
   const [games, setGames] = useState<PlayedGame[]>([]);
   const [gamesLoading, setGamesLoading] = useState(false);
   const [gamesError, setGamesError] = useState<string | null>(null);
+  const [softPlaces, setSoftPlaces] = useState<{
+    leaguePlace: number | null;
+    classPlace: number | null;
+    teamPlace: number | null;
+    overallPlace: number | null;
+    overallPoints: number;
+    leagueLabel: string | null;
+    className: string | null;
+    teamLabel: string | null;
+  } | null>(null);
+  const [softPlacesLoading, setSoftPlacesLoading] = useState(false);
 
   useEffect(() => {
     const run = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.user) {
+      const res = await fetch("/api/profile");
+      if (!res.ok) {
         router.replace("/login");
         return;
       }
-      setUser(session.user);
-      const res = await fetch("/api/profile");
-      if (res.ok) {
-        const data = await res.json();
-        setProfile(data);
-        setDisplayName(data.display_name ?? "");
-        setBio(data.bio ?? "");
-      }
+      const data = await res.json();
+      setUser({ id: data.id, email: undefined });
+      setProfile(data);
+      setDisplayName(data.display_name ?? "");
+      setBio(data.bio ?? "");
       setLoading(false);
     };
     run();
@@ -116,6 +124,36 @@ export default function StudentProfilePanel() {
       })
       .catch(() => {});
   }, [user?.id]);
+
+  useEffect(() => {
+    if (profileArea !== "soft") return;
+    let cancelled = false;
+    setSoftPlacesLoading(true);
+    fetch("/api/soft-skills/me")
+      .then(async (res) => {
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || cancelled) return;
+        setSoftPlaces({
+          leaguePlace: data.leaguePlace ?? null,
+          classPlace: data.classPlace ?? null,
+          teamPlace: data.teamPlace ?? null,
+          overallPlace: data.overallPlace ?? null,
+          overallPoints: data.overallPoints ?? 0,
+          leagueLabel: data.leagueLabel ?? null,
+          className: data.className ?? null,
+          teamLabel: data.teamLabel ?? null,
+        });
+      })
+      .catch(() => {
+        if (!cancelled) setSoftPlaces(null);
+      })
+      .finally(() => {
+        if (!cancelled) setSoftPlacesLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [profileArea]);
 
   async function loadFriends() {
     setFriendsLoading(true);
@@ -353,12 +391,61 @@ export default function StudentProfilePanel() {
               {profile?.username && (
                 <p className="mt-1 text-sm text-white/45">@{profile.username}</p>
               )}
+              {softPlaces?.className && (
+                <p className="mt-1 text-sm text-white/55">Класс: {softPlaces.className}</p>
+              )}
+              {softPlaces?.leagueLabel && (
+                <p className="mt-0.5 text-sm text-white/55">Лига: {softPlaces.leagueLabel}</p>
+              )}
+              {softPlaces?.teamLabel && (
+                <p className="mt-0.5 text-sm text-white/55">Команда: {softPlaces.teamLabel}</p>
+              )}
             </div>
             <div className="surface-pad">
               <h2 className="font-display text-lg font-semibold text-white">Soft Skills</h2>
-              <p className="mt-2 text-sm leading-relaxed text-white/55">
-                Профиль Soft Skills. Раздел в разработке.
+              {softPlacesLoading ? (
+                <p className="mt-2 text-sm text-white/55">Загрузка мест…</p>
+              ) : (
+                <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                  <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+                    <p className="text-xs text-white/45">Место в лиге</p>
+                    <p className="mt-1 font-display text-2xl font-semibold text-gold">
+                      {softPlaces?.leaguePlace ?? "—"}
+                    </p>
+                  </div>
+                  <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+                    <p className="text-xs text-white/45">Место в классе</p>
+                    <p className="mt-1 font-display text-2xl font-semibold text-gold">
+                      {softPlaces?.classPlace ?? "—"}
+                    </p>
+                  </div>
+                  <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+                    <p className="text-xs text-white/45">Место в команде</p>
+                    <p className="mt-1 font-display text-2xl font-semibold text-gold">
+                      {softPlaces?.teamPlace ?? "—"}
+                    </p>
+                  </div>
+                  <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+                    <p className="text-xs text-white/45">Общий рейтинг</p>
+                    <p className="mt-1 font-display text-2xl font-semibold text-gold">
+                      {softPlaces?.overallPlace ?? "—"}
+                    </p>
+                    <p className="mt-1 text-xs text-white/40">
+                      Баллы: {softPlaces?.overallPoints ?? 0}
+                    </p>
+                  </div>
+                </div>
+              )}
+              <p className="mt-4 text-xs text-white/40">
+                Места считаются по сумме баллов Soft Skills. Баллы появятся после внесения
+                результатов.
               </p>
+              <Link
+                href="/ratings?section=soft-skills&view=overall"
+                className="mt-3 inline-flex text-sm font-medium text-gold hover:text-gold-bright"
+              >
+                Открыть рейтинги Soft Skills
+              </Link>
             </div>
           </div>
         ) : (

@@ -1,33 +1,30 @@
 import type { Metadata } from "next";
-import Link from "next/link";
-import { SOFT_SKILLS_MODULES } from "@/lib/softSkillsModules";
+import SoftSkillsHub from "@/components/soft-skills/SoftSkillsHub";
+import { createClient } from "@/lib/supabase/server";
+import { isStaffRole, resolveUserRole } from "@/lib/roles";
 
 export const metadata: Metadata = {
   title: "Soft Skills — AIS Chess",
   description: "Шесть модулей Soft Skills.",
 };
 
-export default function SoftSkillsPage() {
-  return (
-    <main className="page-bg min-h-[calc(100dvh-4.5rem)]">
-      <div className="page-shell max-w-4xl">
-        <h1 className="page-title text-gold">Soft Skills</h1>
-        <p className="page-subtitle">Выберите модуль</p>
+export default async function SoftSkillsPage() {
+  let isStaff = false;
+  const supabase = await createClient();
+  if (supabase) {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (user) {
+      const { data: row } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", user.id)
+        .maybeSingle();
+      const role = await resolveUserRole(supabase, user.id, row?.role ?? null);
+      isStaff = isStaffRole(role);
+    }
+  }
 
-        <div className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {SOFT_SKILLS_MODULES.map((mod) => (
-            <Link
-              key={mod.id}
-              href={`/soft-skills/${mod.id}`}
-              className="group flex min-h-[112px] flex-col justify-center rounded-2xl border border-white/10 bg-white/[0.04] p-5 transition hover:border-gold/40 hover:bg-white/[0.07]"
-            >
-              <span className="font-display text-lg font-semibold text-white group-hover:text-gold">
-                {mod.label}
-              </span>
-            </Link>
-          ))}
-        </div>
-      </div>
-    </main>
-  );
+  return <SoftSkillsHub isStaff={isStaff} />;
 }

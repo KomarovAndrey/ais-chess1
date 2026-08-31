@@ -2,7 +2,6 @@
 
 import { FormEvent, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { LogIn } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -11,7 +10,6 @@ interface LoginFormProps {
 }
 
 export default function LoginForm({ resetSuccess = false }: LoginFormProps) {
-  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -32,8 +30,8 @@ export default function LoginForm({ resetSuccess = false }: LoginFormProps) {
         setError(typeof data.error === "string" ? data.error : "Не удалось выполнить вход.");
         return;
       }
-      router.refresh();
-      router.push("/");
+      window.location.assign("/");
+      return;
     } catch (err) {
       setError("Не удалось выполнить вход. Попробуйте ещё раз.");
     } finally {

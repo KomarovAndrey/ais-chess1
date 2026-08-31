@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
 
 export default function SoftSkillsRatingPage() {
-  redirect("/ratings?section=soft-skills");
+  redirect("/ratings?section=soft-skills&view=overall");
 }

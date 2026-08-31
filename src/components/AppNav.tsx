@@ -71,23 +71,44 @@ export default function AppNav({
     setProfile(initialProfile);
   }, [initialUser, initialProfile]);
 
+  // Cookie session is authoritative; browser client often has no local session after server login.
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session?.user) {
-        setUser({ id: session.user.id, email: session.user.email ?? null });
-      } else {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "SIGNED_OUT") {
         setUser(null);
         setProfile(null);
+        return;
+      }
+      if (session?.user) {
+        setUser({ id: session.user.id, email: session.user.email ?? null });
       }
     });
     return () => subscription.unsubscribe();
   }, []);
 
   useEffect(() => {
+    if (initialUser) return;
+    fetch("/api/profile")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (!data?.id) return;
+        setUser({ id: data.id, email: null });
+        setProfile({
+          username: data.username ?? null,
+          display_name: data.display_name ?? null,
+          rating_blitz: data.rating_blitz ?? data.rating ?? null,
+        });
+      })
+      .catch(() => {});
+  }, [initialUser]);
+
+  useEffect(() => {
     if (!user) return;
     if (initialProfile && initialUser?.id === user.id) return;
     fetch("/api/profile")
-      .then((r) => r.ok ? r.json() : null)
+      .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
         if (data) {
           setProfile({
@@ -135,8 +156,7 @@ export default function AppNav({
     setUser(null);
     setProfile(null);
     setMenuOpen(false);
-    router.push("/");
-    router.refresh();
+    window.location.assign("/");
   }
 
   async function loadIncomingChallenges() {

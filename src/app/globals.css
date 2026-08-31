@@ -154,6 +154,44 @@ select {
   animation: board-pulse 5.5s ease-in-out infinite;
 }
 
+.soft-skills-week-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  outline: none;
+  cursor: pointer;
+}
+
+.soft-skills-week-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  background: var(--gold);
+  border: 2px solid #1a140c;
+  box-shadow: 0 0 0 3px rgba(224, 177, 91, 0.25);
+  cursor: pointer;
+}
+
+.soft-skills-week-slider::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  background: var(--gold);
+  border: 2px solid #1a140c;
+  box-shadow: 0 0 0 3px rgba(224, 177, 91, 0.25);
+  cursor: pointer;
+}
+
+.soft-skills-week-slider::-moz-range-track {
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+}
+
 @media (prefers-reduced-motion: reduce) {
   * {
     scroll-behavior: auto !important;
