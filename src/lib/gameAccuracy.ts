@@ -88,7 +88,9 @@ export async function computeGameAccuracy(
       blackMoves++;
     }
 
-    opts?.onProgress(i + 1, moves.length);
+    if (opts?.onProgress) {
+      opts.onProgress(i + 1, moves.length);
+    }
   }
 
   const whiteAcpl = whiteMoves > 0 ? whiteLossSum / whiteMoves : 0;
