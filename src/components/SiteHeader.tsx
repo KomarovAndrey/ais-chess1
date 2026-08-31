@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Menu, X } from "lucide-react";
 import AppNav from "@/components/AppNav";
+import { supabase } from "@/lib/supabaseClient";
 
 const NAV_LINKS = [
   { href: "/ratings", label: "Рейтинг" },
@@ -13,8 +14,51 @@ const NAV_LINKS = [
   { href: "/reversi", label: "Reversi" },
 ] as const;
 
+const SOFT_SKILLS_LINK = { href: "/children", label: "Soft Skills" } as const;
+
 export default function SiteHeader() {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [showSoftSkillsTab, setShowSoftSkillsTab] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadRole() {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) {
+        if (!cancelled) setShowSoftSkillsTab(false);
+        return;
+      }
+
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", user.id)
+        .single();
+
+      if (!cancelled) {
+        setShowSoftSkillsTab(
+          !!profile && ["teacher", "admin"].includes(profile.role as string)
+        );
+      }
+    }
+
+    void loadRole();
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(() => {
+      void loadRole();
+    });
+
+    return () => {
+      cancelled = true;
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  const navLinks = showSoftSkillsTab ? [...NAV_LINKS, SOFT_SKILLS_LINK] : [...NAV_LINKS];
 
   return (
     <header className="sticky top-0 z-50 border-b border-white/[0.08] bg-ink-900/80 backdrop-blur-xl">
@@ -34,7 +78,7 @@ export default function SiteHeader() {
             </span>
           </Link>
           <nav className="ml-2 hidden items-center gap-1 md:flex" aria-label="Основное меню">
-            {NAV_LINKS.map((link) => (
+            {navLinks.map((link) => (
               <Link
                 key={link.href}
                 href={link.href}
@@ -66,7 +110,7 @@ export default function SiteHeader() {
           aria-label="Мобильное меню"
         >
           <div className="mx-auto flex max-w-6xl flex-col gap-1">
-            {NAV_LINKS.map((link) => (
+            {navLinks.map((link) => (
               <Link
                 key={link.href}
                 href={link.href}

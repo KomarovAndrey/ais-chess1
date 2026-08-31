@@ -56,12 +56,9 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=...
      13. `supabase-migration-lichess-clock-start.sql` — часы стартуют после первых ходов (как на Lichess)
      14. `supabase-migration-wave-3-live-lobby.sql` — публичное лобби seeks + accept_seek, Realtime
      15. `supabase-migration-tournaments-arena-autopair.sql` — Arena auto-pair idle players + Realtime standings
+     16. **Soft Skills (учителя/админ):** `supabase-schema-soft-skills-ratings.sql`, затем миграции `supabase-migration-child-program-ratings.sql`, `supabase-migration-weekly-assessments.sql` и др. из корня репозитория (см. файлы `supabase-migration-child-*`, `supabase-migration-weekly-*`). Вкладка **Soft Skills** в шапке — только для ролей `teacher` и `admin`.
 
-   В production обязателен `SUPABASE_SERVICE_ROLE_KEY` (без него ходы/рейтинг вернут 503).
-   Опционально: `USE_DB_RATE_LIMIT=1` — распределённый лимит через таблицу `rate_limit_buckets`.
-   - Для каждого скрипта: скопируйте весь код из файла и вставьте в редактор, затем нажмите **Run** (или Ctrl+Enter).
-   - Должно выполниться без ошибок. Схема подхватится автоматически.
-   - Если в проекте раньше был Soft Skills: выполните `supabase-drop-soft-skills.sql`, чтобы удалить таблицы `children` / ratings.
+   Если раньше выполняли `supabase-drop-soft-skills.sql`, таблицы нужно создать заново (п. 16).
 
 4. Запустите dev-сервер:
 
