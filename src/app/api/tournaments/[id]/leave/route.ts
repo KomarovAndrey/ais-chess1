@@ -39,6 +39,8 @@ export async function POST(
     }
   }
 
+  await supabase.rpc("arena_leave_pairing", { p_tournament_id: id });
+
   await supabase
     .from("game_seeks")
     .update({ status: "cancelled" })

@@ -55,6 +55,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=...
      12. `supabase-migration-trust-phase-g.sql` — provisional Elo, публичная история, rate buckets, жалобы
      13. `supabase-migration-lichess-clock-start.sql` — часы стартуют после первых ходов (как на Lichess)
      14. `supabase-migration-wave-3-live-lobby.sql` — публичное лобби seeks + accept_seek, Realtime
+     15. `supabase-migration-tournaments-arena-autopair.sql` — Arena auto-pair idle players + Realtime standings
 
    В production обязателен `SUPABASE_SERVICE_ROLE_KEY` (без него ходы/рейтинг вернут 503).
    Опционально: `USE_DB_RATE_LIMIT=1` — распределённый лимит через таблицу `rate_limit_buckets`.

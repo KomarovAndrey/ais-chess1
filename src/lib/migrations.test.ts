@@ -10,6 +10,7 @@ const REQUIRED = [
   "supabase-migration-trust-phase-g.sql",
   "supabase-migration-lichess-clock-start.sql",
   "supabase-migration-wave-3-live-lobby.sql",
+  "supabase-migration-tournaments-arena-autopair.sql",
   "supabase-seed-zadachi-lichess.sql",
   "data/zadachi-lichess.json",
 ];

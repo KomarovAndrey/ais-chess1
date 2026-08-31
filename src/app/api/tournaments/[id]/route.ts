@@ -32,7 +32,7 @@ export async function GET(
 
   const { data: players, error: pError } = await supabase
     .from("tournament_players")
-    .select("user_id, joined_at, score, games_played, withdrawn")
+    .select("user_id, joined_at, score, games_played, withdrawn, pairing_ready")
     .eq("tournament_id", id)
     .order("score", { ascending: false })
     .order("games_played", { ascending: false });
@@ -87,6 +87,7 @@ export async function GET(
       score: Number(p.score ?? 0),
       games_played: Number(p.games_played ?? 0),
       withdrawn: Boolean(p.withdrawn),
+      pairing_ready: (p as { pairing_ready?: string | null }).pairing_ready ?? null,
       username: profile?.username ?? null,
       display_name: profile?.display_name ?? null,
     };

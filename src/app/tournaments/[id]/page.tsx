@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Trophy, UserPlus, Search, LogOut } from "lucide-react";
 import { formatTimeControl } from "@/lib/timeControls";
+import { supabase } from "@/lib/supabaseClient";
 
 type Player = {
   user_id: string;
@@ -14,6 +15,7 @@ type Player = {
   score: number;
   games_played: number;
   withdrawn: boolean;
+  pairing_ready?: string | null;
 };
 
 type TournamentDetail = {
@@ -36,13 +38,15 @@ export default function TournamentDetailPage() {
   const params = useParams<{ id: string }>();
   const id = params.id;
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [tournament, setTournament] = useState<TournamentDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [joining, setJoining] = useState(false);
   const [seeking, setSeeking] = useState(false);
-  const [seekId, setSeekId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const seekChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  const autoPlayDoneRef = useRef(false);
 
   const reload = useCallback(async () => {
     if (!id) return;
@@ -56,15 +60,133 @@ export default function TournamentDetailPage() {
     reload()
       .catch(() => setTournament(null))
       .finally(() => setLoading(false));
-    const t = setInterval(() => void reload(), 8000);
-    return () => clearInterval(t);
+
+    const channel = supabase
+      .channel(`tournament:${id}:standings`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "tournament_players",
+          filter: `tournament_id=eq.${id}`,
+        },
+        () => void reload()
+      )
+      .subscribe();
+
+    const poll = setInterval(() => void reload(), 12000);
+
+    return () => {
+      clearInterval(poll);
+      supabase.removeChannel(channel);
+    };
   }, [id, reload]);
 
-  useEffect(() => {
-    return () => {
-      if (pollRef.current) clearInterval(pollRef.current);
-    };
+  const stopSeekWatchers = useCallback(() => {
+    if (pollRef.current) {
+      clearInterval(pollRef.current);
+      pollRef.current = null;
+    }
+    if (seekChannelRef.current) {
+      supabase.removeChannel(seekChannelRef.current);
+      seekChannelRef.current = null;
+    }
   }, []);
+
+  useEffect(() => {
+    return () => stopSeekWatchers();
+  }, [stopSeekWatchers]);
+
+  async function cancelSeek() {
+    stopSeekWatchers();
+    try {
+      if (id) {
+        await fetch(`/api/tournaments/${id}/play`, { method: "DELETE" });
+      }
+    } catch {
+      /* ignore */
+    }
+    setSeeking(false);
+  }
+
+  async function enterPairing() {
+    if (!id) return;
+    setError(null);
+    setSeeking(true);
+    try {
+      const res = await fetch(`/api/tournaments/${id}/play`, { method: "POST" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Не удалось войти в паринг");
+
+      if (data.gameId) {
+        setSeeking(false);
+        router.push(`/play/${data.gameId}`);
+        return;
+      }
+
+      stopSeekWatchers();
+
+      const checkMatched = async () => {
+        try {
+          const r = await fetch("/api/seeks");
+          if (!r.ok) return;
+          const j = await r.json();
+          if (j.seek?.status === "matched" && j.seek.game_id) {
+            stopSeekWatchers();
+            setSeeking(false);
+            router.push(`/play/${j.seek.game_id}`);
+          }
+        } catch {
+          /* ignore */
+        }
+      };
+
+      pollRef.current = setInterval(() => void checkMatched(), 2000);
+
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      const uid = session?.user?.id;
+      if (uid) {
+        const channel = supabase
+          .channel(`tournament-seek:${id}:${uid}`)
+          .on(
+            "postgres_changes",
+            {
+              event: "UPDATE",
+              schema: "public",
+              table: "game_seeks",
+              filter: `user_id=eq.${uid}`,
+            },
+            (payload) => {
+              const row = payload.new as { status?: string; game_id?: string | null };
+              if (row?.status === "matched" && row.game_id) {
+                stopSeekWatchers();
+                setSeeking(false);
+                router.push(`/play/${row.game_id}`);
+              }
+            }
+          )
+          .subscribe();
+        seekChannelRef.current = channel;
+      }
+    } catch (e) {
+      setSeeking(false);
+      setError(e instanceof Error ? e.message : "Ошибка");
+    }
+  }
+
+  useEffect(() => {
+    if (!tournament?.joined || tournament.status !== "started") return;
+    const autoplay =
+      searchParams.get("autoplay") === "1" || searchParams.get("autoplay") === "true";
+    if (autoPlayDoneRef.current) return;
+    if (!autoplay) return;
+    autoPlayDoneRef.current = true;
+    void enterPairing();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- autoplay once when returning from game
+  }, [tournament?.joined, tournament?.status, searchParams]);
 
   async function handleJoin() {
     if (!id) return;
@@ -92,66 +214,6 @@ export default function TournamentDetailPage() {
       await cancelSeek();
       await reload();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Ошибка");
-    }
-  }
-
-  async function cancelSeek() {
-    if (pollRef.current) {
-      clearInterval(pollRef.current);
-      pollRef.current = null;
-    }
-    try {
-      await fetch("/api/seeks", {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ seekId }),
-      });
-    } catch {
-      /* ignore */
-    }
-    setSeeking(false);
-    setSeekId(null);
-  }
-
-  async function handlePlay() {
-    if (!tournament) return;
-    setError(null);
-    setSeeking(true);
-    try {
-      const res = await fetch("/api/seeks", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          creatorColor: "random",
-          timeControlSeconds: tournament.time_control_seconds ?? 300,
-          incrementSeconds: tournament.increment_seconds ?? 0,
-          rated: tournament.rated !== false,
-          tournamentId: tournament.id,
-        }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || "Не удалось начать поиск");
-      if (data.gameId) {
-        setSeeking(false);
-        router.push(`/play/${data.gameId}`);
-        return;
-      }
-      setSeekId(data.seekId ?? null);
-      if (pollRef.current) clearInterval(pollRef.current);
-      pollRef.current = setInterval(async () => {
-        const r = await fetch("/api/seeks");
-        if (!r.ok) return;
-        const j = await r.json();
-        if (j.seek?.status === "matched" && j.seek.game_id) {
-          if (pollRef.current) clearInterval(pollRef.current);
-          pollRef.current = null;
-          setSeeking(false);
-          router.push(`/play/${j.seek.game_id}`);
-        }
-      }, 1500);
-    } catch (e) {
-      setSeeking(false);
       setError(e instanceof Error ? e.message : "Ошибка");
     }
   }
@@ -185,6 +247,7 @@ export default function TournamentDetailPage() {
         : "Завершён";
 
   const activePlayers = tournament.players.filter((p) => !p.withdrawn);
+  const waitingCount = activePlayers.filter((p) => p.pairing_ready).length;
   const canJoin =
     tournament.status === "open" ||
     (tournament.format === "arena" && tournament.status === "started");
@@ -226,6 +289,9 @@ export default function TournamentDetailPage() {
                   })}
                 </>
               )}
+              {canPlay && waitingCount > 0 && (
+                <> · в паринге: {waitingCount}</>
+              )}
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -253,12 +319,12 @@ export default function TournamentDetailPage() {
             {canPlay && (
               <button
                 type="button"
-                onClick={() => void handlePlay()}
+                onClick={() => void enterPairing()}
                 disabled={seeking}
                 className="inline-flex items-center gap-2 rounded-xl bg-gold px-4 py-2 text-sm font-semibold text-ink-900 hover:bg-gold-bright disabled:opacity-50"
               >
                 <Search className="h-4 w-4" />
-                {seeking ? "Ищем…" : "Играть"}
+                {seeking ? "В паринге…" : "Играть"}
               </button>
             )}
           </div>
@@ -267,13 +333,15 @@ export default function TournamentDetailPage() {
 
         {seeking && (
           <div className="mt-4 rounded-2xl border border-gold/30 bg-gold/10 p-4 text-center">
-            <p className="text-sm font-semibold text-gold">Ищем соперника в Arena…</p>
+            <p className="text-sm font-semibold text-gold">
+              В паринге Arena — соперник подберётся автоматически…
+            </p>
             <button
               type="button"
               onClick={() => void cancelSeek()}
               className="mt-3 text-xs text-white/60 underline hover:text-white"
             >
-              Отменить поиск
+              Выйти из паринга
             </button>
           </div>
         )}
@@ -301,6 +369,9 @@ export default function TournamentDetailPage() {
                       <td className="py-2 pr-2 text-white/40">{i + 1}</td>
                       <td className="py-2 pr-2 text-white/80">
                         {p.display_name || p.username || "Участник"}
+                        {p.pairing_ready && (
+                          <span className="ml-2 text-xs text-gold/70">ищет</span>
+                        )}
                       </td>
                       <td className="py-2 pr-2 text-right font-semibold text-gold">
                         {p.score}
@@ -313,7 +384,8 @@ export default function TournamentDetailPage() {
             </div>
           )}
           <p className="mt-3 text-xs text-white/35">
-            Победа — 2 очка, ничья — 1, поражение — 0.
+            Победа — 2 очка, ничья — 1, поражение — 0. Два idle игрока в паринге получают партию
+            автоматически.
           </p>
         </div>
       </div>

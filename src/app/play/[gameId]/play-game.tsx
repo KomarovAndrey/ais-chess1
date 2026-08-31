@@ -39,6 +39,7 @@ interface GameRow {
   rematch_game_id?: string | null;
   created_by?: string | null;
   moves?: string[];
+  tournament_id?: string | null;
 }
 
 interface PlayerRow {
@@ -1091,12 +1092,21 @@ export default function PlayGame({ initialGame, forceWatch = false }: PlayGamePr
                         : "Реванш"}
                   </button>
                 )}
-                <Link
-                  href="/?open=play"
-                  className="inline-flex items-center rounded-xl border border-white/15 bg-white/5 px-4 py-2 text-sm font-medium text-white hover:bg-white/10"
-                >
-                  Искать игру
-                </Link>
+                {gameRow.tournament_id ? (
+                  <Link
+                    href={`/tournaments/${gameRow.tournament_id}?autoplay=1`}
+                    className="inline-flex items-center rounded-xl border border-white/15 bg-white/5 px-4 py-2 text-sm font-medium text-white hover:bg-white/10"
+                  >
+                    Следующая в Arena
+                  </Link>
+                ) : (
+                  <Link
+                    href="/?open=play"
+                    className="inline-flex items-center rounded-xl border border-white/15 bg-white/5 px-4 py-2 text-sm font-medium text-white hover:bg-white/10"
+                  >
+                    Искать игру
+                  </Link>
+                )}
                 {gameRow.status === "finished" && (
                   <button
                     type="button"
