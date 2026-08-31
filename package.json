@@ -25,6 +25,7 @@
     "react-chessboard": "^4.4.0",
     "react-dom": "18.2.0",
     "stockfish": "^18.0.8",
+    "xlsx": "^0.18.5",
     "zod": "^4.3.6"
   },
   "devDependencies": {
