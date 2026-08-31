@@ -47,10 +47,8 @@ export default function AdminReportsPage() {
                 {r.target_user_id ? ` · user ${r.target_user_id.slice(0, 8)}` : ""}
                 {r.game_id ? (
                   <>
-                    {" · "}
-                    <Link href={`/play/${r.game_id}?watch=1`} className="text-gold hover:underline">
-                      партия
-                    </Link>
+                    {" · партия "}
+                    <span className="font-mono text-white/55">{r.game_id.slice(0, 8)}</span>
                   </>
                 ) : null}
               </p>

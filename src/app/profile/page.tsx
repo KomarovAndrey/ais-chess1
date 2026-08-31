@@ -671,14 +671,6 @@ export default function ProfilePage() {
                         />
                         {f.display_name || f.username || "Игрок"} {f.username && ` (${f.username})`} · {f.rating}
                       </Link>
-                      {f.online && f.inGameId && (
-                        <Link
-                          href={`/play/${f.inGameId}?watch=1`}
-                          className="mt-0.5 block text-[11px] text-gold hover:underline"
-                        >
-                          Смотреть партию
-                        </Link>
-                      )}
                     </div>
                     <div className="flex gap-2">
                       {outgoingChallengeByFriendId[f.id] ? (

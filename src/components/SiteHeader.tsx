@@ -8,7 +8,6 @@ import AppNav from "@/components/AppNav";
 const NAV_LINKS = [
   { href: "/ratings", label: "Рейтинг" },
   { href: "/zadachi", label: "Задачи" },
-  { href: "/tv", label: "ТВ" },
   { href: "/tournaments", label: "Турниры" },
   { href: "/reversi", label: "Reversi" },
   { href: "/soft-skills", label: "Soft Skills" },

@@ -1,6 +1,6 @@
 /* AIS Chess offline shell — cache static UI, never intercept game APIs. */
 const CACHE = "ais-chess-shell-v1";
-const PRECACHE = ["/", "/zadachi", "/tv", "/manifest.webmanifest", "/icons/icon-192.svg"];
+const PRECACHE = ["/", "/zadachi", "/manifest.webmanifest", "/icons/icon-192.svg"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(

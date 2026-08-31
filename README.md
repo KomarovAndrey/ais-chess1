@@ -51,7 +51,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=...
      8. `supabase-migration-zadachi.sql` — каталог **Задач**, рейтинг задач, попытки
      9. `supabase-seed-zadachi-lichess.sql` — **12 000** задач из открытой базы Lichess (Wave 2; большой файл, можно гонять чанками)
      10. `supabase-migration-tournaments-arena.sql` — Arena-турниры (партии через seeks + таблица)
-     11. `supabase-migration-live-protocol-phase-f.sql` — ТВ/зрители, чат партии, presence
+     11. `supabase-migration-live-protocol-phase-f.sql` — presence (ТВ/зрители и чат убраны из приложения)
      12. `supabase-migration-trust-phase-g.sql` — provisional Elo, публичная история, rate buckets, жалобы
      13. `supabase-migration-lichess-clock-start.sql` — часы стартуют после первых ходов (как на Lichess)
      14. `supabase-migration-wave-3-live-lobby.sql` — публичное лобби seeks + accept_seek, Realtime
