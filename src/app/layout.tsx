@@ -50,16 +50,6 @@ export default function RootLayout({
         <PresenceHeartbeat />
         <RegisterServiceWorker />
         {children}
-        <footer className="border-t border-white/5 py-8 text-center">
-          <a
-            href="https://ais.alabuga.ru/"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-sm text-white/45 transition hover:text-gold"
-          >
-            Международная школа «Алабуга»
-          </a>
-        </footer>
       </body>
     </html>
   );
