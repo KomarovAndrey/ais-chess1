@@ -11,8 +11,12 @@ import { clocksAreRunning, interpolateClocks } from "@/lib/clocks";
 import BoardShell from "@/components/chess/BoardShell";
 import ClockFace from "@/components/chess/ClockFace";
 import AnalysisPanel from "@/components/chess/AnalysisPanel";
+import GameResultSummary from "@/components/GameResultSummary";
 import GameChat from "@/components/GameChat";
 import { chessSounds } from "@/lib/chessSounds";
+import { computeGameAccuracy } from "@/lib/gameAccuracy";
+import type { GameRatingResult } from "@/lib/games/ratingResult";
+import { stockfishAnalyze } from "@/lib/stockfishEngine";
 
 type GameStatus = "waiting" | "active" | "finished" | "aborted";
 
@@ -131,6 +135,11 @@ export default function PlayGame({ initialGame, forceWatch = false }: PlayGamePr
   const [rematchBusy, setRematchBusy] = useState(false);
   const [rematchWaiting, setRematchWaiting] = useState(false);
   const [showAnalysis, setShowAnalysis] = useState(false);
+  const [ratingResult, setRatingResult] = useState<GameRatingResult | null>(null);
+  const [whiteAccuracy, setWhiteAccuracy] = useState<number | null>(null);
+  const [blackAccuracy, setBlackAccuracy] = useState<number | null>(null);
+  const [accuracyLoading, setAccuracyLoading] = useState(false);
+  const [accuracyError, setAccuracyError] = useState<string | null>(null);
 
   const [whiteTime, setWhiteTime] = useState(initialGame.white_time_left);
   const [blackTime, setBlackTime] = useState(initialGame.black_time_left);
@@ -144,6 +153,30 @@ export default function PlayGame({ initialGame, forceWatch = false }: PlayGamePr
   const lastMoveAtRef = useRef<string | null>(initialGame.last_move_at ?? null);
   const timeoutClaimedRef = useRef(false);
   const moveChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+
+  async function computeAccuracy() {
+    const moves = gameRow.moves ?? [];
+    if (moves.length === 0 || accuracyLoading) return;
+    setAccuracyLoading(true);
+    setAccuracyError(null);
+    try {
+      const result = await computeGameAccuracy(moves, async (fen) => {
+        const ev = await stockfishAnalyze(fen, { depth: 10, skill: 10 });
+        return { scoreCp: ev.scoreCp, mate: ev.mate };
+      });
+      setWhiteAccuracy(result.whiteAccuracy);
+      setBlackAccuracy(result.blackAccuracy);
+    } catch (e) {
+      setAccuracyError(
+        e instanceof Error ? e.message : "Не удалось посчитать точность"
+      );
+    } finally {
+      setAccuracyLoading(false);
+    }
+  }
+
+  const whiteDisplayName = whitePlayerInfo.username ?? "Белые";
+  const blackDisplayName = blackPlayerInfo.username ?? "Чёрные";
 
   const isMyTurn = useMemo(() => {
     if (!player) return false;
@@ -270,9 +303,9 @@ export default function PlayGame({ initialGame, forceWatch = false }: PlayGamePr
     // eslint-disable-next-line react-hooks/exhaustive-deps -- join once per playerId/gameId/watch
   }, [playerId, gameId, forceWatch]);
 
-  // Подтянуть логины и рейтинги соперника, когда партия началась или завершилась
+  // Подтянуть логины и рейтинги (ожидание, партия, итог)
   useEffect(() => {
-    if (!gameId || (gameRow.status !== "active" && gameRow.status !== "finished")) return;
+    if (!gameId || gameRow.status === "aborted") return;
     let cancelled = false;
     fetch(`/api/games/${gameId}/players`)
       .then((r) => r.json())
@@ -285,6 +318,22 @@ export default function PlayGame({ initialGame, forceWatch = false }: PlayGamePr
       .catch(() => {});
     return () => { cancelled = true; };
   }, [gameId, gameRow.status]);
+
+  // Рейтинг после партии (дельта)
+  useEffect(() => {
+    if (!gameId || gameRow.status !== "finished" || !gameRow.rated) {
+      setRatingResult(null);
+      return;
+    }
+    let cancelled = false;
+    fetch(`/api/games/${gameId}/result`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (!cancelled && data) setRatingResult(data as GameRatingResult);
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [gameId, gameRow.status, gameRow.rated]);
 
   // Subscribe to realtime: postgres UPDATE + dedicated move broadcast
   useEffect(() => {
@@ -1016,6 +1065,17 @@ export default function PlayGame({ initialGame, forceWatch = false }: PlayGamePr
                   Партия заняла {moveList.length} полуходов.
                 </p>
               )}
+              <GameResultSummary
+                ratingResult={ratingResult}
+                whiteLabel={whiteDisplayName}
+                blackLabel={blackDisplayName}
+                whiteAccuracy={whiteAccuracy}
+                blackAccuracy={blackAccuracy}
+                accuracyLoading={accuracyLoading}
+                accuracyError={accuracyError}
+                onComputeAccuracy={() => void computeAccuracy()}
+                canComputeAccuracy={moveList.length > 0}
+              />
               <div className="mt-3 flex flex-wrap gap-2">
                 {gameRow.status === "finished" && player && (
                   <button

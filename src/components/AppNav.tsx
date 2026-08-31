@@ -7,7 +7,11 @@ import { Search, User as UserIcon, LogOut, Bell, Check, X } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import type { User } from "@supabase/supabase-js";
 
-type ProfileInfo = { username: string | null; display_name: string | null };
+type ProfileInfo = {
+  username: string | null;
+  display_name: string | null;
+  rating_blitz?: number | null;
+};
 type SearchHit = { id: string; username: string | null; display_name: string | null };
 type IncomingChallenge = {
   id: string;
@@ -76,7 +80,13 @@ export default function AppNav() {
     fetch("/api/profile")
       .then((r) => r.ok ? r.json() : null)
       .then((data) => {
-        if (data) setProfile({ username: data.username ?? null, display_name: data.display_name ?? null });
+        if (data) {
+          setProfile({
+            username: data.username ?? null,
+            display_name: data.display_name ?? null,
+            rating_blitz: data.rating_blitz ?? data.rating ?? null,
+          });
+        }
       })
       .catch(() => {});
   }, [user]);
@@ -376,8 +386,11 @@ export default function AppNav() {
             <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gold/20 font-semibold text-gold">
               {getInitials(profile, user.email ?? undefined)}
             </span>
-            <span className="hidden max-w-[120px] truncate sm:block">
+            <span className="hidden max-w-[160px] truncate sm:block">
               {profile?.display_name?.trim() || profile?.username || user.email?.split("@")[0] || "Профиль"}
+              {profile?.rating_blitz != null && (
+                <span className="text-white/45"> · {profile.rating_blitz}</span>
+              )}
             </span>
           </button>
           {menuOpen && (
