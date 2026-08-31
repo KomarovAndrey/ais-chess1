@@ -9,6 +9,7 @@ import {
   type GamePlayerRow,
 } from "@/lib/games/integrity";
 import { ABORT_MAX_PLIES } from "@/lib/timeControls";
+import { voidBroadcastGameUpdate } from "@/lib/games/broadcast";
 
 const UUID_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -88,6 +89,7 @@ export async function POST(
       if (error || !data) {
         return NextResponse.json({ error: "Failed to abort" }, { status: 500 });
       }
+      voidBroadcastGameUpdate(gameId, data, "game");
       return NextResponse.json({ game: data });
     }
 
@@ -125,6 +127,7 @@ export async function POST(
       return NextResponse.json({ error: "Failed to abort" }, { status: 500 });
     }
 
+    voidBroadcastGameUpdate(gameId, data, "game");
     return NextResponse.json({ game: data });
   } catch (e) {
     console.error("POST abort:", e);

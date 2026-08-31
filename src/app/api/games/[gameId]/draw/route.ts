@@ -10,6 +10,7 @@ import {
   type GamePlayerRow,
 } from "@/lib/games/integrity";
 import { interpolateClocks } from "@/lib/clocks";
+import { voidBroadcastGameUpdate } from "@/lib/games/broadcast";
 
 type GameStatus = "waiting" | "active" | "finished";
 
@@ -198,6 +199,7 @@ export async function POST(
         activeColor,
         clearDrawOffer: true,
       });
+      voidBroadcastGameUpdate(gameId, updated, "game");
       return NextResponse.json({ game: updated });
     } catch (error) {
       console.error("Accept draw error:", error);

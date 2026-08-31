@@ -41,6 +41,11 @@ export const createSeekSchema = z.object({
     .nullable(),
 });
 
+/** Accept a specific pending lobby seek by id (Wave 3). */
+export const acceptSeekSchema = z.object({
+  acceptSeekId: z.string().regex(UUID_REGEX, "Invalid seek id"),
+});
+
 export const joinGameSchema = z.object({
   gameId: z.string().regex(UUID_REGEX, "Invalid gameId format"),
   playerId: z.string().optional()
