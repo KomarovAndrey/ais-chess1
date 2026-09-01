@@ -12,7 +12,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "import:zadachi": "node scripts/import-lichess-puzzles.cjs",
-    "audit:supabase": "node scripts/audit-supabase.mjs"
+    "audit:supabase": "node scripts/audit-supabase.mjs",
+    "seed:soft-skills": "node scripts/seed-soft-skills-demo.mjs",
+    "seed:soft-skills:clean": "node scripts/seed-soft-skills-demo.mjs --clean"
   },
   "dependencies": {
     "@radix-ui/react-slot": "^1.1.0",

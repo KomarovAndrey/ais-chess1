@@ -1,5 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import type { SoftSkillsStarSkillId } from "@/lib/softSkillsDisciplines";
 import {
   aggregateCompetencies,
@@ -75,6 +76,34 @@ type TeamRow = {
 const FULL_ENTRY_SELECT =
   "user_id, module_id, week_number, discipline, outcome, result_value, error_count, time_value, team_time, personal_time, goals_count, sport_error_count, star_leadership, star_communication, star_self_reflection, star_critical_thinking, star_self_control, teacher_note";
 
+/** Supabase returns at most 1000 rows per request by default. */
+const DB_PAGE_SIZE = 1000;
+
+async function fetchAllPaginated<T>(
+  db: SupabaseClient,
+  table: string,
+  select: string,
+  order: { column: string; ascending?: boolean }[]
+): Promise<T[]> {
+  const all: T[] = [];
+  let from = 0;
+
+  while (true) {
+    let query = db.from(table).select(select);
+    for (const { column, ascending = true } of order) {
+      query = query.order(column, { ascending });
+    }
+    const { data, error } = await query.range(from, from + DB_PAGE_SIZE - 1);
+    if (error) throw error;
+    if (!data?.length) break;
+    all.push(...(data as T[]));
+    if (data.length < DB_PAGE_SIZE) break;
+    from += DB_PAGE_SIZE;
+  }
+
+  return all;
+}
+
 function toLeagueProfiles(profiles: ProfileRow[]): LeagueProfile[] {
   return profiles.map((p) => ({
     id: p.id,
@@ -101,8 +130,8 @@ function toStarRows(full: FullDisciplineEntryRow[]): DisciplineEntryRow[] {
 }
 
 function assignPlaces(rows: Omit<SoftSkillsRatingEntry, "place">[]): SoftSkillsRatingEntry[] {
-  const ranked = rows.filter((r) => !r.isProvisional && r.points > 0);
-  const provisional = rows.filter((r) => r.isProvisional || r.points <= 0);
+  const ranked = rows.filter((r) => r.points > 0);
+  const unranked = rows.filter((r) => r.points <= 0);
 
   const sorted = [...ranked].sort((a, b) => {
     if (b.points !== a.points) return b.points - a.points;
@@ -112,7 +141,7 @@ function assignPlaces(rows: Omit<SoftSkillsRatingEntry, "place">[]): SoftSkillsR
     );
   });
 
-  const sortedProv = [...provisional].sort((a, b) =>
+  const sortedProv = [...unranked].sort((a, b) =>
     (a.displayName || a.username || "").localeCompare(b.displayName || b.username || "", "ru")
   );
 
@@ -130,7 +159,8 @@ export async function loadSoftSkillsRatingContext() {
     .from("profiles")
     .select("id, username, display_name, class_name, soft_skills_league_id")
     .eq("role", "student")
-    .not("username", "is", null);
+    .not("username", "is", null)
+    .order("username");
 
   if (pErr) {
     console.error("soft skills profiles:", pErr);
@@ -143,14 +173,24 @@ export async function loadSoftSkillsRatingContext() {
     };
   }
 
-  const { data: fullRows, error: dErr } = await db
-    .from("soft_skills_discipline_entries")
-    .select(FULL_ENTRY_SELECT);
-
-  if (dErr) {
-    console.error("soft skills discipline entries:", dErr);
+  let fullEntries: FullDisciplineEntryRow[] = [];
+  try {
+    fullEntries = await fetchAllPaginated<FullDisciplineEntryRow>(
+      db,
+      "soft_skills_discipline_entries",
+      FULL_ENTRY_SELECT,
+      [
+        { column: "user_id" },
+        { column: "module_id" },
+        { column: "week_number" },
+        { column: "discipline" },
+      ]
+    );
+  } catch (dErr) {
+    const message = dErr instanceof Error ? dErr.message : String(dErr);
+    console.error("soft skills discipline entries:", message);
     return {
-      error: dErr.message,
+      error: message,
       profiles: (profiles ?? []) as ProfileRow[],
       disciplineEntries: [] as DisciplineEntryRow[],
       fullEntries: [] as FullDisciplineEntryRow[],
@@ -158,17 +198,24 @@ export async function loadSoftSkillsRatingContext() {
     };
   }
 
-  const fullEntries = (fullRows ?? []) as FullDisciplineEntryRow[];
-  const { data: teams } = await db
-    .from("soft_skills_team_members")
-    .select("user_id, module_id, league_id, team_id");
+  let teams: TeamRow[] = [];
+  try {
+    teams = await fetchAllPaginated<TeamRow>(
+      db,
+      "soft_skills_team_members",
+      "user_id, module_id, league_id, team_id",
+      [{ column: "user_id" }, { column: "module_id" }]
+    );
+  } catch (tErr) {
+    console.error("soft skills team members:", tErr);
+  }
 
   return {
     error: null as string | null,
     profiles: (profiles ?? []) as ProfileRow[],
     disciplineEntries: toStarRows(fullEntries),
     fullEntries,
-    teams: (teams ?? []) as TeamRow[],
+    teams,
   };
 }
 
@@ -236,13 +283,9 @@ export function buildOverallBoard(
   fullEntries: FullDisciplineEntryRow[]
 ) {
   const leagueProfiles = toLeagueProfiles(profiles);
-  const rows = profiles
-    .filter((p) => {
-      if (p.soft_skills_league_id) return true;
-      const { points } = userScoreData(starEntries, fullEntries, leagueProfiles, p.id);
-      return points > 0;
-    })
-    .map((p) => entryFromProfile(p, starEntries, fullEntries, leagueProfiles));
+  const rows = profiles.map((p) =>
+    entryFromProfile(p, starEntries, fullEntries, leagueProfiles)
+  );
   return assignPlaces(rows);
 }
 
