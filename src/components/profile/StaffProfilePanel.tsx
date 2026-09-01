@@ -14,6 +14,7 @@ type StudentRow = {
   id: string;
   username: string | null;
   display_name: string | null;
+  class_name?: string | null;
 };
 
 export default function StaffProfilePanel({ profile }: { profile: StaffProfile }) {
@@ -174,7 +175,10 @@ export default function StaffProfilePanel({ profile }: { profile: StaffProfile }
                         {s.display_name?.trim() || s.username || "Ученик"}
                       </div>
                       {s.username && (
-                        <div className="truncate text-xs text-white/45">@{s.username}</div>
+                        <div className="truncate text-xs text-white/45">
+                          @{s.username}
+                          {s.class_name ? ` · ${s.class_name}` : ""}
+                        </div>
                       )}
                     </div>
                     <span className="shrink-0 text-xs text-gold">Открыть →</span>

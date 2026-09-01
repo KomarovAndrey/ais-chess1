@@ -1,5 +1,86 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseOptionalUser } from "@/lib/apiAuth";
+import { isStaffRole, resolveUserRole } from "@/lib/roles";
+import { createAdminClient } from "@/lib/supabase/admin";
+import type { OptionalAuthResult } from "@/lib/apiAuth";
+
+async function resolveProfileDb(auth: OptionalAuthResult) {
+  if (!auth.user) return auth.supabase;
+
+  const { data: row } = await auth.supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", auth.user.id)
+    .maybeSingle();
+
+  const role = await resolveUserRole(
+    auth.supabase,
+    auth.user.id,
+    typeof row?.role === "string" ? row.role : null
+  );
+
+  if (isStaffRole(role)) {
+    return createAdminClient() ?? auth.supabase;
+  }
+
+  return auth.supabase;
+}
+
+function serializeProfile(profile: Record<string, unknown>) {
+  const gamesBlitz = Number(profile.games_played_blitz ?? 0);
+  return {
+    id: profile.id,
+    username: profile.username,
+    display_name: profile.display_name ?? profile.username,
+    bio: profile.bio ?? "",
+    updated_at: profile.updated_at,
+    rating: profile.rating_blitz ?? profile.rating ?? 1500,
+    rating_bullet: profile.rating_bullet ?? profile.rating ?? 1500,
+    rating_blitz: profile.rating_blitz ?? profile.rating ?? 1500,
+    rating_rapid: profile.rating_rapid ?? profile.rating ?? 1500,
+    avatar_url: profile.avatar_url ?? null,
+    games_played_bullet: profile.games_played_bullet ?? 0,
+    games_played_blitz: profile.games_played_blitz ?? 0,
+    games_played_rapid: profile.games_played_rapid ?? 0,
+    provisional_blitz: gamesBlitz < 20,
+    role: typeof profile.role === "string" ? profile.role : "student",
+    class_name: typeof profile.class_name === "string" ? profile.class_name : null,
+    soft_skills_league_id:
+      typeof profile.soft_skills_league_id === "string" ? profile.soft_skills_league_id : null,
+  };
+}
+
+const PROFILE_SELECT_CANDIDATES = [
+  "id, username, display_name, bio, updated_at, rating, rating_bullet, rating_blitz, rating_rapid, games_played_bullet, games_played_blitz, games_played_rapid, role, class_name, soft_skills_league_id",
+  "id, username, display_name, bio, updated_at, rating, rating_bullet, rating_blitz, rating_rapid, games_played_bullet, games_played_blitz, games_played_rapid, role",
+  "id, username, display_name, bio, updated_at, rating, rating_bullet, rating_blitz, rating_rapid, games_played_bullet, games_played_blitz, games_played_rapid",
+] as const;
+
+async function fetchProfileByUsername(
+  supabase: Awaited<ReturnType<typeof resolveProfileDb>>,
+  username: string
+) {
+  let lastError: string | null = null;
+
+  for (const select of PROFILE_SELECT_CANDIDATES) {
+    const { data, error } = await supabase
+      .from("profiles")
+      .select(select)
+      .ilike("username", username)
+      .maybeSingle();
+
+    if (!error) {
+      return { profile: data as Record<string, unknown> | null, error: null as string | null };
+    }
+
+    lastError = error.message ?? "Failed to load profile";
+    if (!lastError.includes("does not exist")) {
+      return { profile: null, error: lastError };
+    }
+  }
+
+  return { profile: null, error: lastError };
+}
 
 export async function GET(
   req: NextRequest,
@@ -7,7 +88,7 @@ export async function GET(
 ) {
   const auth = await getSupabaseOptionalUser();
   if ("response" in auth) return auth.response;
-  const { supabase } = auth;
+  const supabase = await resolveProfileDb(auth);
 
   const { username: routeUsername } = await params;
   const username = decodeURIComponent(routeUsername).trim().toLowerCase();
@@ -15,11 +96,12 @@ export async function GET(
     return NextResponse.json({ error: "Username required" }, { status: 400 });
   }
 
-  const { data: profile, error: profileError } = await supabase
-    .from("profiles")
-    .select("id, username, display_name, bio, updated_at, rating, rating_bullet, rating_blitz, rating_rapid, avatar_url, games_played_bullet, games_played_blitz, games_played_rapid")
-    .ilike("username", username)
-    .maybeSingle();
+  let profile: Record<string, unknown> | null = null;
+  let profileError: string | null = null;
+
+  const loaded = await fetchProfileByUsername(supabase, username);
+  profile = loaded.profile;
+  profileError = loaded.error;
 
   if (profileError) {
     console.error("Profile fetch error:", profileError);
@@ -29,7 +111,7 @@ export async function GET(
     return NextResponse.json({ error: "Profile not found" }, { status: 404 });
   }
 
-  const userId = profile.id;
+  const userId = profile.id as string;
 
   // Получить все игры пользователя
   const { data: players } = await supabase
@@ -40,22 +122,7 @@ export async function GET(
   const gameIds = (players ?? []).map((p) => p.game_id);
   if (gameIds.length === 0) {
     return NextResponse.json({
-      profile: {
-        id: profile.id,
-        username: profile.username,
-        display_name: profile.display_name ?? profile.username,
-        bio: profile.bio ?? "",
-        updated_at: profile.updated_at,
-        rating: (profile as any).rating_blitz ?? (profile as any).rating ?? 1500,
-        rating_bullet: (profile as any).rating_bullet ?? (profile as any).rating ?? 1500,
-        rating_blitz: (profile as any).rating_blitz ?? (profile as any).rating ?? 1500,
-        rating_rapid: (profile as any).rating_rapid ?? (profile as any).rating ?? 1500,
-        avatar_url: (profile as any).avatar_url ?? null,
-        games_played_bullet: (profile as any).games_played_bullet ?? 0,
-        games_played_blitz: (profile as any).games_played_blitz ?? 0,
-        games_played_rapid: (profile as any).games_played_rapid ?? 0,
-        provisional_blitz: ((profile as any).games_played_blitz ?? 0) < 20,
-      },
+      profile: serializeProfile(profile),
       stats: { total: 0, wins: 0, losses: 0, draws: 0 },
       recent_games: [],
     });
@@ -72,22 +139,7 @@ export async function GET(
   if (gamesError) {
     console.error("Games fetch error:", gamesError);
     return NextResponse.json({
-      profile: {
-        id: profile.id,
-        username: profile.username,
-        display_name: profile.display_name ?? profile.username,
-        bio: profile.bio ?? "",
-        updated_at: profile.updated_at,
-        rating: (profile as any).rating_blitz ?? (profile as any).rating ?? 1500,
-        rating_bullet: (profile as any).rating_bullet ?? (profile as any).rating ?? 1500,
-        rating_blitz: (profile as any).rating_blitz ?? (profile as any).rating ?? 1500,
-        rating_rapid: (profile as any).rating_rapid ?? (profile as any).rating ?? 1500,
-        avatar_url: (profile as any).avatar_url ?? null,
-        games_played_bullet: (profile as any).games_played_bullet ?? 0,
-        games_played_blitz: (profile as any).games_played_blitz ?? 0,
-        games_played_rapid: (profile as any).games_played_rapid ?? 0,
-        provisional_blitz: ((profile as any).games_played_blitz ?? 0) < 20,
-      },
+      profile: serializeProfile(profile),
       stats: { total: 0, wins: 0, losses: 0, draws: 0 },
       recent_games: [],
     });
@@ -145,22 +197,7 @@ export async function GET(
   });
 
   return NextResponse.json({
-    profile: {
-      id: profile.id,
-      username: profile.username,
-      display_name: profile.display_name ?? profile.username,
-      bio: profile.bio ?? "",
-      updated_at: profile.updated_at,
-      rating: (profile as any).rating_blitz ?? (profile as any).rating ?? 1500,
-      rating_bullet: (profile as any).rating_bullet ?? (profile as any).rating ?? 1500,
-      rating_blitz: (profile as any).rating_blitz ?? (profile as any).rating ?? 1500,
-      rating_rapid: (profile as any).rating_rapid ?? (profile as any).rating ?? 1500,
-      avatar_url: (profile as any).avatar_url ?? null,
-      games_played_bullet: (profile as any).games_played_bullet ?? 0,
-      games_played_blitz: (profile as any).games_played_blitz ?? 0,
-      games_played_rapid: (profile as any).games_played_rapid ?? 0,
-      provisional_blitz: ((profile as any).games_played_blitz ?? 0) < 20,
-    },
+    profile: serializeProfile(profile),
     stats: {
       total: finishedGames.length,
       wins,

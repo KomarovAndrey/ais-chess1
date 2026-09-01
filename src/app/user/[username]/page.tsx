@@ -2,11 +2,14 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { ArrowLeft, UserPlus, UserMinus, Swords as SwordsIcon } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import GameParamsModal from "@/components/GameParamsModal";
 import RatingChart, { type RatingPoint } from "@/components/RatingChart";
+import SoftSkillsProfileSection, {
+  type SoftSkillsPlacesView,
+} from "@/components/soft-skills/SoftSkillsProfileSection";
 
 type ProfileInfo = {
   id: string;
@@ -20,6 +23,8 @@ type ProfileInfo = {
   rating_rapid: number;
   avatar_url?: string | null;
   provisional_blitz?: boolean;
+  role?: string;
+  class_name?: string | null;
 };
 
 type FriendStatus = "unknown" | "none" | "friends" | "pending_outgoing" | "pending_incoming" | "self";
@@ -36,6 +41,7 @@ type PlayedGame = {
 
 export default function PublicProfilePage() {
   const params = useParams();
+  const searchParams = useSearchParams();
   const username = typeof params?.username === "string" ? params.username : "";
   const [profile, setProfile] = useState<ProfileInfo | null>(null);
   const [loading, setLoading] = useState(true);
@@ -57,11 +63,29 @@ export default function PublicProfilePage() {
   const [games, setGames] = useState<PlayedGame[]>([]);
   const [gamesLoading, setGamesLoading] = useState(false);
   const [gamesError, setGamesError] = useState<string | null>(null);
+  const [profileArea, setProfileArea] = useState<"chess" | "soft">(() =>
+    searchParams.get("area") === "soft" ? "soft" : "chess"
+  );
+  const [viewerIsStaff, setViewerIsStaff] = useState(false);
+  const [softPlaces, setSoftPlaces] = useState<SoftSkillsPlacesView | null>(null);
+  const [softPlacesLoading, setSoftPlacesLoading] = useState(false);
+
+  useEffect(() => {
+    if (searchParams.get("area") === "soft") {
+      setProfileArea("soft");
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setCurrentUserId(session?.user?.id ?? null);
     });
+    fetch("/api/profile")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data?.is_staff) setViewerIsStaff(true);
+      })
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -71,12 +95,17 @@ export default function PublicProfilePage() {
     }
     let cancelled = false;
     fetch(`/api/players/${encodeURIComponent(username)}`)
-      .then((r) => {
+      .then(async (r) => {
         if (r.status === 404) {
           setNotFound(true);
           return null;
         }
-        return r.json();
+        const data = await r.json().catch(() => ({}));
+        if (!r.ok) {
+          setNotFound(true);
+          return null;
+        }
+        return data;
       })
       .then((data) => {
         if (cancelled) return;
@@ -130,6 +159,36 @@ export default function PublicProfilePage() {
       cancelled = true;
     };
   }, [currentUserId, profile?.id]);
+
+  useEffect(() => {
+    if (profileArea !== "soft" || !profile?.id || profile.role !== "student") return;
+    let cancelled = false;
+    setSoftPlacesLoading(true);
+    fetch(`/api/soft-skills/users/${profile.id}`)
+      .then(async (res) => {
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || cancelled) return;
+        setSoftPlaces({
+          leaguePlace: data.leaguePlace ?? null,
+          classPlace: data.classPlace ?? null,
+          teamPlace: data.teamPlace ?? null,
+          overallPlace: data.overallPlace ?? null,
+          overallPoints: data.overallPoints ?? 0,
+          leagueLabel: data.leagueLabel ?? null,
+          className: data.className ?? null,
+          teamLabel: data.teamLabel ?? null,
+        });
+      })
+      .catch(() => {
+        if (!cancelled) setSoftPlaces(null);
+      })
+      .finally(() => {
+        if (!cancelled) setSoftPlacesLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [profileArea, profile?.id, profile?.role]);
 
   useEffect(() => {
     if (!username || !profile?.id) return;
@@ -210,9 +269,21 @@ export default function PublicProfilePage() {
       : profile.display_name.trim().slice(0, 2).toUpperCase()
     : profile.username?.slice(0, 2).toUpperCase() ?? "?";
 
+  const isStudentProfile = profile.role === "student";
+  const displayName = profile.display_name || profile.username || "Игрок";
+
   return (
     <main className="page-bg min-h-screen px-4 py-8">
       <div className="mx-auto max-w-2xl">
+        {viewerIsStaff && (
+          <Link
+            href="/profile"
+            className="mb-4 inline-flex items-center gap-2 text-sm font-medium text-white/55 transition hover:text-white"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            К списку учеников
+          </Link>
+        )}
         <Link
           href="/"
           className="mb-6 inline-flex items-center gap-2 text-sm font-medium text-white/55 transition hover:text-white"
@@ -221,6 +292,34 @@ export default function PublicProfilePage() {
           На главную
         </Link>
 
+        {isStudentProfile && (
+          <div className="mb-4 flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => setProfileArea("chess")}
+              className={profileArea === "chess" ? "tab-pill-active" : "tab-pill"}
+            >
+              Шахматы
+            </button>
+            <button
+              type="button"
+              onClick={() => setProfileArea("soft")}
+              className={profileArea === "soft" ? "tab-pill-active" : "tab-pill"}
+            >
+              Софты
+            </button>
+          </div>
+        )}
+
+        {isStudentProfile && profileArea === "soft" ? (
+          <SoftSkillsProfileSection
+            displayName={displayName}
+            username={profile.username}
+            softPlaces={softPlaces}
+            loading={softPlacesLoading}
+          />
+        ) : (
+          <>
         <div className="mb-6 flex flex-wrap items-center gap-4 surface p-4 md:p-6">
           {profile.avatar_url ? (
             // eslint-disable-next-line @next/next/no-img-element
@@ -596,6 +695,8 @@ export default function PublicProfilePage() {
               <p className="text-white/70 whitespace-pre-wrap">{profile.bio.trim()}</p>
             </div>
           </div>
+        )}
+          </>
         )}
       </div>
     </main>

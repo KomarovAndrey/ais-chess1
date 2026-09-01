@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { SoftSkillsRatingEntry } from "@/lib/softSkillsRatings";
+import { softSkillsProfileHref } from "@/lib/softSkillsLinks";
 
 type SoftSkillsLeaderboardProps = {
   title?: string;
@@ -39,7 +40,11 @@ export default function SoftSkillsLeaderboard({
         <div className="px-4 py-6 text-sm text-white/55">{emptyText}</div>
       ) : (
         <ul className="divide-y divide-white/5">
-          {rows.map((r) => (
+          {rows.map((r) => {
+            const profileHref = softSkillsProfileHref(r.username);
+            const label = r.displayName?.trim() || r.username || "Ученик";
+
+            return (
             <li
               key={r.userId}
               className={`grid items-center px-4 py-3 transition hover:bg-white/[0.04] ${
@@ -51,16 +56,23 @@ export default function SoftSkillsLeaderboard({
               <div className="text-sm font-semibold text-white/40">{r.place}</div>
               <div className="min-w-0">
                 <div className="truncate text-sm font-semibold text-white">
-                  {r.displayName?.trim() || r.username || "Ученик"}
+                  {profileHref ? (
+                    <Link href={profileHref} className="hover:text-gold">
+                      {label}
+                    </Link>
+                  ) : (
+                    label
+                  )}
                 </div>
                 {r.username && (
                   <div className="truncate text-xs text-white/45">
-                    <Link
-                      className="hover:text-gold"
-                      href={`/user/${encodeURIComponent(r.username)}`}
-                    >
-                      @{r.username}
-                    </Link>
+                    {profileHref ? (
+                      <Link href={profileHref} className="hover:text-gold">
+                        @{r.username}
+                      </Link>
+                    ) : (
+                      `@${r.username}`
+                    )}
                   </div>
                 )}
               </div>
@@ -73,7 +85,8 @@ export default function SoftSkillsLeaderboard({
                 {Number.isInteger(r.points) ? r.points : r.points.toFixed(1)}
               </div>
             </li>
-          ))}
+            );
+          })}
         </ul>
       )}
     </div>
