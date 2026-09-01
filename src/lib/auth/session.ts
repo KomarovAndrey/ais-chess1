@@ -3,7 +3,6 @@ import { createClient } from "@/lib/supabase/server";
 export type HeaderProfile = {
   username: string | null;
   display_name: string | null;
-  rating_blitz?: number | null;
 };
 
 export type HeaderUser = {
@@ -28,7 +27,7 @@ export async function getHeaderAuth(): Promise<HeaderAuth> {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("username, display_name, rating_blitz, rating")
+    .select("username, display_name")
     .eq("id", user.id)
     .maybeSingle();
 
@@ -38,7 +37,6 @@ export async function getHeaderAuth(): Promise<HeaderAuth> {
       ? {
           username: profile.username ?? null,
           display_name: profile.display_name ?? null,
-          rating_blitz: profile.rating_blitz ?? profile.rating ?? null,
         }
       : null,
   };

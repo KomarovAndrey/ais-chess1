@@ -6,7 +6,7 @@ import { supabase } from "@/lib/supabaseClient";
 
 const INTERVAL_MS = 45_000;
 
-/** Keeps last_seen_at fresh; sets current_game_id on /play/[id]. */
+/** Keeps last_seen_at fresh; sets current_game_id on /reversi/play/[id]. */
 export default function PresenceHeartbeat() {
   const pathname = usePathname();
 
@@ -18,7 +18,7 @@ export default function PresenceHeartbeat() {
       const { data } = await supabase.auth.getSession();
       if (cancelled || !data.session?.user) return;
 
-      const playMatch = pathname?.match(/^\/play\/([0-9a-f-]{36})/i);
+      const playMatch = pathname?.match(/^\/reversi\/play\/([0-9a-f-]{36})/i);
       const gameId = playMatch?.[1] ?? null;
 
       await fetch("/api/presence", {

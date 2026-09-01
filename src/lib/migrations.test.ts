@@ -3,11 +3,9 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const REQUIRED = [
-  "supabase-migration-game-integrity.sql",
-  "supabase-migration-live-protocol-phase-f.sql",
   "supabase-migration-trust-phase-g.sql",
-  "supabase-migration-lichess-clock-start.sql",
-  "supabase-migration-wave-3-live-lobby.sql",
+  "supabase-migration-soft-skills-rls-tighten.sql",
+  "supabase-drop-chess.sql",
 ];
 
 describe("SQL migrations", () => {

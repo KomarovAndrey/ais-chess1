@@ -9,9 +9,8 @@ import type { HeaderProfile, HeaderUser } from "@/lib/auth/session";
 
 const NAV_LINKS = [
   { href: "/ratings", label: "SS рейтинг" },
-  { href: "/chess", label: "Шахматы" },
-  { href: "/reversi", label: "Reversi" },
   { href: "/soft-skills", label: "Soft Skills" },
+  { href: "/reversi", label: "Reversi" },
 ] as const;
 
 function navLinkClass(active: boolean) {

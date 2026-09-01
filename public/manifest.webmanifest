@@ -1,7 +1,7 @@
 {
   "name": "AIS Chess",
   "short_name": "AIS Chess",
-  "description": "Онлайн-шахматы: партии, рейтинг, задачи и турниры",
+  "description": "Soft Skills, рейтинги и Reversi",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0c1017",

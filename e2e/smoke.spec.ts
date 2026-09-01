@@ -6,9 +6,9 @@ test.describe("smoke", () => {
     await expect(page.getByRole("heading", { name: /Soft Skills/i }).first()).toBeVisible();
   });
 
-  test("chess page loads", async ({ page }) => {
-    await page.goto("/chess");
-    await expect(page.getByText(/Шахматы|компьютер/i).first()).toBeVisible();
+  test("reversi page loads", async ({ page }) => {
+    await page.goto("/reversi");
+    await expect(page.locator("body")).toContainText(/Reversi|реверси/i);
   });
 
   test("soft-skills hub loads", async ({ page }) => {

@@ -41,14 +41,8 @@ async function probeRpc(admin, name, args) {
 
 const TABLES = [
   "profiles",
-  "games",
-  "game_players",
-  "game_moves",
-  "game_seeks",
-  "game_challenges",
   "friend_requests",
   "user_reports",
-  "rating_history",
   "reversi_games",
   "rate_limit_buckets",
   "soft_skills_teams",
@@ -61,28 +55,11 @@ const RPCS = [
   ["username_available", { check_username: "audit_probe_user" }],
   ["check_rate_limit_bucket", { bucket_key: "audit", max_count: 1, window_seconds: 60 }],
   ["heartbeat_presence", {}],
-  ["accept_seek", { p_seek_id: "00000000-0000-0000-0000-000000000000" }],
-  [
-    "match_or_create_seek",
-    {
-      p_time: 300,
-      p_increment: 0,
-      p_rated: true,
-      p_color: "random",
-      p_tournament_id: null,
-    },
-  ],
-  ["accept_game_challenge", { p_challenge_id: "00000000-0000-0000-0000-000000000000" }],
-  [
-    "update_game_ratings",
-    { p_game_id: "00000000-0000-0000-0000-000000000000", p_winner: "draw" },
-  ],
   ["resolve_login_email", { identifier: "student1" }],
 ];
 
 const MIGRATION_HINTS = {
   check_rate_limit_bucket: "supabase-migration-trust-phase-g.sql",
-  match_or_create_seek: "supabase-migration-lichess-clock-start.sql",
   resolve_login_email: "supabase-migration-login-email-rpc.sql",
 };
 

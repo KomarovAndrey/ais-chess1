@@ -9,9 +9,7 @@ export async function GET() {
 
   const { data, error } = await supabase
     .from("profiles")
-    .select(
-      "username, display_name, bio, updated_at, rating, rating_bullet, rating_blitz, rating_rapid, avatar_url, games_played_bullet, games_played_blitz, games_played_rapid, role"
-    )
+    .select("username, display_name, bio, updated_at, avatar_url, role")
     .eq("id", auth.user.id)
     .single();
 
@@ -33,14 +31,7 @@ export async function GET() {
     display_name: row?.display_name ?? "",
     bio: row?.bio ?? "",
     updated_at: row?.updated_at ?? null,
-    rating: row?.rating ?? row?.rating_blitz ?? 1500,
-    rating_bullet: row?.rating_bullet ?? row?.rating ?? 1500,
-    rating_blitz: row?.rating_blitz ?? row?.rating ?? 1500,
-    rating_rapid: row?.rating_rapid ?? row?.rating ?? 1500,
     avatar_url: row?.avatar_url ?? null,
-    games_played_bullet: row?.games_played_bullet ?? 0,
-    games_played_blitz: row?.games_played_blitz ?? 0,
-    games_played_rapid: row?.games_played_rapid ?? 0,
     role,
     is_staff: isStaffRole(role),
   });
@@ -96,9 +87,7 @@ export async function PATCH(req: NextRequest) {
   const { data, error } = await supabase
     .from("profiles")
     .upsert({ id: user.id, ...merged }, { onConflict: "id", ignoreDuplicates: false })
-    .select(
-      "username, display_name, bio, updated_at, rating, rating_bullet, rating_blitz, rating_rapid, avatar_url, games_played_bullet, games_played_blitz, games_played_rapid, role"
-    )
+    .select("username, display_name, bio, updated_at, avatar_url, role")
     .single();
 
   if (error) {
@@ -117,14 +106,7 @@ export async function PATCH(req: NextRequest) {
     display_name: data?.display_name ?? "",
     bio: data?.bio ?? "",
     updated_at: data?.updated_at ?? null,
-    rating: data?.rating ?? data?.rating_blitz ?? 1500,
-    rating_bullet: data?.rating_bullet ?? data?.rating ?? 1500,
-    rating_blitz: data?.rating_blitz ?? data?.rating ?? 1500,
-    rating_rapid: data?.rating_rapid ?? data?.rating ?? 1500,
     avatar_url: data?.avatar_url ?? null,
-    games_played_bullet: data?.games_played_bullet ?? 0,
-    games_played_blitz: data?.games_played_blitz ?? 0,
-    games_played_rapid: data?.games_played_rapid ?? 0,
     role: patchRole,
     is_staff: isStaffRole(patchRole),
   });

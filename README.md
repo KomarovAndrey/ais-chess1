@@ -1,27 +1,24 @@
 # AIS Chess (Next.js 15 + Supabase)
 
-Школьная платформа: **Soft Skills** (оценки, рейтинги, команды), **шахматы** (CPU + live PvP для авторизованных), **Reversi**.
+Школьная платформа: **Soft Skills** (оценки, рейтинги, команды) и **Reversi**.
 
 ## Стек
 
 - Next.js 15 (App Router, `src/app`)
 - React + TypeScript + Tailwind CSS
 - Supabase (auth, Postgres, Realtime, RLS)
-- `chess.js`, `react-chessboard`, Stockfish WASM
 - Vitest (unit) + Playwright (smoke e2e)
 
 ## Маршруты
 
 | Путь | Описание |
 |------|----------|
-| `/` | Главная, лобби seeks (нужен вход) |
+| `/` | Главная |
 | `/login`, `/register` | Авторизация |
 | `/soft-skills`, `/soft-skills/[moduleId]` | Модули Soft Skills |
 | `/soft-skills/analytics` | Аналитика (teacher/admin) |
 | `/ratings` | Рейтинги Soft Skills |
-| `/user/[username]` | Публичный профиль |
-| `/chess` | Шахматы vs CPU (локально) |
-| `/play/[gameId]` | Live PvP (только с входом) |
+| `/profile`, `/user/[username]` | Профиль (софты) |
 | `/reversi` | Reversi vs CPU или по ссылке (с входом) |
 | `/admin/reports` | Жалобы (admin) |
 
@@ -61,25 +58,21 @@ NEXT_PUBLIC_SUPABASE_URL=...
 NEXT_PUBLIC_SUPABASE_ANON_KEY=...
 ```
 
-Значения возьмите в [Supabase Dashboard](https://supabase.com/dashboard) → ваш проект → **Settings** → **API** (Project URL и anon public key). Можно скопировать `.env.example` в `.env.local` и подставить свои ключи. Для целостности партий (сдаться / ничья / рейтинг) также укажите **`SUPABASE_SERVICE_ROLE_KEY`** (тот же раздел API → `service_role`, секретный ключ). Добавьте его и в Vercel Environment Variables. Для SEO (корректные ссылки в robots.txt и sitemap) при необходимости укажите в `.env.local` переменную `NEXT_PUBLIC_SITE_URL` (полный URL сайта, например `https://your-domain.com`).
+Значения возьмите в [Supabase Dashboard](https://supabase.com/dashboard) → ваш проект → **Settings** → **API** (Project URL и anon public key). Можно скопировать `.env.example` в `.env.local` и подставить свои ключи. Для staff API и rate limits также укажите **`SUPABASE_SERVICE_ROLE_KEY`** (тот же раздел API → `service_role`, секретный ключ). Добавьте его и в Vercel Environment Variables. Для SEO (корректные ссылки в robots.txt и sitemap) при необходимости укажите в `.env.local` переменную `NEXT_PUBLIC_SITE_URL` (полный URL сайта, например `https://your-domain.com`).
 
-3. **Создайте таблицы в Supabase** (иначе будет ошибка «Could not find the table public.games»):
+3. **Создайте таблицы в Supabase**:
    - Откройте [Supabase Dashboard](https://supabase.com/dashboard) → ваш проект.
    - Слева выберите **SQL Editor** → **New query**.
-   - Выполните следующие SQL-скрипты по очереди (каждый в отдельном запросе):
+   - Выполните SQL-скрипты по порядку (каждый в отдельном запросе):
      1. `supabase-schema-profiles.sql` — таблица профилей пользователей
-     2. `supabase-migration-profiles-username.sql` — добавление username и функций
-     3. `supabase-migration-profiles-add-role.sql` — добавление ролей (student/teacher/admin)
-     4. `supabase-schema-games.sql` — таблицы для игр (games, game_players)
-     5. `supabase-migration-games-allow-anon.sql` — legacy (раньше гостевая игра; live PvP сейчас только с входом)
-     6. `supabase-migration-game-integrity.sql` — серверная целостность партий (после настройки `SUPABASE_SERVICE_ROLE_KEY`)
-     7. `supabase-migration-matchmaking-phase-a.sql` — лобби (seeks), инкремент часов, rated/casual, abort/rematch
-     8. `supabase-migration-live-protocol-phase-f.sql` — presence
-     9. `supabase-migration-trust-phase-g.sql` — provisional Elo, публичная история, rate buckets, жалобы
-     10. `supabase-migration-lichess-clock-start.sql` — часы стартуют после первых ходов (как на Lichess)
-     11. `supabase-migration-wave-3-live-lobby.sql` — публичное лобби seeks + accept_seek, Realtime
+     2. `supabase-migration-profiles-username.sql` — username и функции
+     3. `supabase-migration-profiles-add-role.sql` — роли (student/teacher/admin)
+     4. `supabase-migration-live-protocol-phase-f.sql` — presence (last_seen_at)
+     5. `supabase-migration-trust-phase-g.sql` — rate buckets, жалобы
+     6. `supabase-migration-friends.sql` — заявки в друзья (опционально)
+     7. `supabase-migration-reversi-games.sql` + `supabase-migration-reversi-moves.sql` — Reversi
 
-   **Soft Skills** (выполнить по порядку, если используете модуль оценок):
+   **Soft Skills** (выполнить по порядку):
      1. `supabase-migration-soft-skills-teams.sql`
      2. `supabase-migration-soft-skills-league-binding.sql`
      3. `supabase-migration-soft-skills-ratings.sql`
@@ -93,10 +86,11 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=...
    Проверка рейтингов: `node scripts/verify-soft-skills-ratings.mjs`.
    Аудит Supabase: `npm run audit:supabase`.
 
-   Если раньше ставили **Задачи** и нужно убрать из БД: `supabase-drop-zadachi.sql`.
+   Если раньше ставили **шахматы** (games/seeks/challenges): `supabase-drop-chess.sql`.
+   Если раньше ставили **Задачи**: `supabase-drop-zadachi.sql`.
    Если раньше ставили **Турниры**: `supabase-drop-tournaments.sql`.
 
-   В production обязателен `SUPABASE_SERVICE_ROLE_KEY` (без него ходы/рейтинг вернут 503).
+   В production обязателен `SUPABASE_SERVICE_ROLE_KEY` для staff API и rate limits.
    Рекомендуется в production: `USE_DB_RATE_LIMIT=1` — распределённый лимит через `rate_limit_buckets`.
    - Для каждого скрипта: скопируйте весь код из файла и вставьте в редактор, затем нажмите **Run** (или Ctrl+Enter).
    - Должно выполниться без ошибок. Схема подхватится автоматически.
@@ -260,7 +254,7 @@ git push -u origin main
 ## SEO и технические настройки
 
 - **robots.txt** — генерируется динамически из `src/app/robots.ts`. Правила: разрешена индексация публичных страниц; закрыты от индексации `/api/`, `/auth/`, страницы входа/регистрации/профиля и партий. Ссылка на sitemap подставляется из переменной `NEXT_PUBLIC_SITE_URL` (если не задана — используется заглушка `https://ais-chess.example.com`).
-- **sitemap.xml** — генерируется из `src/app/sitemap.ts`. В карту входят публичные страницы: главная, `/chess`, `/reversi`, `/ratings`, `/privacy`, `/terms`. Для корректных URL в sitemap задайте `NEXT_PUBLIC_SITE_URL` в `.env.local` (разработка) и в настройках проекта на Vercel (продакшен).
+- **sitemap.xml** — генерируется из `src/app/sitemap.ts`. В карту входят публичные страницы: главная, `/soft-skills`, `/reversi`, `/ratings`, `/privacy`, `/terms`. Для корректных URL в sitemap задайте `NEXT_PUBLIC_SITE_URL` в `.env.local` (разработка) и в настройках проекта на Vercel (продакшен).
 - **Сжатие (gzip):** включено в `next.config.mjs` (`compress: true`). При запуске через `next start` или на Vercel ответы сжимаются. Проверка: откройте сайт в браузере → DevTools → вкладка Network → выберите документ или крупный JS/CSS → во вкладке Headers ответа должно быть поле `Content-Encoding: gzip` (или `br` на части хостингов).
 - **Скорость:** страница рейтингов кэшируется на 60 секунд (`revalidate = 60`). Тяжёлый компонент игры (`play-game`) подгружается динамически при открытии партии, чтобы не увеличивать размер основного бандла.
 

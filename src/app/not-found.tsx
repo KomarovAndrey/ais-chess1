@@ -11,8 +11,8 @@ export default function NotFound() {
           <Link href="/" className="btn-primary">
             Главная
           </Link>
-          <Link href="/chess" className="btn-secondary">
-            Шахматы
+          <Link href="/reversi" className="btn-secondary">
+            Reversi
           </Link>
           <Link href="/soft-skills" className="btn-secondary">
             Soft Skills

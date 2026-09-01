@@ -2,24 +2,16 @@
 
 import { useEffect, useState, useRef, useCallback } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { Search, User as UserIcon, LogOut, Bell, Check, X } from "lucide-react";
+import { Search, User as UserIcon, LogOut, Bell, X } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import type { HeaderProfile, HeaderUser } from "@/lib/auth/session";
 
 type ProfileInfo = HeaderProfile;
 type NavUser = HeaderUser;
 type SearchHit = { id: string; username: string | null; display_name: string | null };
-type IncomingChallenge = {
-  id: string;
-  from_user: { id: string; username: string | null; display_name: string; rating: number };
-  creator_color: "white" | "black" | "random";
-  time_control_seconds: number;
-  created_at: string;
-};
 type IncomingFriendRequest = {
   id: string;
-  from_user: { id: string; username: string | null; display_name: string; rating: number };
+  from_user: { id: string; username: string | null; display_name: string };
 };
 
 function useDebounce<T>(value: T, delay: number): T {
@@ -49,7 +41,6 @@ export default function AppNav({
   initialUser: HeaderUser | null;
   initialProfile: HeaderProfile | null;
 }) {
-  const router = useRouter();
   const [user, setUser] = useState<NavUser | null>(initialUser);
   const [profile, setProfile] = useState<ProfileInfo | null>(initialProfile);
   const [searchQuery, setSearchQuery] = useState("");
@@ -57,9 +48,7 @@ export default function AppNav({
   const [searchOpen, setSearchOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
-  const [incomingChallenges, setIncomingChallenges] = useState<IncomingChallenge[]>([]);
   const [incomingFriendRequests, setIncomingFriendRequests] = useState<IncomingFriendRequest[]>([]);
-  const handledAcceptedRef = useRef<Set<string>>(new Set());
   const searchRef = useRef<HTMLDivElement>(null);
   const notifRef = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -126,17 +115,6 @@ export default function AppNav({
     window.location.assign("/");
   }
 
-  async function loadIncomingChallenges() {
-    try {
-      const res = await fetch("/api/challenges");
-      if (!res.ok) return;
-      const data = await res.json().catch(() => ({}));
-      setIncomingChallenges(Array.isArray(data?.incoming) ? data.incoming : []);
-    } catch {
-      // ignore
-    }
-  }
-
   async function loadIncomingFriendRequests() {
     try {
       const res = await fetch("/api/friends");
@@ -151,18 +129,10 @@ export default function AppNav({
 
   useEffect(() => {
     if (!user) return;
-    loadIncomingChallenges();
     loadIncomingFriendRequests();
 
     const channel = supabase
-      .channel(`challenges:${user.id}`)
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "game_challenges", filter: `to_user_id=eq.${user.id}` },
-        () => {
-          loadIncomingChallenges();
-        }
-      )
+      .channel(`friends:${user.id}`)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "friend_requests", filter: `to_user_id=eq.${user.id}` },
@@ -170,24 +140,12 @@ export default function AppNav({
           loadIncomingFriendRequests();
         }
       )
-      .on(
-        "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "game_challenges", filter: `from_user_id=eq.${user.id}` },
-        (payload) => {
-          const row = payload.new as { id?: string; status?: string; game_id?: string | null };
-          if (row?.status === "accepted" && row.game_id) {
-            if (row.id && handledAcceptedRef.current.has(row.id)) return;
-            if (row.id) handledAcceptedRef.current.add(row.id);
-            router.push(`/play/${row.game_id}`);
-          }
-        }
-      )
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user, router]);
+  }, [user]);
 
   if (!user) {
     return (
@@ -273,11 +231,11 @@ export default function AppNav({
               aria-expanded={notifOpen}
             >
               <Bell className="h-4 w-4" />
-            {incomingChallenges.length + incomingFriendRequests.length > 0 && (
+            {incomingFriendRequests.length > 0 && (
                 <span className="absolute -right-1 -top-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-red-600 px-1 text-[11px] font-bold text-white">
-                {incomingChallenges.length + incomingFriendRequests.length > 9
+                {incomingFriendRequests.length > 9
                   ? "9+"
-                  : incomingChallenges.length + incomingFriendRequests.length}
+                  : incomingFriendRequests.length}
                 </span>
               )}
             </button>
@@ -286,7 +244,7 @@ export default function AppNav({
               <div className="absolute right-0 top-full z-50 mt-1 w-80 max-w-[calc(100vw-2rem)] rounded-xl border border-white/10 bg-ink-800 shadow-card">
                 <div className="px-3 py-2 text-sm font-semibold text-white">Уведомления</div>
                 <div className="border-t border-white/10" />
-                {incomingChallenges.length === 0 && incomingFriendRequests.length === 0 ? (
+                {incomingFriendRequests.length === 0 ? (
                   <div className="px-3 py-3 text-sm text-white/50">Нет новых уведомлений.</div>
                 ) : (
                   <ul className="max-h-80 overflow-auto py-1">
@@ -311,57 +269,6 @@ export default function AppNav({
                         >
                           Открыть
                         </Link>
-                      </li>
-                    ))}
-                    {incomingChallenges.map((c) => (
-                      <li key={c.id} className="group flex items-center justify-between gap-3 px-3 py-2 hover:bg-white/5">
-                        <div className="min-w-0">
-                          <div className="truncate text-sm text-white/90">
-                            <span className="font-medium">{c.from_user.display_name}</span>
-                            {c.from_user.username && <span className="ml-1 text-white/40">{c.from_user.username}</span>}
-                          </div>
-                          <div className="text-xs text-white/45">
-                            Вызов на партию · {Math.floor(c.time_control_seconds / 60)} мин · цвет:{" "}
-                            {c.creator_color === "random" ? "случайный" : c.creator_color === "white" ? "белые" : "чёрные"}
-                          </div>
-                        </div>
-
-                        <div className="flex shrink-0 items-center gap-1 opacity-100 transition md:opacity-0 md:group-hover:opacity-100">
-                          <button
-                            type="button"
-                            onClick={async () => {
-                              // оптимистично убираем уведомление сразу
-                              setIncomingChallenges((prev) => prev.filter((x) => x.id !== c.id));
-                              const res = await fetch(`/api/challenges/${c.id}/accept`, { method: "POST" });
-                              const data = await res.json().catch(() => ({}));
-                              if (res.ok && data?.gameId) {
-                                setNotifOpen(false);
-                                router.push(`/play/${data.gameId}`);
-                              } else {
-                                loadIncomingChallenges();
-                              }
-                            }}
-                            className="flex h-8 w-8 items-center justify-center rounded-lg bg-green-600 text-white hover:bg-green-700"
-                            aria-label="Принять вызов"
-                            title="Принять"
-                          >
-                            <Check className="h-4 w-4" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={async () => {
-                              // оптимистично убираем уведомление сразу
-                              setIncomingChallenges((prev) => prev.filter((x) => x.id !== c.id));
-                              await fetch(`/api/challenges/${c.id}/decline`, { method: "POST" }).catch(() => {});
-                              loadIncomingChallenges();
-                            }}
-                            className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-300 text-slate-800 hover:bg-slate-400"
-                            aria-label="Отклонить вызов"
-                            title="Отклонить"
-                          >
-                            <X className="h-4 w-4" />
-                          </button>
-                        </div>
                       </li>
                     ))}
                   </ul>

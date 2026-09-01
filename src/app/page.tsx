@@ -1,5 +1,4 @@
 import Link from "next/link";
-import HomeLobbySection from "@/components/HomeLobbySection";
 
 export const revalidate = 60;
 
@@ -15,12 +14,6 @@ const FEATURE_CARDS = [
     title: "Рейтинги",
     description: "Общий за год, по модулям, командам и классам.",
     accent: "text-white",
-  },
-  {
-    href: "/chess",
-    title: "Шахматы",
-    description: "Игра с компьютером, live PvP, анализ и PGN.",
-    accent: "text-emerald-300",
   },
   {
     href: "/reversi",
@@ -44,17 +37,17 @@ export default function HomePage() {
               AIS Chess
             </p>
             <h1 className="font-display text-3xl font-semibold leading-tight text-white sm:text-4xl md:text-5xl">
-              Школьная платформа: <span className="text-gold">Soft Skills</span> и шахматы
+              Школьная платформа: <span className="text-gold">Soft Skills</span> и Reversi
             </h1>
             <p className="max-w-xl text-base text-white/55">
-              Оценки компетенций, рейтинги команд, live-игра и шахматы — в одном месте.
+              Оценки компетенций, рейтинги команд и игра в Reversi — в одном месте.
             </p>
             <div className="flex flex-wrap gap-3 pt-2">
               <Link href="/soft-skills" className="btn-primary">
                 Soft Skills
               </Link>
-              <Link href="/chess" className="btn-secondary">
-                Играть в шахматы
+              <Link href="/reversi" className="btn-secondary">
+                Reversi
               </Link>
               <Link href="/login" className="btn-secondary">
                 Войти
@@ -66,7 +59,7 @@ export default function HomePage() {
 
       <section className="mx-auto max-w-6xl px-4 py-10">
         <h2 className="mb-4 font-display text-xl font-semibold text-white">Разделы</h2>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {FEATURE_CARDS.map((card) => (
             <Link
               key={card.href}
@@ -79,8 +72,6 @@ export default function HomePage() {
           ))}
         </div>
       </section>
-
-      <HomeLobbySection />
     </main>
   );
 }

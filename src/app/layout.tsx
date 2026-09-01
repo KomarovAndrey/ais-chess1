@@ -20,7 +20,7 @@ const unbounded = Unbounded({
 
 export const metadata: Metadata = {
   title: "AIS Chess",
-  description: "Школьная платформа: Soft Skills, шахматы и Reversi",
+  description: "Школьная платформа: Soft Skills и Reversi",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,

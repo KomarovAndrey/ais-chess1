@@ -23,13 +23,11 @@ export async function GET() {
     id: string;
     username: string | null;
     display_name: string;
-    rating: number;
     online: boolean;
-    inGameId: string | null;
   };
   const friends: FriendPresence[] = [];
-  const pendingIncoming: { id: string; from_user: { id: string; username: string | null; display_name: string; rating: number } }[] = [];
-  const pendingOutgoing: { id: string; to_user: { id: string; username: string | null; display_name: string; rating: number } }[] = [];
+  const pendingIncoming: { id: string; from_user: { id: string; username: string | null; display_name: string } }[] = [];
+  const pendingOutgoing: { id: string; to_user: { id: string; username: string | null; display_name: string } }[] = [];
 
   const accepted = (requests ?? []).filter((r) => r.status === "accepted");
   const incoming = (requests ?? []).filter((r) => r.status === "pending" && r.to_user_id === me);
@@ -47,22 +45,19 @@ export async function GET() {
       id: string;
       username: string | null;
       display_name: string;
-      rating?: number;
-      rating_blitz?: number;
       last_seen_at?: string | null;
-      current_game_id?: string | null;
     };
     let profiles: ProfileRow[] = [];
 
     const withPresence = await supabase
       .from("profiles")
-      .select("id, username, display_name, rating, rating_blitz, last_seen_at, current_game_id")
+      .select("id, username, display_name, last_seen_at")
       .in("id", Array.from(allOtherIds));
 
     if (withPresence.error?.message?.includes("last_seen_at")) {
       const fallback = await supabase
         .from("profiles")
-        .select("id, username, display_name, rating, rating_blitz")
+        .select("id, username, display_name")
         .in("id", Array.from(allOtherIds));
       profiles = (fallback.data ?? []) as ProfileRow[];
     } else {
@@ -80,9 +75,7 @@ export async function GET() {
             id: p.id,
             username: p.username ?? null,
             display_name: p.display_name ?? "",
-            rating: p.rating_blitz ?? p.rating ?? 1500,
             online,
-            inGameId: online && p.current_game_id ? p.current_game_id : null,
           },
         ] as const;
       })
@@ -98,7 +91,7 @@ export async function GET() {
       if (p)
         pendingIncoming.push({
           id: r.id,
-          from_user: { id: p.id, username: p.username ?? null, display_name: p.display_name ?? "", rating: p.rating ?? 1500 }
+          from_user: { id: p.id, username: p.username ?? null, display_name: p.display_name ?? "" }
         });
     });
     outgoing.forEach((r) => {
@@ -106,7 +99,7 @@ export async function GET() {
       if (p)
         pendingOutgoing.push({
           id: r.id,
-          to_user: { id: p.id, username: p.username ?? null, display_name: p.display_name ?? "", rating: p.rating ?? 1500 }
+          to_user: { id: p.id, username: p.username ?? null, display_name: p.display_name ?? "" }
         });
     });
   }

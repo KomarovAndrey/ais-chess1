@@ -4,11 +4,9 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "npm run copy-stockfish && next build",
+    "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "copy-stockfish": "node scripts/copy-stockfish.js",
-    "postinstall": "node scripts/copy-stockfish.js",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
@@ -20,14 +18,11 @@
     "@radix-ui/react-slot": "^1.1.0",
     "@supabase/ssr": "^0.8.0",
     "@supabase/supabase-js": "^2.49.0",
-    "chess.js": "^1.0.0",
     "class-variance-authority": "^0.7.0",
     "lucide-react": "^0.460.0",
     "next": "15.0.7",
     "react": "18.2.0",
-    "react-chessboard": "^4.4.0",
     "react-dom": "18.2.0",
-    "stockfish": "^18.0.8",
     "zod": "^4.3.6"
   },
   "devDependencies": {

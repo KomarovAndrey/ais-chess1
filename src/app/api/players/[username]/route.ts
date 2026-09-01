@@ -28,22 +28,13 @@ async function resolveProfileDb(auth: OptionalAuthResult) {
 }
 
 function serializeProfile(profile: Record<string, unknown>) {
-  const gamesBlitz = Number(profile.games_played_blitz ?? 0);
   return {
     id: profile.id,
     username: profile.username,
     display_name: profile.display_name ?? profile.username,
     bio: profile.bio ?? "",
     updated_at: profile.updated_at,
-    rating: profile.rating_blitz ?? profile.rating ?? 1500,
-    rating_bullet: profile.rating_bullet ?? profile.rating ?? 1500,
-    rating_blitz: profile.rating_blitz ?? profile.rating ?? 1500,
-    rating_rapid: profile.rating_rapid ?? profile.rating ?? 1500,
     avatar_url: profile.avatar_url ?? null,
-    games_played_bullet: profile.games_played_bullet ?? 0,
-    games_played_blitz: profile.games_played_blitz ?? 0,
-    games_played_rapid: profile.games_played_rapid ?? 0,
-    provisional_blitz: gamesBlitz < 20,
     role: typeof profile.role === "string" ? profile.role : "student",
     class_name: typeof profile.class_name === "string" ? profile.class_name : null,
     soft_skills_league_id:
@@ -52,9 +43,9 @@ function serializeProfile(profile: Record<string, unknown>) {
 }
 
 const PROFILE_SELECT_CANDIDATES = [
-  "id, username, display_name, bio, updated_at, rating, rating_bullet, rating_blitz, rating_rapid, games_played_bullet, games_played_blitz, games_played_rapid, role, class_name, soft_skills_league_id",
-  "id, username, display_name, bio, updated_at, rating, rating_bullet, rating_blitz, rating_rapid, games_played_bullet, games_played_blitz, games_played_rapid, role",
-  "id, username, display_name, bio, updated_at, rating, rating_bullet, rating_blitz, rating_rapid, games_played_bullet, games_played_blitz, games_played_rapid",
+  "id, username, display_name, bio, updated_at, avatar_url, role, class_name, soft_skills_league_id",
+  "id, username, display_name, bio, updated_at, avatar_url, role",
+  "id, username, display_name, bio, updated_at",
 ] as const;
 
 async function fetchProfileByUsername(
@@ -102,131 +93,16 @@ export async function GET(
     return NextResponse.json({ error: "Username required" }, { status: 400 });
   }
 
-  let profile: Record<string, unknown> | null = null;
-  let profileError: string | null = null;
-
   const loaded = await fetchProfileByUsername(supabase, username);
-  profile = loaded.profile;
-  profileError = loaded.error;
-
-  if (profileError) {
-    console.error("Profile fetch error:", profileError);
+  if (loaded.error) {
+    console.error("Profile fetch error:", loaded.error);
     return NextResponse.json({ error: "Failed to load profile" }, { status: 500 });
   }
-  if (!profile) {
+  if (!loaded.profile) {
     return NextResponse.json({ error: "Profile not found" }, { status: 404 });
   }
 
-  const userId = profile.id as string;
-
-  // Получить все игры пользователя
-  const { data: players } = await supabase
-    .from("game_players")
-    .select("game_id, side, player_id")
-    .eq("player_id", userId);
-
-  const gameIds = (players ?? []).map((p) => p.game_id);
-  if (gameIds.length === 0) {
-    return NextResponse.json({
-      profile: serializeProfile(profile),
-      stats: { total: 0, wins: 0, losses: 0, draws: 0 },
-      recent_games: [],
-    });
-  }
-
-  // Получить последние игры (ограниченная выборка)
-  const { data: games, error: gamesError } = await supabase
-    .from("games")
-    .select("id, status, winner, created_at, started_at")
-    .in("id", gameIds)
-    .order("created_at", { ascending: false })
-    .limit(50);
-
-  if (gamesError) {
-    console.error("Games fetch error:", gamesError);
-    return NextResponse.json({
-      profile: serializeProfile(profile),
-      stats: { total: 0, wins: 0, losses: 0, draws: 0 },
-      recent_games: [],
-    });
-  }
-
-  const candidateGameIds = (games ?? []).map((g) => g.id);
-  if (candidateGameIds.length === 0) {
-    return NextResponse.json({
-      profile: serializeProfile(profile),
-      stats: { total: 0, wins: 0, losses: 0, draws: 0 },
-      recent_games: [],
-    });
-  }
-
-  const { data: allPlayers } = await supabase
-    .from("game_players")
-    .select("game_id, side, player_id")
-    .in("game_id", candidateGameIds);
-
-  const opponentIds = [
-    ...new Set(
-      (allPlayers ?? [])
-        .filter((p) => p.player_id !== userId)
-        .map((p) => p.player_id)
-    ),
-  ];
-
-  const registeredIdsSet = new Set<string>([userId]);
-  if (opponentIds.length > 0) {
-    const { data: registered } = await supabase
-      .from("profiles")
-      .select("id")
-      .in("id", opponentIds);
-    for (const p of registered ?? []) registeredIdsSet.add(p.id);
-  }
-
-  const validGames = (games ?? []).filter((game) => {
-    const gamePlayers = (allPlayers ?? []).filter((p) => p.game_id === game.id);
-    // Должно быть ровно 2 игрока (белые и чёрные)
-    if (gamePlayers.length !== 2) return false;
-    // Оба игрока должны быть зарегистрированы
-    return gamePlayers.every((p) => registeredIdsSet.has(p.player_id));
-  });
-
-  // Ограничить до 20 последних
-  const filteredGames = validGames.slice(0, 20);
-
-  const playerByGame = new Map((players ?? []).map((p) => [p.game_id, p.side]));
-  let wins = 0;
-  let losses = 0;
-  let draws = 0;
-  const finishedGames = filteredGames.filter((g) => g.status === "finished");
-
-  for (const g of finishedGames) {
-    const side = playerByGame.get(g.id);
-    if (!side) continue;
-    if (g.winner === "draw") draws++;
-    else if (g.winner === side) wins++;
-    else losses++;
-  }
-
-  const recent_games = filteredGames.map((g) => {
-    const side = playerByGame.get(g.id);
-    return {
-      id: g.id,
-      side,
-      winner: g.winner,
-      status: g.status,
-      created_at: g.created_at,
-      started_at: g.started_at,
-    };
-  });
-
   return NextResponse.json({
-    profile: serializeProfile(profile),
-    stats: {
-      total: finishedGames.length,
-      wins,
-      losses,
-      draws,
-    },
-    recent_games,
+    profile: serializeProfile(loaded.profile),
   });
 }
