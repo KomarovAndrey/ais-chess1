@@ -10,10 +10,6 @@ import SoftSkillsDisciplineStats from "@/components/soft-skills/SoftSkillsDiscip
 import SoftSkillsSelfAssessment from "@/components/soft-skills/SoftSkillsSelfAssessment";
 import type { CompetencySnapshot } from "@/lib/softSkillsCompetencies";
 import { formatCompetency } from "@/lib/softSkillsCompetencies";
-import {
-  COMPOSITE_FORMULA_LABEL,
-  COMPOSITE_FORMULA_PARTIAL_LABEL,
-} from "@/lib/softSkillsComposite";
 import type {
   CompetencyInsight,
   DisciplineStatRow,
@@ -105,11 +101,6 @@ export default function SoftSkillsProfileSection({
       ? competencyDashboard?.compositeOverall
       : competencyDashboard?.compositeByModule?.[moduleTab];
 
-  const compositeIsPartial =
-    moduleTab === "overall"
-      ? competencyDashboard?.compositeIsPartial
-      : competencyDashboard?.compositeIsPartialByModule?.[moduleTab];
-
   const disciplineIdx =
     moduleTab === "overall"
       ? competencyDashboard?.disciplineOverall?.overall
@@ -138,24 +129,11 @@ export default function SoftSkillsProfileSection({
         {softPlaces?.teamLabel && (
           <p className="mt-0.5 text-sm text-white/55">Команда: {softPlaces.teamLabel}</p>
         )}
-        {(softPlaces?.isProvisional || competencyDashboard?.isProvisional) && !loading && (
-          <p className="mt-2 inline-flex rounded-lg border border-amber-500/30 bg-amber-500/10 px-2 py-1 text-xs text-amber-200">
-            Предварительные данные — нужно больше оценок для точного рейтинга
-          </p>
-        )}
       </div>
 
       {!loading && composite != null && composite > 0 && (
         <div className="surface-pad">
           <h2 className="font-display text-lg font-semibold text-white">Итоговый балл</h2>
-          <p className="mt-1 text-xs text-white/40">
-            {compositeIsPartial ? COMPOSITE_FORMULA_PARTIAL_LABEL : COMPOSITE_FORMULA_LABEL}
-          </p>
-          {compositeIsPartial && (
-            <p className="mt-1 inline-flex rounded-lg border border-white/10 bg-white/5 px-2 py-0.5 text-xs text-white/55">
-              Частичный итог — заполнена только одна часть (компетенции или дисциплины)
-            </p>
-          )}
           <div className="mt-4 grid gap-3 sm:grid-cols-3">
             <div className="rounded-2xl border border-gold/30 bg-gold/10 p-4 text-center">
               <p className="text-xs text-white/45">Итог</p>
@@ -164,17 +142,13 @@ export default function SoftSkillsProfileSection({
               </p>
             </div>
             <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-center">
-              <p className="text-xs text-white/45">
-                Компетенции{compositeIsPartial ? "" : " (70%)"}
-              </p>
+              <p className="text-xs text-white/45">Компетенции</p>
               <p className="font-display text-2xl font-semibold text-white">
                 {formatCompetency(competencyAvg ?? null)}
               </p>
             </div>
             <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-center">
-              <p className="text-xs text-white/45">
-                Дисциплины{compositeIsPartial ? "" : " (30%)"}
-              </p>
+              <p className="text-xs text-white/45">Дисциплины</p>
               <p className="font-display text-2xl font-semibold text-white">
                 {formatCompetency(disciplineIdx ?? null)}
               </p>
@@ -205,7 +179,6 @@ export default function SoftSkillsProfileSection({
             )}
           </div>
           <div className="mt-3 flex flex-wrap items-center gap-3 text-sm text-white/55">
-            <span>{moduleInsights.coverageLabel}</span>
             {moduleInsights.trend === "up" && (
               <span className="inline-flex items-center gap-1 text-emerald-400">
                 <TrendingUp className="h-4 w-4" />+{moduleInsights.trendDelta}
@@ -246,7 +219,6 @@ export default function SoftSkillsProfileSection({
         title={moduleTitle}
         snapshot={moduleSnapshot}
         loading={loading}
-        subtitle="Средний балл по каждой компетенции (1–5 звёзд)."
       />
 
       {userId && moduleTab !== "overall" && (
@@ -288,10 +260,6 @@ export default function SoftSkillsProfileSection({
       {disciplineStats && disciplineStats.length > 0 && (
         <div className="surface-pad">
           <h2 className="font-display text-lg font-semibold text-white">Результаты дисциплин</h2>
-          <p className="mt-1 text-xs text-white/40">
-            Win/Lose, время, ошибки и голы — сравнение с медианой группы (лига/класс)
-            {moduleTab !== "overall" ? " за выбранный модуль" : " за год"}.
-          </p>
           <div className="mt-4">
             <SoftSkillsDisciplineStats stats={disciplineStats} loading={loading} />
           </div>
@@ -300,21 +268,18 @@ export default function SoftSkillsProfileSection({
 
       <div className="surface-pad">
         <h2 className="font-display text-lg font-semibold text-white">Места в рейтинге</h2>
-        <p className="mt-1 text-xs text-white/40">
-          Место в лиге и общий рейтинг считаются по итоговому баллу за весь год.
-        </p>
         {loading ? (
           <p className="mt-2 text-sm text-white/55">Загрузка…</p>
         ) : (
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
             <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
-              <p className="text-xs text-white/45">Место в лиге (за год)</p>
+              <p className="text-xs text-white/45">Место в лиге</p>
               <p className="mt-1 font-display text-2xl font-semibold text-gold">
                 {softPlaces?.leaguePlace ?? "—"}
               </p>
             </div>
             <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
-              <p className="text-xs text-white/45">Место в классе (за год)</p>
+              <p className="text-xs text-white/45">Место в классе</p>
               <p className="mt-1 font-display text-2xl font-semibold text-gold">
                 {softPlaces?.classPlace ?? "—"}
               </p>
@@ -326,12 +291,9 @@ export default function SoftSkillsProfileSection({
               </p>
             </div>
             <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
-              <p className="text-xs text-white/45">Общий рейтинг (за год)</p>
+              <p className="text-xs text-white/45">Общий рейтинг</p>
               <p className="mt-1 font-display text-2xl font-semibold text-gold">
                 {softPlaces?.overallPlace ?? "—"}
-              </p>
-              <p className="mt-1 text-xs text-white/40">
-                Итог: {formatCompetency(softPlaces?.overallPoints ?? null)} / 5
               </p>
             </div>
           </div>

@@ -42,7 +42,6 @@ export default async function SoftSkillsModulePage({
           <div>
             <p className="text-sm font-medium text-gold">Soft Skills</p>
             <h1 className="page-title">{mod.label}</h1>
-            <p className="page-subtitle">{mod.weeks} недель</p>
           </div>
           <Link href="/soft-skills" className="btn-secondary">
             Все модули

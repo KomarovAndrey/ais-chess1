@@ -19,7 +19,6 @@ export default function SoftSkillsHub({ isStaff }: SoftSkillsHubProps) {
         <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
           <div>
             <h1 className="page-title text-gold">Soft Skills</h1>
-            <p className="page-subtitle">Выберите модуль</p>
           </div>
           {isStaff && (
             <div className="flex flex-wrap gap-2">

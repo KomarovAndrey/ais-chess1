@@ -89,9 +89,6 @@ export default function SoftSkillsSelfAssessment({
   return (
     <div className="surface-pad">
       <h2 className="font-display text-lg font-semibold text-white">Самооценка</h2>
-      <p className="mt-1 text-xs text-white/40">
-        Ученик оценивает себя по тем же компетенциям. Сравнение с оценкой педагога за модуль.
-      </p>
 
       {loading ? (
         <p className="mt-3 text-sm text-white/55">Загрузка…</p>

@@ -41,15 +41,6 @@ export default function SoftSkillsDisciplineStats({ stats, loading }: Props) {
             {s.groupMedianIndex != null && (
               <p>Медиана группы: {formatCompetency(s.groupMedianIndex)}</p>
             )}
-            {s.indexScore != null && s.groupMedianIndex != null && (
-              <p
-                className={
-                  s.indexScore >= s.groupMedianIndex ? "text-emerald-400/80" : "text-amber-400/80"
-                }
-              >
-                {s.indexScore >= s.groupMedianIndex ? "Выше медианы группы" : "Ниже медианы группы"}
-              </p>
-            )}
           </div>
         </div>
       ))}

@@ -48,7 +48,6 @@ export default async function SoftSkillsRatingsSection({
         <div className="mb-6 flex items-end justify-between gap-4">
           <div>
             <h1 className="page-title">Рейтинги</h1>
-            <p className="page-subtitle">Soft Skills · компетенции</p>
           </div>
           <Link href="/" className="btn-secondary">
             На главную

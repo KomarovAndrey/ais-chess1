@@ -146,11 +146,6 @@ export default function SoftSkillsTeamEditor({ open, onClose }: SoftSkillsTeamEd
 
         <form onSubmit={handleSave} className="flex min-h-0 flex-1 flex-col">
           <div className="space-y-4 overflow-y-auto px-5 py-4">
-            <p className="text-xs leading-relaxed text-white/45">
-              Ребёнок виден только в своей лиге. В одном модуле — только одна команда. При
-              сохранении дети без лиги привязываются к «{leagueLabel}».
-            </p>
-
             <div className="grid gap-3 sm:grid-cols-3">
               <label className="space-y-1.5">
                 <span className="label-dark">Модуль</span>

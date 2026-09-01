@@ -29,10 +29,6 @@ export default function SoftSkillsCompetencyTrendChart({ title, points, loading 
     );
   }
 
-  const values = points
-    .map((p) => p.composite ?? p.competencyOverall)
-    .filter((v): v is number => v != null && v > 0);
-
   const chartMin = 0;
   const chartMax = 5;
   const plotLeft = 28;
@@ -117,18 +113,6 @@ export default function SoftSkillsCompetencyTrendChart({ title, points, loading 
             </g>
           ))}
         </svg>
-      </div>
-      <div className="mt-2 flex flex-wrap gap-3 text-xs text-white/45">
-        {points.map((p) => (
-          <span key={p.label}>
-            {p.label}: {formatCompetency(p.composite ?? p.competencyOverall)}
-          </span>
-        ))}
-        {values.length > 0 && (
-          <span className="text-white/30">
-            · диапазон {Math.min(...values).toFixed(1)}–{Math.max(...values).toFixed(1)}
-          </span>
-        )}
       </div>
     </div>
   );

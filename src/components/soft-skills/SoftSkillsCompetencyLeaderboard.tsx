@@ -2,15 +2,11 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowDown, ArrowUp, ArrowUpDown, Info } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
 import {
   SOFT_SKILLS_STAR_SKILLS,
   formatCompetency,
 } from "@/lib/softSkillsCompetencies";
-import {
-  COMPOSITE_FORMULA_LABEL,
-  COMPOSITE_FORMULA_PARTIAL_LABEL,
-} from "@/lib/softSkillsComposite";
 import type { SoftSkillsStarSkillId } from "@/lib/softSkillsDisciplines";
 import type { SoftSkillsRatingEntry } from "@/lib/softSkillsRatings";
 import { softSkillsProfileHref } from "@/lib/softSkillsLinks";
@@ -59,7 +55,6 @@ function SortableHeader({
   dir,
   onSort,
   align = "center",
-  title,
   className = "",
 }: {
   label: string;
@@ -68,7 +63,6 @@ function SortableHeader({
   dir: SortDir;
   onSort: (key: SortKey) => void;
   align?: "left" | "center" | "right";
-  title?: string;
   className?: string;
 }) {
   const alignClass =
@@ -82,7 +76,6 @@ function SortableHeader({
         className={`inline-flex max-w-full items-center leading-snug whitespace-normal transition hover:text-white ${
           activeKey === sortKey ? "text-gold" : ""
         } ${align === "right" ? "ml-auto" : align === "center" ? "mx-auto" : ""}`}
-        title={title ?? "Сортировать"}
       >
         <span>{label}</span>
         <SortIcon active={activeKey === sortKey} dir={dir} />
@@ -123,16 +116,7 @@ export default function SoftSkillsCompetencyLeaderboard({
       {title && (
         <div className="border-b border-white/10 bg-white/[0.03] px-4 py-3">
           <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <h2 className="font-display text-base font-semibold text-white">{title}</h2>
-              <p className="mt-0.5 flex items-start gap-1.5 text-xs text-white/40">
-                <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                <span>
-                  {COMPOSITE_FORMULA_LABEL}. {COMPOSITE_FORMULA_PARTIAL_LABEL}. Нажмите заголовок
-                  колонки для сортировки.
-                </span>
-              </p>
-            </div>
+            <h2 className="font-display text-base font-semibold text-white">{title}</h2>
             <button
               type="button"
               onClick={() => setShowCompetencyCols((v) => !v)}
@@ -170,7 +154,6 @@ export default function SoftSkillsCompetencyLeaderboard({
                 activeKey={sortKey}
                 dir={sortDir}
                 onSort={handleSort}
-                title="Среднее по компетенциям"
               />
               <SortableHeader
                 label="Дисцип."
@@ -178,7 +161,6 @@ export default function SoftSkillsCompetencyLeaderboard({
                 activeKey={sortKey}
                 dir={sortDir}
                 onSort={handleSort}
-                title="Индекс дисциплин"
               />
               <SortableHeader
                 label="Итог"
@@ -187,7 +169,6 @@ export default function SoftSkillsCompetencyLeaderboard({
                 dir={sortDir}
                 onSort={handleSort}
                 align="right"
-                title="Композитный балл"
               />
             </tr>
           </thead>
@@ -220,12 +201,6 @@ export default function SoftSkillsCompetencyLeaderboard({
                           </Link>
                         ) : (
                           label
-                        )}
-                        {r.isProvisional && (
-                          <span className="ml-1 text-[10px] text-amber-400/80">мало данных</span>
-                        )}
-                        {r.compositeIsPartial && (
-                          <span className="ml-1 text-[10px] text-white/35">частичный</span>
                         )}
                       </div>
                       {(showClass && r.className) || (showTeam && r.teamLabel) ? (

@@ -112,12 +112,6 @@ export default function SoftSkillsModulePanel({ module, isStaff = false }: SoftS
             <span key={i + 1}>{i + 1}</span>
           ))}
         </div>
-        {isStaff && (
-          <p className="mt-3 text-xs text-white/45">
-            Выберите лигу и команду, затем нажмите на ребёнка — откроются дисциплины Lumo, Robo,
-            Sport и 3D (лиги 1–3). Каждый учитель сохраняет свою дисциплину отдельно.
-          </p>
-        )}
       </div>
 
       {rosterError && (

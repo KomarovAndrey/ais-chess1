@@ -58,7 +58,6 @@ export default function SoftSkillsAnalyticsClient() {
         <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
           <div>
             <h1 className="page-title">Аналитика Soft Skills</h1>
-            <p className="page-subtitle">Когортные данные для staff</p>
           </div>
           <a href={csvHref} className="btn-secondary inline-flex items-center gap-2">
             <Download className="h-4 w-4" />

@@ -11,7 +11,6 @@ type Props = {
   title: string;
   snapshot: CompetencySnapshot | null;
   loading?: boolean;
-  subtitle?: string;
 };
 
 function CompetencyBar({ label, value }: { label: string; value: number | null }) {
@@ -39,15 +38,11 @@ export default function SoftSkillsCompetencyDashboard({
   title,
   snapshot,
   loading,
-  subtitle,
 }: Props) {
   return (
     <div className="surface-pad">
       <div className="mb-4 flex flex-wrap items-end justify-between gap-2">
-        <div>
-          <h2 className="font-display text-lg font-semibold text-white">{title}</h2>
-          {subtitle && <p className="mt-0.5 text-xs text-white/45">{subtitle}</p>}
-        </div>
+        <h2 className="font-display text-lg font-semibold text-white">{title}</h2>
         {!loading && snapshot?.overall != null && (
           <div className="flex items-center gap-2 rounded-2xl border border-gold/30 bg-gold/10 px-3 py-2">
             <Star className="h-4 w-4 fill-gold text-gold" />
@@ -76,10 +71,6 @@ export default function SoftSkillsCompetencyDashboard({
               value={snapshot[skill.id]}
             />
           ))}
-          <p className="text-xs text-white/40">
-            Среднее по {snapshot.ratingsCount}{" "}
-            {snapshot.ratingsCount === 1 ? "оценке" : "оценкам"} (недели × дисциплины).
-          </p>
         </div>
       )}
     </div>
