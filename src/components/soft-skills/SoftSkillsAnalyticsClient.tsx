@@ -73,12 +73,12 @@ export default function SoftSkillsAnalyticsClient() {
         )}
 
         <div className="mb-4 flex flex-wrap gap-3">
-          <label className="text-sm text-white/55">
-            Лига
+          <label className="space-y-1.5 text-sm text-white/55">
+            <span className="label-dark">Лига</span>
             <select
               value={leagueId}
               onChange={(e) => setLeagueId(e.target.value)}
-              className="ml-2 rounded-lg border border-white/10 bg-white/5 px-2 py-1 text-white"
+              className="input-dark"
             >
               <option value="">Все лиги</option>
               {SOFT_SKILLS_LEAGUES.map((l) => (
@@ -154,12 +154,12 @@ export default function SoftSkillsAnalyticsClient() {
             Заполнение недели (completion)
           </h2>
           <div className="mt-4 flex flex-wrap gap-3">
-            <label className="text-sm text-white/55">
-              Модуль
+            <label className="space-y-1.5 text-sm text-white/55">
+              <span className="label-dark">Модуль</span>
               <select
                 value={moduleId}
                 onChange={(e) => setModuleId(e.target.value)}
-                className="ml-2 rounded-lg border border-white/10 bg-white/5 px-2 py-1 text-white"
+                className="input-dark w-auto min-w-[5rem]"
               >
                 {[1, 2, 3, 4, 5, 6].map((n) => (
                   <option key={n} value={String(n)}>
@@ -168,15 +168,15 @@ export default function SoftSkillsAnalyticsClient() {
                 ))}
               </select>
             </label>
-            <label className="text-sm text-white/55">
-              Неделя
+            <label className="space-y-1.5 text-sm text-white/55">
+              <span className="label-dark">Неделя</span>
               <input
                 type="number"
                 min={1}
                 max={12}
                 value={week}
                 onChange={(e) => setWeek(Number(e.target.value) || 1)}
-                className="ml-2 w-16 rounded-lg border border-white/10 bg-white/5 px-2 py-1 text-white"
+                className="input-dark w-20"
               />
             </label>
           </div>

@@ -35,6 +35,31 @@ select {
   font-size: 16px;
 }
 
+select {
+  color-scheme: dark;
+  accent-color: var(--gold);
+}
+
+select option,
+select optgroup {
+  background-color: var(--bg-elevated);
+  color: var(--text);
+}
+
+.input-dark {
+  @apply w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-base text-white placeholder-white/35 outline-none transition focus:border-gold/50 focus:ring-2 focus:ring-gold/20;
+}
+
+select.input-dark {
+  cursor: pointer;
+  padding-right: 2.25rem;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' viewBox='0 0 24 24' stroke='%239aa6b8'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.65rem center;
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
 .page-bg {
   background-color: var(--bg);
   background-image:
@@ -97,10 +122,6 @@ select {
 
 .tab-pill-active {
   @apply rounded-xl border border-gold bg-gold px-3 py-2 text-sm font-semibold text-ink-900 shadow-glow;
-}
-
-.input-dark {
-  @apply w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-base text-white placeholder-white/35 outline-none transition focus:border-gold/50 focus:ring-2 focus:ring-gold/20;
 }
 
 .label-dark {
