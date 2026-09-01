@@ -7,7 +7,10 @@ import {
   SOFT_SKILLS_STAR_SKILLS,
   formatCompetency,
 } from "@/lib/softSkillsCompetencies";
-import { COMPOSITE_FORMULA_LABEL } from "@/lib/softSkillsComposite";
+import {
+  COMPOSITE_FORMULA_LABEL,
+  COMPOSITE_FORMULA_PARTIAL_LABEL,
+} from "@/lib/softSkillsComposite";
 import type { SoftSkillsStarSkillId } from "@/lib/softSkillsDisciplines";
 import type { SoftSkillsRatingEntry } from "@/lib/softSkillsRatings";
 import { softSkillsProfileHref } from "@/lib/softSkillsLinks";
@@ -57,6 +60,7 @@ function SortableHeader({
   onSort,
   align = "center",
   title,
+  className = "",
 }: {
   label: string;
   sortKey: SortKey;
@@ -65,12 +69,13 @@ function SortableHeader({
   onSort: (key: SortKey) => void;
   align?: "left" | "center" | "right";
   title?: string;
+  className?: string;
 }) {
   const alignClass =
     align === "left" ? "text-left" : align === "right" ? "text-right" : "text-center";
 
   return (
-    <th className={`px-1.5 py-3 font-semibold ${alignClass}`}>
+    <th className={`px-1.5 py-3 font-semibold ${alignClass} ${className}`}>
       <button
         type="button"
         onClick={() => onSort(sortKey)}
@@ -95,6 +100,7 @@ export default function SoftSkillsCompetencyLeaderboard({
 }: Props) {
   const [sortKey, setSortKey] = useState<SortKey | null>("composite");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
+  const [showCompetencyCols, setShowCompetencyCols] = useState(false);
 
   function handleSort(key: SortKey) {
     if (sortKey === key) {
@@ -110,43 +116,54 @@ export default function SoftSkillsCompetencyLeaderboard({
     return [...rows].sort((a, b) => compareRows(a, b, sortKey, sortDir));
   }, [rows, sortKey, sortDir]);
 
+  const colCount = 4 + (showCompetencyCols ? SOFT_SKILLS_STAR_SKILLS.length : 0);
+
   return (
     <div className="surface overflow-hidden">
       {title && (
         <div className="border-b border-white/10 bg-white/[0.03] px-4 py-3">
-          <h2 className="font-display text-base font-semibold text-white">{title}</h2>
-          <p className="mt-0.5 flex items-start gap-1.5 text-xs text-white/40">
-            <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-            <span>{COMPOSITE_FORMULA_LABEL}. Нажмите заголовок колонки для сортировки.</span>
-          </p>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h2 className="font-display text-base font-semibold text-white">{title}</h2>
+              <p className="mt-0.5 flex items-start gap-1.5 text-xs text-white/40">
+                <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                <span>
+                  {COMPOSITE_FORMULA_LABEL}. {COMPOSITE_FORMULA_PARTIAL_LABEL}. Нажмите заголовок
+                  колонки для сортировки.
+                </span>
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowCompetencyCols((v) => !v)}
+              className="shrink-0 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-white/70 hover:bg-white/10"
+            >
+              {showCompetencyCols ? "Скрыть компетенции" : "Показать компетенции"}
+            </button>
+          </div>
         </div>
       )}
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[900px] table-fixed border-collapse">
-          <colgroup>
-            <col className="w-10" />
-            <col className="w-[18%]" />
-            {SOFT_SKILLS_STAR_SKILLS.map((s) => (
-              <col key={s.id} className="w-[10%]" />
-            ))}
-            <col className="w-12" />
-            <col className="w-12" />
-            <col className="w-12" />
-          </colgroup>
+        <table
+          className={`w-full table-fixed border-collapse ${
+            showCompetencyCols ? "min-w-[900px]" : "min-w-[320px]"
+          }`}
+        >
           <thead>
             <tr className="border-b border-white/10 bg-white/[0.02] text-[10px] font-semibold uppercase tracking-wide text-white/45">
-              <th className="px-2 py-3 text-left font-semibold">#</th>
+              <th className="w-10 px-2 py-3 text-left font-semibold">#</th>
               <th className="px-2 py-3 text-left font-semibold">Участник</th>
-              {SOFT_SKILLS_STAR_SKILLS.map((s) => (
-                <SortableHeader
-                  key={s.id}
-                  label={s.label}
-                  sortKey={s.id}
-                  activeKey={sortKey}
-                  dir={sortDir}
-                  onSort={handleSort}
-                />
-              ))}
+              {showCompetencyCols &&
+                SOFT_SKILLS_STAR_SKILLS.map((s) => (
+                  <SortableHeader
+                    key={s.id}
+                    label={s.label}
+                    sortKey={s.id}
+                    activeKey={sortKey}
+                    dir={sortDir}
+                    onSort={handleSort}
+                  />
+                ))}
               <SortableHeader
                 label="Компет."
                 sortKey="competency"
@@ -177,7 +194,7 @@ export default function SoftSkillsCompetencyLeaderboard({
           <tbody className="divide-y divide-white/5">
             {displayRows.length === 0 ? (
               <tr>
-                <td colSpan={9} className="px-4 py-6 text-sm text-white/55">
+                <td colSpan={colCount} className="px-4 py-6 text-sm text-white/55">
                   {emptyText}
                 </td>
               </tr>
@@ -207,6 +224,9 @@ export default function SoftSkillsCompetencyLeaderboard({
                         {r.isProvisional && (
                           <span className="ml-1 text-[10px] text-amber-400/80">мало данных</span>
                         )}
+                        {r.compositeIsPartial && (
+                          <span className="ml-1 text-[10px] text-white/35">частичный</span>
+                        )}
                       </div>
                       {(showClass && r.className) || (showTeam && r.teamLabel) ? (
                         <div className="truncate text-[10px] text-white/40">
@@ -214,14 +234,15 @@ export default function SoftSkillsCompetencyLeaderboard({
                         </div>
                       ) : null}
                     </td>
-                    {SOFT_SKILLS_STAR_SKILLS.map((s) => (
-                      <td
-                        key={s.id}
-                        className="px-1 py-2.5 text-center text-xs font-medium tabular-nums text-white/70"
-                      >
-                        {formatCompetency(comps?.[s.id] ?? null)}
-                      </td>
-                    ))}
+                    {showCompetencyCols &&
+                      SOFT_SKILLS_STAR_SKILLS.map((s) => (
+                        <td
+                          key={s.id}
+                          className="px-1 py-2.5 text-center text-xs font-medium tabular-nums text-white/70"
+                        >
+                          {formatCompetency(comps?.[s.id] ?? null)}
+                        </td>
+                      ))}
                     <td className="px-1 py-2.5 text-center text-xs tabular-nums text-white/60">
                       {formatCompetency(r.competencyOverall ?? null)}
                     </td>

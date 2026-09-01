@@ -24,6 +24,7 @@ export default function PublicProfilePage() {
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [viewerIsStaff, setViewerIsStaff] = useState(false);
+  const [viewerUserId, setViewerUserId] = useState<string | null>(null);
   const [softPlaces, setSoftPlaces] = useState<SoftSkillsPlacesView | null>(null);
   const [competencyDashboard, setCompetencyDashboard] = useState<SoftSkillsDashboardView | null>(
     null
@@ -35,6 +36,7 @@ export default function PublicProfilePage() {
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
         if (data?.is_staff) setViewerIsStaff(true);
+        if (data?.id) setViewerUserId(data.id);
       })
       .catch(() => {});
   }, []);
@@ -175,6 +177,8 @@ export default function PublicProfilePage() {
         <SoftSkillsProfileSection
           displayName={displayName}
           username={profile.username}
+          userId={profile.id}
+          isOwnProfile={viewerUserId === profile.id}
           softPlaces={softPlaces}
           competencyDashboard={competencyDashboard}
           loading={softPlacesLoading}

@@ -14,6 +14,7 @@ export default function StudentProfilePanel() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [username, setUsername] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
   const [displayName, setDisplayName] = useState("");
   const [bio, setBio] = useState("");
   const [saving, setSaving] = useState(false);
@@ -37,6 +38,7 @@ export default function StudentProfilePanel() {
       .then((data) => {
         if (!data) return;
         setUsername(data.username ?? null);
+        setUserId(data.id ?? null);
         setDisplayName(data.display_name ?? "");
         setBio(data.bio ?? "");
         setLoading(false);
@@ -111,6 +113,8 @@ export default function StudentProfilePanel() {
         <SoftSkillsProfileSection
           displayName={displayName.trim() || username || "Профиль"}
           username={username}
+          userId={userId}
+          isOwnProfile
           softPlaces={softPlaces}
           competencyDashboard={competencyDashboard}
           loading={softPlacesLoading}

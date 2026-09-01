@@ -52,7 +52,7 @@ export async function GET(req: NextRequest) {
   const { data: rows, error: rowsErr } = await db
     .from("soft_skills_discipline_entries")
     .select(
-      "user_id, discipline, outcome, result_value, error_count, time_value, team_time, personal_time, goals_count, sport_error_count, star_leadership, star_communication, star_self_reflection, star_critical_thinking, star_self_control, updated_at"
+      "user_id, discipline, outcome, result_value, error_count, time_value, team_time, personal_time, goals_count, sport_error_count, star_leadership, star_communication, star_self_reflection, star_critical_thinking, star_self_control, teacher_note, updated_at"
     )
     .eq("module_id", moduleId)
     .eq("week_number", week)
@@ -132,8 +132,19 @@ export async function PUT(req: NextRequest) {
     .eq("user_id", userId)
     .maybeSingle();
 
-  if (!member) {
-    return NextResponse.json({ error: "Ребёнок не в команде этого модуля." }, { status: 400 });
+  const { data: profile } = await db
+    .from("profiles")
+    .select("soft_skills_league_id")
+    .eq("id", userId)
+    .maybeSingle();
+
+  const inLeague = profile?.soft_skills_league_id === leagueId;
+
+  if (!member && !inLeague) {
+    return NextResponse.json(
+      { error: "Ребёнок не в команде и не привязан к этой лиге." },
+      { status: 400 }
+    );
   }
 
   const base = emptyEntryFor(discipline);
@@ -153,6 +164,8 @@ export async function PUT(req: NextRequest) {
     teamTime: typeof patch.teamTime === "string" ? patch.teamTime.slice(0, 20) : base.teamTime,
     personalTime:
       typeof patch.personalTime === "string" ? patch.personalTime.slice(0, 20) : base.personalTime,
+    teacherNote:
+      typeof patch.teacherNote === "string" ? patch.teacherNote.slice(0, 500) : base.teacherNote,
     outcome: patch.outcome === "win" || patch.outcome === "lose" ? patch.outcome : null,
     stars: sanitizeStars({ ...base.stars, ...patch.stars }),
   };
@@ -163,7 +176,7 @@ export async function PUT(req: NextRequest) {
     .from("soft_skills_discipline_entries")
     .upsert(payload, { onConflict: "user_id,module_id,week_number,discipline" })
     .select(
-      "discipline, outcome, result_value, error_count, time_value, team_time, personal_time, goals_count, sport_error_count, star_leadership, star_communication, star_self_reflection, star_critical_thinking, star_self_control, updated_at"
+      "discipline, outcome, result_value, error_count, time_value, team_time, personal_time, goals_count, sport_error_count, star_leadership, star_communication, star_self_reflection, star_critical_thinking, star_self_control, teacher_note, updated_at"
     )
     .single();
 

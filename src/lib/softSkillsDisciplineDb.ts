@@ -16,6 +16,7 @@ type DbRow = {
   star_self_reflection: number | null;
   star_critical_thinking: number | null;
   star_self_control: number | null;
+  teacher_note?: string | null;
   updated_at: string | null;
 };
 
@@ -31,6 +32,7 @@ export function rowToEntry(row: DbRow): SoftSkillsDisciplineEntry {
     personalTime: row.personal_time ?? "",
     goalsCount: row.goals_count ?? 0,
     sportErrorCount: row.sport_error_count ?? 0,
+    teacherNote: row.teacher_note?.trim() ?? "",
     stars: {
       leadership: row.star_leadership ?? 0,
       communication: row.star_communication ?? 0,
@@ -67,6 +69,7 @@ export function entryToDbPayload(
     star_self_reflection: entry.stars.selfReflection,
     star_critical_thinking: entry.stars.criticalThinking,
     star_self_control: entry.stars.selfControl,
+    teacher_note: entry.teacherNote.trim().slice(0, 500) || null,
     updated_by: updatedBy,
     updated_at: new Date().toISOString(),
   };

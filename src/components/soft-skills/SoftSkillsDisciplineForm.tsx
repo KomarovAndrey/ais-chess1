@@ -207,6 +207,18 @@ export default function SoftSkillsDisciplineForm({ discipline, entry, onSave }: 
             disabled={saving}
           />
         </div>
+
+        <div className="space-y-1">
+          <label className="text-xs text-white/50">Комментарий педагога</label>
+          <textarea
+            value={draft.teacherNote}
+            onChange={(e) => patch({ teacherNote: e.target.value.slice(0, 500) })}
+            rows={2}
+            maxLength={500}
+            placeholder="Заметка для родителей или коллег (необязательно)"
+            className="w-full resize-none rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/30"
+          />
+        </div>
       </div>
 
       <div className="mt-4 flex items-center justify-between gap-2">

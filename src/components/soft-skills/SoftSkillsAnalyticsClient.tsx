@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, Download } from "lucide-react";
 import type { ClassCompetencyHeatmap, WeekCompletionRow } from "@/lib/softSkillsAnalytics";
+import { SOFT_SKILLS_LEAGUES } from "@/lib/softSkillsModules";
 
 type ModuleComparison = {
   moduleId: string;
@@ -15,6 +16,7 @@ type ModuleComparison = {
 export default function SoftSkillsAnalyticsClient() {
   const [moduleId, setModuleId] = useState("1");
   const [week, setWeek] = useState(1);
+  const [leagueId, setLeagueId] = useState("");
   const [classHeatmaps, setClassHeatmaps] = useState<ClassCompetencyHeatmap[]>([]);
   const [moduleComparison, setModuleComparison] = useState<ModuleComparison[]>([]);
   const [weekCompletion, setWeekCompletion] = useState<WeekCompletionRow[]>([]);
@@ -24,7 +26,10 @@ export default function SoftSkillsAnalyticsClient() {
   useEffect(() => {
     setLoading(true);
     setError(null);
-    fetch(`/api/soft-skills/analytics?module=${moduleId}&week=${week}`)
+    const params = new URLSearchParams({ module: moduleId, week: String(week) });
+    if (leagueId) params.set("league", leagueId);
+
+    fetch(`/api/soft-skills/analytics?${params}`)
       .then(async (res) => {
         const data = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(data.error ?? "Ошибка загрузки");
@@ -34,9 +39,10 @@ export default function SoftSkillsAnalyticsClient() {
       })
       .catch((e) => setError(e instanceof Error ? e.message : "Ошибка"))
       .finally(() => setLoading(false));
-  }, [moduleId, week]);
+  }, [moduleId, week, leagueId]);
 
   const incomplete = weekCompletion.filter((r) => !r.complete);
+  const csvHref = `/api/soft-skills/analytics?format=csv${leagueId ? `&league=${leagueId}` : ""}`;
 
   return (
     <main className="page-bg min-h-screen">
@@ -54,10 +60,7 @@ export default function SoftSkillsAnalyticsClient() {
             <h1 className="page-title">Аналитика Soft Skills</h1>
             <p className="page-subtitle">Когортные данные для staff</p>
           </div>
-          <a
-            href="/api/soft-skills/analytics?format=csv"
-            className="btn-secondary inline-flex items-center gap-2"
-          >
+          <a href={csvHref} className="btn-secondary inline-flex items-center gap-2">
             <Download className="h-4 w-4" />
             Экспорт CSV
           </a>
@@ -68,6 +71,24 @@ export default function SoftSkillsAnalyticsClient() {
             {error}
           </div>
         )}
+
+        <div className="mb-4 flex flex-wrap gap-3">
+          <label className="text-sm text-white/55">
+            Лига
+            <select
+              value={leagueId}
+              onChange={(e) => setLeagueId(e.target.value)}
+              className="ml-2 rounded-lg border border-white/10 bg-white/5 px-2 py-1 text-white"
+            >
+              <option value="">Все лиги</option>
+              {SOFT_SKILLS_LEAGUES.map((l) => (
+                <option key={l.id} value={l.id}>
+                  {l.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
 
         <div className="mb-6 surface-pad">
           <h2 className="font-display text-lg font-semibold text-white">Сравнение модулей</h2>
@@ -167,13 +188,14 @@ export default function SoftSkillsAnalyticsClient() {
               <p className="mt-3 text-sm text-white/55">
                 Не заполнили все дисциплины: {incomplete.length} из {weekCompletion.length}
               </p>
-              <ul className="mt-3 divide-y divide-white/5">
-                {incomplete.slice(0, 30).map((r) => (
+              <ul className="mt-3 max-h-96 divide-y divide-white/5 overflow-y-auto">
+                {incomplete.map((r) => (
                   <li key={r.userId} className="flex justify-between py-2 text-sm">
                     <span className="text-white">{r.displayName}</span>
                     <span className="text-white/45">
                       {r.ratedDisciplines}/{r.expectedDisciplines}
                       {r.className ? ` · ${r.className}` : ""}
+                      {r.leagueId ? ` · Л${r.leagueId}` : ""}
                     </span>
                   </li>
                 ))}

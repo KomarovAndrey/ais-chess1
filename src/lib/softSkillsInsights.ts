@@ -3,6 +3,7 @@ import {
   type CompetencySnapshot,
   type DisciplineEntryRow,
 } from "@/lib/softSkillsCompetencies";
+import { maxPossibleRatings } from "@/lib/softSkillsCoverage";
 import {
   SOFT_SKILLS_DISCIPLINES,
   SOFT_SKILLS_STAR_SKILLS,
@@ -13,6 +14,7 @@ import { SOFT_SKILLS_MODULES, type SoftSkillsModuleId } from "@/lib/softSkillsMo
 import {
   aggregateDisciplineIndex,
   type FullDisciplineEntryRow,
+  type LeagueProfile,
 } from "@/lib/softSkillsDisciplineIndex";
 import { computeCompositeScore } from "@/lib/softSkillsComposite";
 
@@ -45,6 +47,7 @@ export type DisciplineStatRow = {
 export function buildTrendByWeek(
   entries: DisciplineEntryRow[],
   fullEntries: FullDisciplineEntryRow[],
+  profiles: LeagueProfile[],
   userId: string,
   moduleId?: string
 ): TrendPoint[] {
@@ -65,13 +68,14 @@ export function buildTrendByWeek(
     );
     const weekFullRows = filtered.filter((e) => e.week_number === week);
     const weekComp = aggregateCompetencies(weekStarRows);
-    const weekDisc = aggregateDisciplineIndex(weekFullRows);
+    const weekDisc = aggregateDisciplineIndex(weekFullRows, profiles);
+    const composite = computeCompositeScore(weekComp.overall, weekDisc.overall);
     return {
       label: `Нед. ${week}`,
       weekNumber: week,
       moduleId,
       competencyOverall: weekComp.overall,
-      composite: computeCompositeScore(weekComp.overall, weekDisc.overall),
+      composite: composite.score > 0 ? composite.score : null,
     };
   });
 }
@@ -79,16 +83,18 @@ export function buildTrendByWeek(
 export function buildTrendByModule(
   entries: DisciplineEntryRow[],
   fullEntries: FullDisciplineEntryRow[],
+  profiles: LeagueProfile[],
   userId: string
 ): TrendPoint[] {
   return SOFT_SKILLS_MODULES.map((m) => {
     const comp = aggregateCompetencies(entries, { userId, moduleId: m.id });
-    const disc = aggregateDisciplineIndex(fullEntries, { userId, moduleId: m.id });
+    const disc = aggregateDisciplineIndex(fullEntries, profiles, { userId, moduleId: m.id });
+    const composite = computeCompositeScore(comp.overall, disc.overall);
     return {
       label: m.label,
       moduleId: m.id,
       competencyOverall: comp.overall,
-      composite: computeCompositeScore(comp.overall, disc.overall),
+      composite: composite.score > 0 ? composite.score : null,
     };
   });
 }
@@ -160,7 +166,7 @@ export function buildCompetencyInsights(
     }
   }
 
-  const maxPossible = moduleId ? 12 * 4 : 12 * 4 * 6;
+  const maxPossible = maxPossibleRatings(moduleId);
   const coverageLabel = `${snap.ratingsCount} из ~${maxPossible} возможных оценок`;
 
   return { strongest, weakest, trend, trendDelta, coverageLabel };
@@ -168,6 +174,7 @@ export function buildCompetencyInsights(
 
 export function buildDisciplineStats(
   fullEntries: FullDisciplineEntryRow[],
+  profiles: LeagueProfile[],
   userId: string,
   groupUserIds: string[],
   moduleId?: string
@@ -190,11 +197,12 @@ export function buildDisciplineStats(
     const losses = userRows.filter((e) => e.outcome === "lose").length;
     const winRate = wins + losses > 0 ? Math.round((wins / (wins + losses)) * 100) : null;
 
-    const userIdx = aggregateDisciplineIndex(userRows);
+    const userIdx = aggregateDisciplineIndex(userRows, profiles);
     const groupScores: number[] = [];
     for (const uid of groupUserIds) {
       const idx = aggregateDisciplineIndex(
-        groupRows.filter((e) => e.user_id === uid)
+        groupRows.filter((e) => e.user_id === uid),
+        profiles
       );
       if (idx.overall != null) groupScores.push(idx.overall);
     }
@@ -218,7 +226,7 @@ export function buildDisciplineStats(
     return {
       discipline: d.id,
       label: getDisciplineLabel(d.id),
-      entriesCount: userRows.length,
+      entriesCount: userIdx.entriesCount,
       winRate,
       indexScore: userIdx.byDiscipline[d.id],
       groupMedianIndex: groupMedian,

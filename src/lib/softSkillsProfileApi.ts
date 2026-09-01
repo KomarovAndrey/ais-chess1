@@ -17,6 +17,7 @@ export function mapSoftSkillsApiResponse(data: Record<string, unknown>): {
     teamLabel: (data.teamLabel as string | null) ?? null,
     isProvisional: (data.isProvisional as boolean) ?? false,
     compositeOverall: (data.compositeOverall as number) ?? 0,
+    compositeIsPartial: (dashboard?.compositeIsPartial as boolean) ?? false,
     disciplineOverall: (data.disciplineOverall as { overall?: number | null })?.overall ?? null,
     competencyOverall: (data.competenciesOverall as { overall?: number | null })?.overall ?? null,
   };
@@ -29,7 +30,10 @@ export function mapSoftSkillsApiResponse(data: Record<string, unknown>): {
         disciplineByModule:
           dashboard.disciplineByModule as SoftSkillsDashboardView["disciplineByModule"],
         compositeOverall: dashboard.compositeOverall as number,
+        compositeIsPartial: dashboard.compositeIsPartial as boolean,
         compositeByModule: dashboard.compositeByModule as SoftSkillsDashboardView["compositeByModule"],
+        compositeIsPartialByModule:
+          dashboard.compositeIsPartialByModule as SoftSkillsDashboardView["compositeIsPartialByModule"],
         insights: dashboard.insights as SoftSkillsDashboardView["insights"],
         insightsByModule: dashboard.insightsByModule as SoftSkillsDashboardView["insightsByModule"],
         trendByWeek: dashboard.trendByWeek as SoftSkillsDashboardView["trendByWeek"],
@@ -38,6 +42,8 @@ export function mapSoftSkillsApiResponse(data: Record<string, unknown>): {
         trendByModule: dashboard.trendByModule as SoftSkillsDashboardView["trendByModule"],
         heatmap: dashboard.heatmap as SoftSkillsDashboardView["heatmap"],
         disciplineStats: dashboard.disciplineStats as SoftSkillsDashboardView["disciplineStats"],
+        disciplineStatsByModule:
+          dashboard.disciplineStatsByModule as SoftSkillsDashboardView["disciplineStatsByModule"],
         isProvisional: dashboard.isProvisional as boolean,
       }
     : {

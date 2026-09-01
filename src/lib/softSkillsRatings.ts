@@ -19,6 +19,7 @@ import {
   EMPTY_DISCIPLINE_INDEX,
   type DisciplineIndexSnapshot,
   type FullDisciplineEntryRow,
+  type LeagueProfile,
 } from "@/lib/softSkillsDisciplineIndex";
 import {
   buildCompetencyInsights,
@@ -53,6 +54,7 @@ export type SoftSkillsRatingEntry = {
   disciplineIndex?: number | null;
   ratingsCount?: number;
   isProvisional?: boolean;
+  compositeIsPartial?: boolean;
 };
 
 type ProfileRow = {
@@ -71,7 +73,15 @@ type TeamRow = {
 };
 
 const FULL_ENTRY_SELECT =
-  "user_id, module_id, week_number, discipline, outcome, result_value, error_count, time_value, team_time, personal_time, goals_count, sport_error_count, star_leadership, star_communication, star_self_reflection, star_critical_thinking, star_self_control";
+  "user_id, module_id, week_number, discipline, outcome, result_value, error_count, time_value, team_time, personal_time, goals_count, sport_error_count, star_leadership, star_communication, star_self_reflection, star_critical_thinking, star_self_control, teacher_note";
+
+function toLeagueProfiles(profiles: ProfileRow[]): LeagueProfile[] {
+  return profiles.map((p) => ({
+    id: p.id,
+    soft_skills_league_id: p.soft_skills_league_id,
+    class_name: p.class_name,
+  }));
+}
 
 async function getDb() {
   return createAdminClient() ?? (await createClient());
@@ -165,19 +175,24 @@ export async function loadSoftSkillsRatingContext() {
 function userScoreData(
   starEntries: DisciplineEntryRow[],
   fullEntries: FullDisciplineEntryRow[],
+  leagueProfiles: LeagueProfile[],
   userId: string,
   moduleId?: string
 ) {
   const competency = aggregateCompetencies(starEntries, { userId, moduleId });
-  const discipline = aggregateDisciplineIndex(fullEntries, { userId, moduleId });
+  const discipline = aggregateDisciplineIndex(fullEntries, leagueProfiles, {
+    userId,
+    moduleId,
+  });
   const composite = computeCompositeScore(competency.overall, discipline.overall);
   return {
-    points: composite,
+    points: composite.score,
     competencies: competencyToRecord(competency),
     competencyOverall: competency.overall,
     disciplineIndex: discipline.overall,
     ratingsCount: competency.ratingsCount,
     isProvisional: !meetsRankingThreshold(competency.ratingsCount),
+    compositeIsPartial: composite.isPartial,
   };
 }
 
@@ -185,10 +200,11 @@ function entryFromProfile(
   p: ProfileRow,
   starEntries: DisciplineEntryRow[],
   fullEntries: FullDisciplineEntryRow[],
+  leagueProfiles: LeagueProfile[],
   moduleId?: string,
   extra?: Partial<SoftSkillsRatingEntry>
 ): Omit<SoftSkillsRatingEntry, "place"> {
-  const data = userScoreData(starEntries, fullEntries, p.id, moduleId);
+  const data = userScoreData(starEntries, fullEntries, leagueProfiles, p.id, moduleId);
   return {
     userId: p.id,
     username: p.username,
@@ -207,9 +223,10 @@ export function buildModuleLeagueBoard(
   moduleId: SoftSkillsModuleId,
   leagueId: SoftSkillsLeagueId
 ) {
+  const leagueProfiles = toLeagueProfiles(profiles);
   const rows = profiles
     .filter((p) => p.soft_skills_league_id === leagueId)
-    .map((p) => entryFromProfile(p, starEntries, fullEntries, moduleId));
+    .map((p) => entryFromProfile(p, starEntries, fullEntries, leagueProfiles, moduleId));
   return assignPlaces(rows);
 }
 
@@ -218,13 +235,14 @@ export function buildOverallBoard(
   starEntries: DisciplineEntryRow[],
   fullEntries: FullDisciplineEntryRow[]
 ) {
+  const leagueProfiles = toLeagueProfiles(profiles);
   const rows = profiles
     .filter((p) => {
       if (p.soft_skills_league_id) return true;
-      const { points } = userScoreData(starEntries, fullEntries, p.id);
+      const { points } = userScoreData(starEntries, fullEntries, leagueProfiles, p.id);
       return points > 0;
     })
-    .map((p) => entryFromProfile(p, starEntries, fullEntries));
+    .map((p) => entryFromProfile(p, starEntries, fullEntries, leagueProfiles));
   return assignPlaces(rows);
 }
 
@@ -235,6 +253,7 @@ export function buildTeamBoard(
   teams: TeamRow[],
   opts?: { moduleId?: SoftSkillsModuleId }
 ) {
+  const leagueProfiles = toLeagueProfiles(profiles);
   const teamByUser = new Map<string, TeamRow>();
   for (const t of teams) {
     if (opts?.moduleId && t.module_id !== opts.moduleId) continue;
@@ -248,7 +267,7 @@ export function buildTeamBoard(
     const key = `${t.league_id}:${t.team_id}`;
     const list = byTeam.get(key) ?? [];
     list.push(
-      entryFromProfile(p, starEntries, fullEntries, opts?.moduleId, {
+      entryFromProfile(p, starEntries, fullEntries, leagueProfiles, opts?.moduleId, {
         teamId: t.team_id,
         teamLabel: getSoftSkillsTeam(t.league_id, t.team_id)?.label ?? t.team_id,
         leagueId: t.league_id,
@@ -278,13 +297,14 @@ export function buildClassBoard(
   starEntries: DisciplineEntryRow[],
   fullEntries: FullDisciplineEntryRow[]
 ) {
+  const leagueProfiles = toLeagueProfiles(profiles);
   const byClass = new Map<string, Omit<SoftSkillsRatingEntry, "place">[]>();
 
   for (const p of profiles) {
     const cls = p.class_name?.trim();
     if (!cls) continue;
     const list = byClass.get(cls) ?? [];
-    list.push(entryFromProfile(p, starEntries, fullEntries));
+    list.push(entryFromProfile(p, starEntries, fullEntries, leagueProfiles));
     byClass.set(cls, list);
   }
 
@@ -303,7 +323,9 @@ export type SoftSkillsUserDashboard = {
   disciplineOverall: DisciplineIndexSnapshot;
   disciplineByModule: Record<SoftSkillsModuleId, DisciplineIndexSnapshot>;
   compositeOverall: number;
+  compositeIsPartial: boolean;
   compositeByModule: Record<SoftSkillsModuleId, number>;
+  compositeIsPartialByModule: Record<SoftSkillsModuleId, boolean>;
   insights: CompetencyInsight;
   insightsByModule: Record<SoftSkillsModuleId, CompetencyInsight>;
   trendByWeek: TrendPoint[];
@@ -311,6 +333,7 @@ export type SoftSkillsUserDashboard = {
   trendByWeekByModule: Record<SoftSkillsModuleId, TrendPoint[]>;
   heatmap: ReturnType<typeof buildHeatmapData>;
   disciplineStats: DisciplineStatRow[];
+  disciplineStatsByModule: Record<SoftSkillsModuleId, DisciplineStatRow[]>;
   isProvisional: boolean;
 };
 
@@ -335,52 +358,68 @@ export type SoftSkillsPlacesResult = {
 function buildUserDashboard(
   starEntries: DisciplineEntryRow[],
   fullEntries: FullDisciplineEntryRow[],
+  leagueProfiles: LeagueProfile[],
   userId: string,
   groupUserIds: string[]
 ): SoftSkillsUserDashboard {
   const moduleIds = SOFT_SKILLS_MODULES.map((m) => m.id);
   const competencyDash = buildUserCompetencyDashboard(starEntries, userId, moduleIds);
 
-  const disciplineOverall = aggregateDisciplineIndex(fullEntries, { userId });
+  const disciplineOverall = aggregateDisciplineIndex(fullEntries, leagueProfiles, { userId });
   const disciplineByModule = Object.fromEntries(
-    moduleIds.map((id) => [id, aggregateDisciplineIndex(fullEntries, { userId, moduleId: id })])
+    moduleIds.map((id) => [
+      id,
+      aggregateDisciplineIndex(fullEntries, leagueProfiles, { userId, moduleId: id }),
+    ])
   ) as Record<SoftSkillsModuleId, DisciplineIndexSnapshot>;
 
-  const compositeOverall = computeCompositeScore(
+  const compositeOverallResult = computeCompositeScore(
     competencyDash.overall.overall,
     disciplineOverall.overall
   );
+  const compositeByModuleEntries = moduleIds.map((id) => {
+    const result = computeCompositeScore(
+      competencyDash.byModule[id].overall,
+      disciplineByModule[id].overall
+    );
+    return [id, result.score, result.isPartial] as const;
+  });
   const compositeByModule = Object.fromEntries(
-    moduleIds.map((id) => [
-      id,
-      computeCompositeScore(
-        competencyDash.byModule[id].overall,
-        disciplineByModule[id].overall
-      ),
-    ])
+    compositeByModuleEntries.map(([id, score]) => [id, score])
   ) as Record<SoftSkillsModuleId, number>;
+  const compositeIsPartialByModule = Object.fromEntries(
+    compositeByModuleEntries.map(([id, , isPartial]) => [id, isPartial])
+  ) as Record<SoftSkillsModuleId, boolean>;
 
   return {
     competenciesOverall: competencyDash.overall,
     competenciesByModule: competencyDash.byModule,
     disciplineOverall,
     disciplineByModule,
-    compositeOverall,
+    compositeOverall: compositeOverallResult.score,
+    compositeIsPartial: compositeOverallResult.isPartial,
     compositeByModule,
+    compositeIsPartialByModule,
     insights: buildCompetencyInsights(starEntries, userId),
     insightsByModule: Object.fromEntries(
       moduleIds.map((id) => [id, buildCompetencyInsights(starEntries, userId, id)])
     ) as Record<SoftSkillsModuleId, CompetencyInsight>,
-    trendByWeek: buildTrendByWeek(starEntries, fullEntries, userId),
-    trendByModule: buildTrendByModule(starEntries, fullEntries, userId),
+    trendByWeek: buildTrendByWeek(starEntries, fullEntries, leagueProfiles, userId),
+    trendByModule: buildTrendByModule(starEntries, fullEntries, leagueProfiles, userId),
     trendByWeekByModule: Object.fromEntries(
       moduleIds.map((id) => [
         id,
-        buildTrendByWeek(starEntries, fullEntries, userId, id),
+        buildTrendByWeek(starEntries, fullEntries, leagueProfiles, userId, id),
       ])
     ) as Record<SoftSkillsModuleId, TrendPoint[]>,
     heatmap: buildHeatmapData(starEntries, userId),
-    disciplineStats: buildDisciplineStats(fullEntries, userId, groupUserIds),
+    disciplineStats: buildDisciplineStats(fullEntries, leagueProfiles, userId, groupUserIds),
+    disciplineStatsByModule: Object.fromEntries(
+      moduleIds.map((id) => [
+        id,
+        buildDisciplineStats(fullEntries, leagueProfiles, userId, groupUserIds, id),
+      ])
+    ) as Record<SoftSkillsModuleId, DisciplineStatRow[]>,
     isProvisional: !meetsRankingThreshold(competencyDash.overall.ratingsCount),
   };
 }
@@ -428,10 +467,12 @@ export async function getSoftSkillsPlacesForUser(userId: string): Promise<SoftSk
     };
   }
 
+  const leagueProfiles = toLeagueProfiles(ctx.profiles);
   const groupIds = groupUserIdsForUser(ctx.profiles, userId);
   const dashboard = buildUserDashboard(
     ctx.disciplineEntries,
     ctx.fullEntries,
+    leagueProfiles,
     userId,
     groupIds
   );
@@ -445,7 +486,9 @@ export async function getSoftSkillsPlacesForUser(userId: string): Promise<SoftSk
     const leagueBoard = assignPlaces(
       ctx.profiles
         .filter((p) => p.soft_skills_league_id === me.soft_skills_league_id)
-        .map((p) => entryFromProfile(p, ctx.disciplineEntries, ctx.fullEntries))
+        .map((p) =>
+          entryFromProfile(p, ctx.disciplineEntries, ctx.fullEntries, leagueProfiles)
+        )
     );
     leaguePlace = leagueBoard.find((r) => r.userId === userId)?.place ?? null;
     if (leaguePlace === 0) leaguePlace = null;

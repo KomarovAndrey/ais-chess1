@@ -30,6 +30,7 @@ export type SoftSkillsDisciplineEntry = {
   goalsCount: number;
   sportErrorCount: number;
   stars: Record<SoftSkillsStarSkillId, number>;
+  teacherNote: string;
   updatedAt: string | null;
 };
 
@@ -42,6 +43,7 @@ export const EMPTY_DISCIPLINE_ENTRY: Omit<SoftSkillsDisciplineEntry, "discipline
   personalTime: "",
   goalsCount: 0,
   sportErrorCount: 0,
+  teacherNote: "",
   stars: {
     leadership: 0,
     communication: 0,

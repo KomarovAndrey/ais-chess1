@@ -1,6 +1,7 @@
 import { aggregateCompetencies } from "@/lib/softSkillsCompetencies";
+import { hasDisciplinePerformanceData } from "@/lib/softSkillsDisciplineIndex";
 import { SOFT_SKILLS_STAR_SKILLS } from "@/lib/softSkillsDisciplines";
-import { SOFT_SKILLS_MODULES } from "@/lib/softSkillsModules";
+import { SOFT_SKILLS_LEAGUES, SOFT_SKILLS_MODULES } from "@/lib/softSkillsModules";
 import type { FullDisciplineEntryRow } from "@/lib/softSkillsDisciplineIndex";
 import type { DisciplineEntryRow } from "@/lib/softSkillsCompetencies";
 
@@ -31,14 +32,20 @@ export type WeekCompletionRow = {
 
 export function buildClassHeatmaps(
   profiles: ProfileRow[],
-  starEntries: DisciplineEntryRow[]
+  starEntries: DisciplineEntryRow[],
+  leagueId?: string
 ): ClassCompetencyHeatmap[] {
+  let scoped = profiles;
+  if (leagueId) {
+    scoped = profiles.filter((p) => p.soft_skills_league_id === leagueId);
+  }
+
   const classes = [
-    ...new Set(profiles.map((p) => p.class_name?.trim()).filter(Boolean)),
+    ...new Set(scoped.map((p) => p.class_name?.trim()).filter(Boolean)),
   ] as string[];
 
   return classes.map((className) => {
-    const students = profiles.filter((p) => p.class_name?.trim() === className);
+    const students = scoped.filter((p) => p.class_name?.trim() === className);
     const averages = SOFT_SKILLS_STAR_SKILLS.map((skill) => {
       const values: number[] = [];
       for (const s of students) {
@@ -63,12 +70,16 @@ export function buildWeekCompletion(
   profiles: ProfileRow[],
   fullEntries: FullDisciplineEntryRow[],
   moduleId: string,
-  weekNumber: number
+  weekNumber: number,
+  leagueId?: string
 ): WeekCompletionRow[] {
   const expected = 4;
+  let scoped = profiles.filter((p) => p.soft_skills_league_id);
+  if (leagueId) {
+    scoped = scoped.filter((p) => p.soft_skills_league_id === leagueId);
+  }
 
-  return profiles
-    .filter((p) => p.soft_skills_league_id)
+  return scoped
     .map((p) => {
       const rows = fullEntries.filter(
         (e) =>
@@ -83,14 +94,7 @@ export function buildWeekCompletion(
           (e.star_self_reflection ?? 0) >= 1 ||
           (e.star_critical_thinking ?? 0) >= 1 ||
           (e.star_self_control ?? 0) >= 1;
-        const hasDiscipline =
-          e.outcome != null ||
-          Boolean(e.result_value?.trim()) ||
-          Boolean(e.time_value?.trim()) ||
-          Boolean(e.personal_time?.trim()) ||
-          Boolean(e.team_time?.trim()) ||
-          (e.goals_count ?? 0) > 0;
-        return hasStars || hasDiscipline;
+        return hasStars || hasDisciplinePerformanceData(e);
       }).length;
 
       return {
@@ -108,11 +112,17 @@ export function buildWeekCompletion(
 
 export function buildModuleComparison(
   profiles: ProfileRow[],
-  starEntries: DisciplineEntryRow[]
+  starEntries: DisciplineEntryRow[],
+  leagueId?: string
 ) {
+  let scoped = profiles;
+  if (leagueId) {
+    scoped = profiles.filter((p) => p.soft_skills_league_id === leagueId);
+  }
+
   return SOFT_SKILLS_MODULES.map((m) => {
     const values: number[] = [];
-    for (const p of profiles) {
+    for (const p of scoped) {
       const snap = aggregateCompetencies(starEntries, { userId: p.id, moduleId: m.id });
       if (snap.overall != null) values.push(snap.overall);
     }
@@ -126,9 +136,17 @@ export function buildModuleComparison(
 
 export function analyticsToCsv(
   classHeatmaps: ClassCompetencyHeatmap[],
-  moduleComparison: ReturnType<typeof buildModuleComparison>
+  moduleComparison: ReturnType<typeof buildModuleComparison>,
+  weekCompletion: WeekCompletionRow[],
+  leagueId?: string
 ): string {
   const lines: string[] = [];
+  if (leagueId) {
+    const leagueLabel = SOFT_SKILLS_LEAGUES.find((l) => l.id === leagueId)?.label ?? leagueId;
+    lines.push(`Лига,${leagueLabel}`);
+    lines.push("");
+  }
+
   lines.push("Класс,Учеников," + SOFT_SKILLS_STAR_SKILLS.map((s) => s.label).join(","));
   for (const c of classHeatmaps) {
     lines.push(
@@ -139,6 +157,15 @@ export function analyticsToCsv(
   lines.push("Модуль,Среднее,Учеников с данными");
   for (const m of moduleComparison) {
     lines.push(`${m.label},${m.average ?? ""},${m.studentsWithData}`);
+  }
+  lines.push("");
+  lines.push(
+    "Ученик,Класс,Лига,Заполнено дисциплин,Ожидается,Статус"
+  );
+  for (const r of weekCompletion) {
+    lines.push(
+      `${r.displayName},${r.className ?? ""},${r.leagueId ?? ""},${r.ratedDisciplines},${r.expectedDisciplines},${r.complete ? "complete" : "incomplete"}`
+    );
   }
   return lines.join("\n");
 }
