@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, Search } from "lucide-react";
+import { softSkillsProfileHref } from "@/lib/softSkillsLinks";
 
 type StaffProfile = {
   username: string | null;
@@ -164,10 +165,12 @@ export default function StaffProfilePanel({ profile }: { profile: StaffProfile }
             </p>
           ) : (
             <ul className="mt-4 divide-y divide-white/10 rounded-xl border border-white/10">
-              {students.map((s) => (
+              {students.map((s) => {
+                const profileHref = softSkillsProfileHref(s.username);
+                return (
                 <li key={s.id}>
                   <Link
-                    href={s.username ? `/user/${encodeURIComponent(s.username)}` : "#"}
+                    href={profileHref ?? "#"}
                     className="flex items-center justify-between gap-3 px-4 py-3 transition hover:bg-white/[0.04]"
                   >
                     <div className="min-w-0">
@@ -184,7 +187,8 @@ export default function StaffProfilePanel({ profile }: { profile: StaffProfile }
                     <span className="shrink-0 text-xs text-gold">Открыть →</span>
                   </Link>
                 </li>
-              ))}
+                );
+              })}
             </ul>
           )}
         </div>

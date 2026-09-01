@@ -1,4 +1,11 @@
+"use client";
+
+import { useState } from "react";
 import Link from "next/link";
+import SoftSkillsCompetencyDashboard from "@/components/soft-skills/SoftSkillsCompetencyDashboard";
+import type { CompetencySnapshot } from "@/lib/softSkillsCompetencies";
+import { formatCompetency } from "@/lib/softSkillsCompetencies";
+import { SOFT_SKILLS_MODULES } from "@/lib/softSkillsModules";
 
 export type SoftSkillsPlacesView = {
   leaguePlace: number | null;
@@ -11,10 +18,16 @@ export type SoftSkillsPlacesView = {
   teamLabel: string | null;
 };
 
+export type SoftSkillsDashboardView = {
+  overall: CompetencySnapshot;
+  byModule: Record<string, CompetencySnapshot>;
+};
+
 type Props = {
   displayName: string;
   username: string | null;
   softPlaces: SoftSkillsPlacesView | null;
+  competencyDashboard: SoftSkillsDashboardView | null;
   loading: boolean;
   showRatingsLink?: boolean;
 };
@@ -23,9 +36,22 @@ export default function SoftSkillsProfileSection({
   displayName,
   username,
   softPlaces,
+  competencyDashboard,
   loading,
   showRatingsLink = true,
 }: Props) {
+  const [moduleTab, setModuleTab] = useState<string>("overall");
+
+  const moduleSnapshot =
+    moduleTab === "overall"
+      ? competencyDashboard?.overall ?? null
+      : competencyDashboard?.byModule[moduleTab] ?? null;
+
+  const moduleTitle =
+    moduleTab === "overall"
+      ? "Компетенции за весь год"
+      : `Компетенции · ${SOFT_SKILLS_MODULES.find((m) => m.id === moduleTab)?.label ?? "модуль"}`;
+
   return (
     <div className="space-y-4">
       <div className="surface p-6">
@@ -43,10 +69,38 @@ export default function SoftSkillsProfileSection({
           <p className="mt-0.5 text-sm text-white/55">Команда: {softPlaces.teamLabel}</p>
         )}
       </div>
+
+      <div className="flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={() => setModuleTab("overall")}
+          className={moduleTab === "overall" ? "tab-pill-active" : "tab-pill"}
+        >
+          За год
+        </button>
+        {SOFT_SKILLS_MODULES.map((m) => (
+          <button
+            key={m.id}
+            type="button"
+            onClick={() => setModuleTab(m.id)}
+            className={moduleTab === m.id ? "tab-pill-active" : "tab-pill"}
+          >
+            {m.label}
+          </button>
+        ))}
+      </div>
+
+      <SoftSkillsCompetencyDashboard
+        title={moduleTitle}
+        snapshot={moduleSnapshot}
+        loading={loading}
+        subtitle="Средний балл по каждой компетенции (1–5 звёзд). Обновляется при внесении новых результатов."
+      />
+
       <div className="surface-pad">
-        <h2 className="font-display text-lg font-semibold text-white">Soft Skills</h2>
+        <h2 className="font-display text-lg font-semibold text-white">Места в рейтинге</h2>
         {loading ? (
-          <p className="mt-2 text-sm text-white/55">Загрузка мест…</p>
+          <p className="mt-2 text-sm text-white/55">Загрузка…</p>
         ) : (
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
             <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
@@ -73,17 +127,18 @@ export default function SoftSkillsProfileSection({
                 {softPlaces?.overallPlace ?? "—"}
               </p>
               <p className="mt-1 text-xs text-white/40">
-                Баллы: {softPlaces?.overallPoints ?? 0}
+                Средний: {formatCompetency(softPlaces?.overallPoints ?? null)} / 5
               </p>
             </div>
           </div>
         )}
         <p className="mt-4 text-xs text-white/40">
-          Места считаются по сумме баллов Soft Skills. Баллы появятся после внесения результатов.
+          Рейтинг строится по среднему баллу компетенций. Данные обновляются автоматически при
+          сохранении результатов на неделе.
         </p>
         {showRatingsLink && (
           <Link
-            href="/ratings?section=soft-skills&view=overall"
+            href="/ratings?view=overall"
             className="mt-3 inline-flex text-sm font-medium text-gold hover:text-gold-bright"
           >
             Открыть рейтинги Soft Skills

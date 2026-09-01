@@ -1,5 +1,5 @@
 import Link from "next/link";
-import SoftSkillsLeaderboard from "@/components/soft-skills/SoftSkillsLeaderboard";
+import SoftSkillsCompetencyLeaderboard from "@/components/soft-skills/SoftSkillsCompetencyLeaderboard";
 import {
   SOFT_SKILLS_LEAGUES,
   SOFT_SKILLS_MODULES,
@@ -35,20 +35,20 @@ export default async function SoftSkillsRatingsSection({
     SOFT_SKILLS_LEAGUES.find((l) => l.id === searchParams.league)?.id ?? "1";
 
   const ctx = await loadSoftSkillsRatingContext();
-  const missingScores =
+  const missingData =
     ctx?.error?.includes("schema cache") ||
-    ctx?.error?.includes("soft_skills_scores") ||
+    ctx?.error?.includes("soft_skills_discipline_entries") ||
     ctx?.error?.includes("class_name");
 
-  const base = "/ratings?section=soft-skills";
+  const base = "/ratings";
 
   return (
     <main className="page-bg min-h-screen">
-      <div className="page-shell max-w-3xl">
+      <div className="page-shell max-w-4xl">
         <div className="mb-6 flex items-end justify-between gap-4">
           <div>
             <h1 className="page-title">Рейтинги</h1>
-            <p className="page-subtitle">Soft Skills</p>
+            <p className="page-subtitle">Soft Skills · компетенции</p>
           </div>
           <Link href="/" className="btn-secondary">
             На главную
@@ -56,51 +56,44 @@ export default async function SoftSkillsRatingsSection({
         </div>
 
         <div className="mb-4 flex flex-wrap gap-2">
-          <Link href="/ratings?section=chess&type=blitz" className="tab-pill">
-            Шахматы
-          </Link>
-          <span className="tab-pill-active">Soft Skills</span>
-        </div>
-
-        <div className="mb-4 flex flex-wrap gap-2">
           <Link
-            href={`${base}&view=overall`}
+            href={`${base}?view=overall`}
             className={view === "overall" ? "tab-pill-active" : "tab-pill"}
           >
-            Общий
+            Общий за год
           </Link>
           <Link
-            href={`${base}&view=module&module=${moduleId}&league=${leagueId}`}
+            href={`${base}?view=module&module=${moduleId}&league=${leagueId}`}
             className={view === "module" ? "tab-pill-active" : "tab-pill"}
           >
             По модулю
           </Link>
           <Link
-            href={`${base}&view=teams`}
+            href={`${base}?view=teams`}
             className={view === "teams" ? "tab-pill-active" : "tab-pill"}
           >
             По командам
           </Link>
           <Link
-            href={`${base}&view=classes`}
+            href={`${base}?view=classes`}
             className={view === "classes" ? "tab-pill-active" : "tab-pill"}
           >
             По классам
           </Link>
         </div>
 
-        {missingScores && (
+        {missingData && (
           <div className="mb-4 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
             Выполните в Supabase SQL:{" "}
-            <code className="text-amber-100">supabase-migration-soft-skills-ratings.sql</code>
+            <code className="text-amber-100">supabase-migration-soft-skills-disciplines.sql</code>
           </div>
         )}
 
         {view === "overall" && (
-          <SoftSkillsLeaderboard
-            title="Общий рейтинг · сумма всех 6 модулей"
-            rows={ctx ? buildOverallBoard(ctx.profiles, ctx.scores) : []}
-            emptyText="Пока нет баллов. Дети появятся после начисления очков Soft Skills."
+          <SoftSkillsCompetencyLeaderboard
+            title="Общий рейтинг за год · среднее по 5 компетенциям"
+            rows={ctx ? buildOverallBoard(ctx.profiles, ctx.disciplineEntries) : []}
+            emptyText="Пока нет оценок. Данные появятся после внесения результатов на неделе."
             showClass
           />
         )}
@@ -111,7 +104,7 @@ export default async function SoftSkillsRatingsSection({
               {SOFT_SKILLS_MODULES.map((m) => (
                 <Link
                   key={m.id}
-                  href={`${base}&view=module&module=${m.id}&league=${leagueId}`}
+                  href={`${base}?view=module&module=${m.id}&league=${leagueId}`}
                   className={moduleId === m.id ? "tab-pill-active" : "tab-pill"}
                 >
                   {m.label}
@@ -122,23 +115,28 @@ export default async function SoftSkillsRatingsSection({
               {SOFT_SKILLS_LEAGUES.map((l) => (
                 <Link
                   key={l.id}
-                  href={`${base}&view=module&module=${moduleId}&league=${l.id}`}
+                  href={`${base}?view=module&module=${moduleId}&league=${l.id}`}
                   className={leagueId === l.id ? "tab-pill-active" : "tab-pill"}
                 >
                   {l.label}
                 </Link>
               ))}
             </div>
-            <SoftSkillsLeaderboard
+            <SoftSkillsCompetencyLeaderboard
               title={`${SOFT_SKILLS_MODULES.find((m) => m.id === moduleId)?.label} · ${
                 SOFT_SKILLS_LEAGUES.find((l) => l.id === leagueId)?.label
               }`}
               rows={
                 ctx
-                  ? buildModuleLeagueBoard(ctx.profiles, ctx.scores, moduleId, leagueId)
+                  ? buildModuleLeagueBoard(
+                      ctx.profiles,
+                      ctx.disciplineEntries,
+                      moduleId,
+                      leagueId
+                    )
                   : []
               }
-              emptyText="В этой лиге модуля пока нет детей или баллов."
+              emptyText="В этой лиге модуля пока нет детей или оценок."
               showClass
             />
           </div>
@@ -146,32 +144,35 @@ export default async function SoftSkillsRatingsSection({
 
         {view === "teams" && (
           <div className="space-y-4">
-            {(ctx ? buildTeamBoard(ctx.profiles, ctx.scores, ctx.teams) : []).length === 0 ? (
+            {(ctx ? buildTeamBoard(ctx.profiles, ctx.disciplineEntries, ctx.teams) : []).length ===
+            0 ? (
               <div className="surface-pad text-sm text-white/55">
                 Пока нет команд с участниками.
               </div>
             ) : (
-              (ctx ? buildTeamBoard(ctx.profiles, ctx.scores, ctx.teams) : []).map((team) => (
-                <SoftSkillsLeaderboard
-                  key={`${team.leagueId}:${team.teamId}`}
-                  title={`Команда «${team.teamLabel}» · Лига ${team.leagueId} · сумма ${team.points}`}
-                  rows={team.members}
-                  emptyText="Нет детей в команде."
-                />
-              ))
+              (ctx ? buildTeamBoard(ctx.profiles, ctx.disciplineEntries, ctx.teams) : []).map(
+                (team) => (
+                  <SoftSkillsCompetencyLeaderboard
+                    key={`${team.leagueId}:${team.teamId}`}
+                    title={`Команда «${team.teamLabel}» · Лига ${team.leagueId}`}
+                    rows={team.members}
+                    emptyText="Нет детей в команде."
+                  />
+                )
+              )
             )}
           </div>
         )}
 
         {view === "classes" && (
           <div className="space-y-4">
-            {(ctx ? buildClassBoard(ctx.profiles, ctx.scores) : []).length === 0 ? (
+            {(ctx ? buildClassBoard(ctx.profiles, ctx.disciplineEntries) : []).length === 0 ? (
               <div className="surface-pad text-sm text-white/55">
                 Пока нет классов. Добавьте детям поле «Класс» при создании аккаунтов.
               </div>
             ) : (
-              (ctx ? buildClassBoard(ctx.profiles, ctx.scores) : []).map((cls) => (
-                <SoftSkillsLeaderboard
+              (ctx ? buildClassBoard(ctx.profiles, ctx.disciplineEntries) : []).map((cls) => (
+                <SoftSkillsCompetencyLeaderboard
                   key={cls.className}
                   title={`Класс ${cls.className}`}
                   rows={cls.members}

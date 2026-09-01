@@ -2,6 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import SoftSkillsModulePanel from "@/components/soft-skills/SoftSkillsModulePanel";
 import { getSoftSkillsModule, SOFT_SKILLS_MODULES } from "@/lib/softSkillsModules";
+import { createClient } from "@/lib/supabase/server";
+import { isStaffRole, resolveUserRole } from "@/lib/roles";
 
 export function generateStaticParams() {
   return SOFT_SKILLS_MODULES.map((m) => ({ moduleId: m.id }));
@@ -15,6 +17,23 @@ export default async function SoftSkillsModulePage({
   const { moduleId } = await params;
   const mod = getSoftSkillsModule(moduleId);
   if (!mod) notFound();
+
+  let isStaff = false;
+  const supabase = await createClient();
+  if (supabase) {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (user) {
+      const { data: row } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", user.id)
+        .maybeSingle();
+      const role = await resolveUserRole(supabase, user.id, row?.role ?? null);
+      isStaff = isStaffRole(role);
+    }
+  }
 
   return (
     <main className="page-bg min-h-[calc(100dvh-4.5rem)]">
@@ -30,7 +49,7 @@ export default async function SoftSkillsModulePage({
           </Link>
         </div>
 
-        <SoftSkillsModulePanel module={mod} />
+        <SoftSkillsModulePanel module={mod} isStaff={isStaff} />
       </div>
     </main>
   );

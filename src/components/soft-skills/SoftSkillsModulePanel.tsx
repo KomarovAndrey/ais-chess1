@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ChevronDown } from "lucide-react";
+import SoftSkillsChildScoring from "@/components/soft-skills/SoftSkillsChildScoring";
+import { disciplinesForLeague } from "@/lib/softSkillsDisciplines";
 import {
   SOFT_SKILLS_LEAGUES,
   type SoftSkillsModule,
@@ -21,16 +23,18 @@ type TeamRoster = {
 
 type SoftSkillsModulePanelProps = {
   module: SoftSkillsModule;
+  isStaff?: boolean;
 };
 
 function memberLabel(m: Member) {
   return m.display_name?.trim() || m.username || "Ученик";
 }
 
-export default function SoftSkillsModulePanel({ module }: SoftSkillsModulePanelProps) {
+export default function SoftSkillsModulePanel({ module, isStaff = false }: SoftSkillsModulePanelProps) {
   const [week, setWeek] = useState(1);
   const [openLeagueIds, setOpenLeagueIds] = useState<Set<string>>(() => new Set());
   const [openTeamIds, setOpenTeamIds] = useState<Set<string>>(() => new Set());
+  const [expandedChildId, setExpandedChildId] = useState<string | null>(null);
   const [teamsByLeague, setTeamsByLeague] = useState<Record<string, TeamRoster[]>>({});
   const [loadingRoster, setLoadingRoster] = useState(true);
   const [rosterError, setRosterError] = useState<string | null>(null);
@@ -62,6 +66,10 @@ export default function SoftSkillsModulePanel({ module }: SoftSkillsModulePanelP
     loadRoster();
   }, [loadRoster]);
 
+  useEffect(() => {
+    setExpandedChildId(null);
+  }, [week, module.id]);
+
   function toggleLeague(id: string) {
     setOpenLeagueIds((prev) => {
       const next = new Set(prev);
@@ -79,6 +87,7 @@ export default function SoftSkillsModulePanel({ module }: SoftSkillsModulePanelP
       else next.add(key);
       return next;
     });
+    setExpandedChildId(null);
   }
 
   return (
@@ -103,6 +112,12 @@ export default function SoftSkillsModulePanel({ module }: SoftSkillsModulePanelP
             <span key={i + 1}>{i + 1}</span>
           ))}
         </div>
+        {isStaff && (
+          <p className="mt-3 text-xs text-white/45">
+            Выберите лигу и команду, затем нажмите на ребёнка — откроются дисциплины Lumo, Robo,
+            Sport и 3D (лиги 1–3). Каждый учитель сохраняет свою дисциплину отдельно.
+          </p>
+        )}
       </div>
 
       {rosterError && (
@@ -116,6 +131,7 @@ export default function SoftSkillsModulePanel({ module }: SoftSkillsModulePanelP
           const open = openLeagueIds.has(league.id);
           const teams = teamsByLeague[league.id] ?? [];
           const filledCount = teams.filter((t) => t.members.length > 0).length;
+          const hasDisciplines = disciplinesForLeague(league.id).length > 0;
 
           return (
             <div key={league.id} className="surface overflow-hidden">
@@ -134,6 +150,7 @@ export default function SoftSkillsModulePanel({ module }: SoftSkillsModulePanelP
                     {!loadingRoster && filledCount > 0
                       ? ` · команд с детьми: ${filledCount}`
                       : ""}
+                    {isStaff && hasDisciplines ? " · оценки Lumo/Robo/Sport/3D" : ""}
                   </p>
                 </div>
                 <ChevronDown
@@ -189,6 +206,22 @@ export default function SoftSkillsModulePanel({ module }: SoftSkillsModulePanelP
                                 <li className="px-3 py-3 text-sm text-white/45">
                                   Состав пуст. Добавьте детей в редакторе команд.
                                 </li>
+                              ) : isStaff && hasDisciplines ? (
+                                team.members.map((m, idx) => (
+                                  <SoftSkillsChildScoring
+                                    key={m.id}
+                                    member={m}
+                                    moduleId={module.id}
+                                    week={week}
+                                    leagueId={league.id}
+                                    teamId={team.id}
+                                    label={String(idx + 1)}
+                                    expanded={expandedChildId === m.id}
+                                    onToggle={() =>
+                                      setExpandedChildId((cur) => (cur === m.id ? null : m.id))
+                                    }
+                                  />
+                                ))
                               ) : (
                                 team.members.map((m, idx) => (
                                   <li

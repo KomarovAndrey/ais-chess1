@@ -333,12 +333,9 @@ export default function AppNav({
                             {r.from_user.username && (
                               <span className="ml-1 text-white/40">{r.from_user.username}</span>
                             )}
-                            <span className="ml-2 font-semibold text-gold">
-                              ({r.from_user.rating})
-                            </span>
                           </div>
                           <div className="text-xs text-white/45">
-                            Заявка в друзья · откройте вкладку «Друзья» в профиле
+                            Заявка в друзья · откройте профиль
                           </div>
                         </div>
                         <Link
@@ -355,7 +352,6 @@ export default function AppNav({
                           <div className="truncate text-sm text-white/90">
                             <span className="font-medium">{c.from_user.display_name}</span>
                             {c.from_user.username && <span className="ml-1 text-white/40">{c.from_user.username}</span>}
-                            <span className="ml-2 font-semibold text-gold">({c.from_user.rating})</span>
                           </div>
                           <div className="text-xs text-white/45">
                             Вызов на партию · {Math.floor(c.time_control_seconds / 60)} мин · цвет:{" "}
@@ -423,9 +419,6 @@ export default function AppNav({
             </span>
             <span className="hidden max-w-[160px] truncate sm:block">
               {profile?.display_name?.trim() || profile?.username || user.email?.split("@")[0] || "Профиль"}
-              {profile?.rating_blitz != null && (
-                <span className="text-white/45"> · {profile.rating_blitz}</span>
-              )}
             </span>
           </button>
           {menuOpen && (
