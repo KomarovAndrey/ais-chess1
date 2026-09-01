@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSupabaseOptionalUser } from "@/lib/apiAuth";
+import { getSupabaseAndUser } from "@/lib/apiAuth";
 import { checkRateLimit } from "@/lib/rateLimit";
 import {
   findPlayer,
@@ -21,9 +21,10 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ gameId: string }> }
 ) {
-  const auth = await getSupabaseOptionalUser();
+  const auth = await getSupabaseAndUser();
   if ("response" in auth) return auth.response;
   const { supabase, user } = auth;
+  const effectivePlayerId = user.id;
   const writeClient = getGameWriteClient(supabase);
   if (!writeClient) {
     return NextResponse.json(SERVICE_ROLE_MISSING, { status: 503 });
@@ -34,20 +35,11 @@ export async function POST(
     return NextResponse.json({ error: "Invalid game id" }, { status: 400 });
   }
 
-  let body: { action?: "offer" | "decline" | "accept"; playerId?: string };
+  let body: { action?: "offer" | "decline" | "accept" };
   try {
     body = await req.json();
   } catch {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
-  }
-
-  const bodyPlayerId = body.playerId;
-  const effectivePlayerId = user?.id ?? bodyPlayerId ?? null;
-  if (!effectivePlayerId) {
-    return NextResponse.json(
-      { error: "playerId is required for anonymous players" },
-      { status: 400 }
-    );
   }
 
   if (!await checkRateLimit(effectivePlayerId)) {

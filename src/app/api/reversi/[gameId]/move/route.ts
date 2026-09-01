@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAnonSupabase } from "@/lib/supabase/anon-server";
+import { getSupabaseAndUser } from "@/lib/apiAuth";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { makeMove as reversiMakeMove, getWinner, getValidMoves } from "@/lib/reversi";
 import type { Board } from "@/lib/reversi";
@@ -35,10 +35,10 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ gameId: string }> }
 ) {
-  const supabase = getAnonSupabase();
-  if (!supabase) {
-    return NextResponse.json({ error: "Сервис временно недоступен." }, { status: 503 });
-  }
+  const auth = await getSupabaseAndUser();
+  if ("response" in auth) return auth.response;
+  const { supabase, user } = auth;
+  const playerId = user.id;
 
   try {
     const { gameId } = await params;
@@ -47,12 +47,8 @@ export async function POST(
     }
 
     const body = await req.json().catch(() => ({}));
-    const playerId = body.playerId;
     const row = typeof body.row === "number" ? body.row : parseInt(body.row, 10);
     const col = typeof body.col === "number" ? body.col : parseInt(body.col, 10);
-    if (!playerId || !UUID_REGEX.test(playerId)) {
-      return NextResponse.json({ error: "Укажите playerId (UUID)" }, { status: 400 });
-    }
     if (row < 0 || row > 7 || col < 0 || col > 7) {
       return NextResponse.json({ error: "Недопустимая клетка" }, { status: 400 });
     }

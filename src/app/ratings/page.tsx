@@ -1,7 +1,4 @@
-import { redirect } from "next/navigation";
 import SoftSkillsRatingsSection from "@/components/soft-skills/SoftSkillsRatingsSection";
-
-export const dynamic = "force-dynamic";
 
 export default async function RatingsPage({
   searchParams,
@@ -17,6 +14,7 @@ export default async function RatingsPage({
   const sp = (await searchParams) ?? {};
 
   if (sp.section === "chess" || sp.type) {
+    const { redirect } = await import("next/navigation");
     redirect("/ratings?view=overall");
   }
 

@@ -24,6 +24,10 @@ export default function StaffProfilePanel({ profile }: { profile: StaffProfile }
   const [message, setMessage] = useState<{ type: "ok" | "error"; text: string } | null>(null);
   const [query, setQuery] = useState("");
   const [students, setStudents] = useState<StudentRow[]>([]);
+  const [total, setTotal] = useState(0);
+  const [offset, setOffset] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [savingClassId, setSavingClassId] = useState<string | null>(null);
@@ -36,14 +40,21 @@ export default function StaffProfilePanel({ profile }: { profile: StaffProfile }
     let cancelled = false;
     setLoading(true);
     setError(null);
+    setOffset(0);
     const params = new URLSearchParams();
     if (query.trim().length >= 2) params.set("q", query.trim());
+    params.set("offset", "0");
 
     fetch(`/api/profile/students?${params}`)
       .then(async (res) => {
         const data = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(data.error ?? "Не удалось загрузить учеников");
-        if (!cancelled) setStudents(Array.isArray(data.students) ? data.students : []);
+        if (!cancelled) {
+          setStudents(Array.isArray(data.students) ? data.students : []);
+          setTotal(typeof data.total === "number" ? data.total : 0);
+          setHasMore(Boolean(data.hasMore));
+          setOffset(Array.isArray(data.students) ? data.students.length : 0);
+        }
       })
       .catch((e) => {
         if (!cancelled) {
@@ -59,6 +70,28 @@ export default function StaffProfilePanel({ profile }: { profile: StaffProfile }
       cancelled = true;
     };
   }, [query]);
+
+  async function loadMoreStudents() {
+    if (!hasMore || loadingMore) return;
+    setLoadingMore(true);
+    try {
+      const params = new URLSearchParams();
+      if (query.trim().length >= 2) params.set("q", query.trim());
+      params.set("offset", String(offset));
+      const res = await fetch(`/api/profile/students?${params}`);
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error ?? "Не удалось загрузить учеников");
+      const batch = Array.isArray(data.students) ? data.students : [];
+      setStudents((prev) => [...prev, ...batch]);
+      setHasMore(Boolean(data.hasMore));
+      setOffset((prev) => prev + batch.length);
+      if (typeof data.total === "number") setTotal(data.total);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Ошибка загрузки");
+    } finally {
+      setLoadingMore(false);
+    }
+  }
 
   async function saveClassName(studentId: string, className: string) {
     setSavingClassId(studentId);
@@ -121,6 +154,16 @@ export default function StaffProfilePanel({ profile }: { profile: StaffProfile }
 
         <div className="surface p-6">
           <p className="text-xs font-medium uppercase tracking-wider text-white/45">{roleLabel}</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Link href="/soft-skills/analytics" className="btn-secondary text-sm">
+              Аналитика Soft Skills
+            </Link>
+            {profile.role === "admin" && (
+              <Link href="/admin/reports" className="btn-secondary text-sm">
+                Жалобы
+              </Link>
+            )}
+          </div>
           <form onSubmit={handleSaveName} className="mt-4 space-y-4">
             <div className="space-y-1.5">
               <label htmlFor="staff_display_name" className="text-sm font-medium text-white/70">
@@ -233,6 +276,21 @@ export default function StaffProfilePanel({ profile }: { profile: StaffProfile }
                 );
               })}
             </ul>
+          )}
+          {!loading && students.length > 0 && (
+            <p className="mt-3 text-xs text-white/40">
+              Показано {students.length} из {total || students.length}
+            </p>
+          )}
+          {hasMore && !loading && (
+            <button
+              type="button"
+              onClick={() => void loadMoreStudents()}
+              disabled={loadingMore}
+              className="mt-3 w-full rounded-xl border border-white/10 bg-white/5 py-2.5 text-sm text-white/70 transition hover:bg-white/10"
+            >
+              {loadingMore ? "Загрузка…" : "Загрузить ещё"}
+            </button>
           )}
         </div>
       </div>

@@ -42,7 +42,7 @@ export default function SoftSkillsAnalyticsClient() {
   }, [moduleId, week, leagueId]);
 
   const incomplete = weekCompletion.filter((r) => !r.complete);
-  const csvHref = `/api/soft-skills/analytics?format=csv${leagueId ? `&league=${leagueId}` : ""}`;
+  const csvHref = `/api/soft-skills/analytics?format=csv&module=${encodeURIComponent(moduleId)}&week=${week}${leagueId ? `&league=${encodeURIComponent(leagueId)}` : ""}`;
 
   return (
     <main className="page-bg min-h-screen">

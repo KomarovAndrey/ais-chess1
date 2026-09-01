@@ -30,7 +30,9 @@ export default async function SoftSkillsRatingsSection({
       : "overall";
 
   const moduleId: SoftSkillsModuleId =
-    SOFT_SKILLS_MODULES.find((m) => m.id === searchParams.module)?.id ?? "1";
+    searchParams.view === "teams"
+      ? (SOFT_SKILLS_MODULES.find((m) => m.id === searchParams.module)?.id ?? "1")
+      : (SOFT_SKILLS_MODULES.find((m) => m.id === searchParams.module)?.id ?? "1");
   const leagueId: SoftSkillsLeagueId =
     SOFT_SKILLS_LEAGUES.find((l) => l.id === searchParams.league)?.id ?? "1";
 
@@ -68,7 +70,7 @@ export default async function SoftSkillsRatingsSection({
             По модулю
           </Link>
           <Link
-            href={`${base}?view=teams`}
+            href={`${base}?view=teams&module=${moduleId}`}
             className={view === "teams" ? "tab-pill-active" : "tab-pill"}
           >
             По командам
@@ -148,12 +150,24 @@ export default async function SoftSkillsRatingsSection({
 
         {view === "teams" && (
           <div className="space-y-4">
+            <div className="flex flex-wrap gap-2">
+              {SOFT_SKILLS_MODULES.map((m) => (
+                <Link
+                  key={m.id}
+                  href={`${base}?view=teams&module=${m.id}`}
+                  className={moduleId === m.id ? "tab-pill-active" : "tab-pill"}
+                >
+                  {m.label}
+                </Link>
+              ))}
+            </div>
             {(ctx
               ? buildTeamBoard(
                   ctx.profiles,
                   ctx.disciplineEntries,
                   ctx.fullEntries,
-                  ctx.teams
+                  ctx.teams,
+                  { moduleId }
                 )
               : []
             ).length === 0 ? (
@@ -166,7 +180,8 @@ export default async function SoftSkillsRatingsSection({
                     ctx.profiles,
                     ctx.disciplineEntries,
                     ctx.fullEntries,
-                    ctx.teams
+                    ctx.teams,
+                    { moduleId }
                   )
                 : []
               ).map((team) => (

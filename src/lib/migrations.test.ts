@@ -4,15 +4,10 @@ import { describe, expect, it } from "vitest";
 
 const REQUIRED = [
   "supabase-migration-game-integrity.sql",
-  "supabase-migration-zadachi.sql",
-  "supabase-migration-tournaments-arena.sql",
   "supabase-migration-live-protocol-phase-f.sql",
   "supabase-migration-trust-phase-g.sql",
   "supabase-migration-lichess-clock-start.sql",
   "supabase-migration-wave-3-live-lobby.sql",
-  "supabase-migration-tournaments-arena-autopair.sql",
-  "supabase-seed-zadachi-lichess.sql",
-  "data/zadachi-lichess.json",
 ];
 
 describe("SQL migrations", () => {

@@ -1,21 +1,16 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createRouteHandlerClient } from "@/lib/supabase/route-handler";
+import { checkLoginRateLimit } from "@/lib/rateLimit";
 
-async function resolveLoginEmail(
-  supabase: Awaited<ReturnType<typeof createRouteHandlerClient>>,
-  identifier: string
-): Promise<string | null> {
+function clientIp(request: Request): string {
+  const forwarded = request.headers.get("x-forwarded-for");
+  if (forwarded) return forwarded.split(",")[0]?.trim() || "unknown";
+  return request.headers.get("x-real-ip")?.trim() || "unknown";
+}
+
+async function resolveLoginEmail(identifier: string): Promise<string | null> {
   if (identifier.includes("@")) return identifier;
-
-  if (supabase) {
-    const { data, error } = await supabase.rpc("resolve_login_email", {
-      identifier,
-    });
-    if (!error && typeof data === "string" && data.includes("@")) {
-      return data;
-    }
-  }
 
   const admin = createAdminClient();
   if (!admin) return null;
@@ -35,6 +30,14 @@ async function resolveLoginEmail(
 }
 
 export async function POST(request: Request) {
+  const ip = clientIp(request);
+  if (!(await checkLoginRateLimit(ip))) {
+    return NextResponse.json(
+      { error: "Too many login attempts. Try again later." },
+      { status: 429 }
+    );
+  }
+
   const supabase = await createRouteHandlerClient();
   if (!supabase) {
     return NextResponse.json({ error: "Supabase is not configured." }, { status: 500 });
@@ -57,14 +60,14 @@ export async function POST(request: Request) {
     );
   }
 
-  const email = await resolveLoginEmail(supabase, identifier);
+  const email = await resolveLoginEmail(identifier);
   if (!email) {
     return NextResponse.json({ error: "Invalid login credentials" }, { status: 401 });
   }
 
   const { error } = await supabase.auth.signInWithPassword({ email, password });
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 401 });
+    return NextResponse.json({ error: "Invalid login credentials" }, { status: 401 });
   }
 
   return NextResponse.json({ ok: true });

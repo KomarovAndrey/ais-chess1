@@ -17,5 +17,15 @@ jobs:
       - run: npm ci
       - name: Typecheck
         run: npx tsc --noEmit
+      - name: Lint
+        run: npm run lint
+      - name: Build
+        run: npm run build
       - name: Unit tests
         run: npm test
+      - name: Install Playwright
+        run: npx playwright install chromium --with-deps
+      - name: E2E smoke
+        run: npx playwright test
+        env:
+          CI: "true"

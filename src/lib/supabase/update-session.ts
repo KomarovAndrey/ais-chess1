@@ -33,12 +33,28 @@ export async function updateSession(request: NextRequest) {
     },
   });
 
+  const pathname = request.nextUrl.pathname;
+  const requiresAuth =
+    pathname.startsWith("/soft-skills/analytics") || pathname.startsWith("/admin");
+
   try {
-    await Promise.race([
-      supabase.auth.getClaims(),
+    const { data } = await Promise.race([
+      supabase.auth.getUser(),
       delay(MIDDLEWARE_AUTH_MS),
     ]);
+    if (requiresAuth && !data.user) {
+      const loginUrl = request.nextUrl.clone();
+      loginUrl.pathname = "/login";
+      loginUrl.searchParams.set("next", pathname);
+      return NextResponse.redirect(loginUrl);
+    }
   } catch {
+    if (requiresAuth) {
+      const loginUrl = request.nextUrl.clone();
+      loginUrl.pathname = "/login";
+      loginUrl.searchParams.set("next", pathname);
+      return NextResponse.redirect(loginUrl);
+    }
     // Supabase не ответил вовремя — пропускаем обновление сессии, чтобы не было 504
   }
 

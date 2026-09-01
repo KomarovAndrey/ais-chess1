@@ -34,11 +34,6 @@ export const createSeekSchema = z.object({
     .max(86400),
   incrementSeconds: z.number().int().min(0).max(120).optional().default(0),
   rated: z.boolean().optional().default(true),
-  tournamentId: z
-    .string()
-    .regex(UUID_REGEX, "Invalid tournamentId")
-    .optional()
-    .nullable(),
 });
 
 /** Accept a specific pending lobby seek by id (Wave 3). */

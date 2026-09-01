@@ -26,7 +26,7 @@ export async function GET(req: NextRequest) {
     const { data: rows, error } = await supabase
       .from("game_seeks")
       .select(
-        "id, user_id, status, time_control_seconds, increment_seconds, rated, color, created_at, tournament_id"
+        "id, user_id, status, time_control_seconds, increment_seconds, rated, color, created_at"
       )
       .eq("status", "pending")
       .is("tournament_id", null)
@@ -167,7 +167,6 @@ export async function POST(req: NextRequest) {
     timeControlSeconds,
     incrementSeconds = 0,
     rated = true,
-    tournamentId = null,
   } = parsed.data;
 
   const { data, error } = await supabase.rpc("match_or_create_seek", {
@@ -175,7 +174,7 @@ export async function POST(req: NextRequest) {
     p_increment: incrementSeconds,
     p_rated: rated,
     p_color: creatorColor,
-    p_tournament_id: tournamentId,
+    p_tournament_id: null,
   });
 
   if (error) {
@@ -186,21 +185,9 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
-    if (msg.includes("tournament_not_active")) {
-      return NextResponse.json(
-        { error: "Турнир не идёт или уже завершён." },
-        { status: 400 }
-      );
-    }
-    if (msg.includes("not_in_tournament")) {
-      return NextResponse.json(
-        { error: "Сначала запишитесь в турнир." },
-        { status: 400 }
-      );
-    }
     console.error("match_or_create_seek:", error);
     return NextResponse.json(
-      { error: "Не удалось найти партию. Выполните SQL миграцию matchmaking/arena." },
+      { error: "Не удалось найти партию. Выполните SQL миграцию matchmaking." },
       { status: 500 }
     );
   }

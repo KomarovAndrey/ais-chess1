@@ -1,9 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { checkPublicReadRateLimit, getRequestIp } from "@/lib/rateLimit";
 
 const USERNAME_REGEX = /^[a-zA-Z0-9_]{3,30}$/;
 
 export async function GET(req: NextRequest) {
+  const ip = getRequestIp(req);
+  if (!(await checkPublicReadRateLimit(ip))) {
+    return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+  }
+
   const supabase = await createClient();
   if (!supabase) {
     return NextResponse.json(

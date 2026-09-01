@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createAdminClient } from "@/lib/supabase/admin";
-import { createClient } from "@/lib/supabase/server";
+import { getSupabaseAndUser } from "@/lib/apiAuth";
 import {
   SOFT_SKILLS_LEAGUES,
   getSoftSkillsTeams,
@@ -13,18 +12,17 @@ type Member = {
   display_name: string | null;
 };
 
-/** Public roster for a Soft Skills module: leagues → teams → children. */
+/** Roster for a Soft Skills module: leagues → teams → children (authenticated). */
 export async function GET(req: NextRequest) {
+  const auth = await getSupabaseAndUser();
+  if ("response" in auth) return auth.response;
+
   const moduleId = req.nextUrl.searchParams.get("module")?.trim() ?? "";
   if (!isValidModuleId(moduleId)) {
     return NextResponse.json({ error: "Неверный модуль." }, { status: 400 });
   }
 
-  const admin = createAdminClient();
-  const supabase = admin ?? (await createClient());
-  if (!supabase) {
-    return NextResponse.json({ error: "Supabase is not configured." }, { status: 500 });
-  }
+  const { supabase } = auth;
 
   const { data: rows, error } = await supabase
     .from("soft_skills_team_members")

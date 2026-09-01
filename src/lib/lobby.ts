@@ -12,7 +12,6 @@ export type LobbySeekRow = {
   color: "white" | "black" | "random";
   created_at: string;
   status: string;
-  tournament_id?: string | null;
 };
 
 export type LobbySeekCard = {

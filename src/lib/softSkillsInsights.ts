@@ -66,9 +66,11 @@ export function buildTrendByWeek(
         e.week_number === week &&
         (!moduleId || e.module_id === moduleId)
     );
-    const weekFullRows = filtered.filter((e) => e.week_number === week);
+    const weekCohort = fullEntries.filter(
+      (e) => e.week_number === week && (!moduleId || e.module_id === moduleId)
+    );
     const weekComp = aggregateCompetencies(weekStarRows);
-    const weekDisc = aggregateDisciplineIndex(weekFullRows, profiles);
+    const weekDisc = aggregateDisciplineIndex(weekCohort, profiles, { userId, moduleId });
     const composite = computeCompositeScore(weekComp.overall, weekDisc.overall);
     return {
       label: `Нед. ${week}`,
@@ -179,6 +181,10 @@ export function buildDisciplineStats(
   groupUserIds: string[],
   moduleId?: string
 ): DisciplineStatRow[] {
+  const cohortEntries = moduleId
+    ? fullEntries.filter((e) => e.module_id === moduleId)
+    : fullEntries;
+
   return SOFT_SKILLS_DISCIPLINES.map((d) => {
     const userRows = fullEntries.filter(
       (e) =>
@@ -186,24 +192,22 @@ export function buildDisciplineStats(
         e.discipline === d.id &&
         (!moduleId || e.module_id === moduleId)
     );
-    const groupRows = fullEntries.filter(
-      (e) =>
-        groupUserIds.includes(e.user_id) &&
-        e.discipline === d.id &&
-        (!moduleId || e.module_id === moduleId)
-    );
+    const disciplineCohort = cohortEntries.filter((e) => e.discipline === d.id);
 
     const wins = userRows.filter((e) => e.outcome === "win").length;
     const losses = userRows.filter((e) => e.outcome === "lose").length;
     const winRate = wins + losses > 0 ? Math.round((wins / (wins + losses)) * 100) : null;
 
-    const userIdx = aggregateDisciplineIndex(userRows, profiles);
+    const userIdx = aggregateDisciplineIndex(disciplineCohort, profiles, {
+      userId,
+      moduleId,
+    });
     const groupScores: number[] = [];
     for (const uid of groupUserIds) {
-      const idx = aggregateDisciplineIndex(
-        groupRows.filter((e) => e.user_id === uid),
-        profiles
-      );
+      const idx = aggregateDisciplineIndex(disciplineCohort, profiles, {
+        userId: uid,
+        moduleId,
+      });
       if (idx.overall != null) groupScores.push(idx.overall);
     }
     groupScores.sort((a, b) => a - b);

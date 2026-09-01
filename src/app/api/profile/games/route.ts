@@ -58,7 +58,7 @@ export async function GET(_req: NextRequest) {
   const { data: allPlayers } = await supabase
     .from("game_players")
     .select("game_id, side, player_id")
-    .in("game_id", gameIds);
+    .in("game_id", (games as GameRow[]).map((g) => g.id));
 
   const allPlayerIds = Array.from(
     new Set((allPlayers ?? []).map((p) => p.player_id))

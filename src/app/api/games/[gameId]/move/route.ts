@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Chess } from "chess.js";
-import { getSupabaseOptionalUser } from "@/lib/apiAuth";
+import { getSupabaseAndUser } from "@/lib/apiAuth";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { moveBodySchema } from "@/lib/validations/games";
 import {
@@ -23,9 +23,10 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ gameId: string }> }
 ) {
-  const auth = await getSupabaseOptionalUser();
+  const auth = await getSupabaseAndUser();
   if ("response" in auth) return auth.response;
   const { supabase, user } = auth;
+  const playerId = user.id;
   const writeClient = getGameWriteClient(supabase);
   if (!writeClient) {
     return NextResponse.json(SERVICE_ROLE_MISSING, { status: 503 });
@@ -33,15 +34,6 @@ export async function POST(
 
   try {
     const body = await req.json();
-    const bodyPlayerId = (body as { playerId?: string }).playerId;
-    const playerId = user?.id ?? bodyPlayerId;
-    if (!playerId || (user === null && !bodyPlayerId)) {
-      return NextResponse.json(
-        { error: "Для игры без входа укажите playerId в теле запроса." },
-        { status: 400 }
-      );
-    }
-
     if (!await checkRateLimit(playerId)) {
       return NextResponse.json({ error: "Too many requests" }, { status: 429 });
     }

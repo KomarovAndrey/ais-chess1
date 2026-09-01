@@ -7,13 +7,14 @@ import {
   buildWeekCompletion,
 } from "@/lib/softSkillsAnalytics";
 import { loadSoftSkillsRatingContext } from "@/lib/softSkillsRatings";
-import { isValidLeagueId, SOFT_SKILLS_LEAGUES, SOFT_SKILLS_MODULES } from "@/lib/softSkillsModules";
+import { isValidLeagueId, isValidModuleId, SOFT_SKILLS_LEAGUES, SOFT_SKILLS_MODULES } from "@/lib/softSkillsModules";
 
 export async function GET(req: NextRequest) {
   const auth = await requireStaffAuth();
   if ("response" in auth) return auth.response;
 
-  const moduleId = req.nextUrl.searchParams.get("module") ?? "1";
+  const moduleParam = req.nextUrl.searchParams.get("module") ?? "1";
+  const moduleId = isValidModuleId(moduleParam) ? moduleParam : "1";
   const week = Number(req.nextUrl.searchParams.get("week") ?? "1");
   const format = req.nextUrl.searchParams.get("format");
   const leagueParam = req.nextUrl.searchParams.get("league")?.trim() ?? "";

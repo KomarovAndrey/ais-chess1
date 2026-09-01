@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Link2, Cpu } from "lucide-react";
+import { supabase } from "@/lib/supabaseClient";
 import {
   createInitialBoard,
   getValidMoves,
@@ -14,12 +15,12 @@ import {
 } from "@/lib/reversi";
 
 const BOARD_SIZE = 8;
-const CELL_SIZE = 44;
+const CELL_SIZE = "clamp(32px, calc((100vw - 64px) / 8), 44px)";
 const GRID_GAP = 2;
 const GRID_PADDING = 4;
 const LABEL_SIZE = 24;
 const COL_LABELS = ["a", "b", "c", "d", "e", "f", "g", "h"];
-const BOARD_WRAPPER_SIZE = BOARD_SIZE * CELL_SIZE + (BOARD_SIZE - 1) * GRID_GAP + 2 * GRID_PADDING + 4;
+const BOARD_WRAPPER_SIZE = `calc(${BOARD_SIZE} * ${CELL_SIZE} + ${(BOARD_SIZE - 1) * GRID_GAP}px + 8px)`;
 
 export default function ReversiPage() {
   const router = useRouter();
@@ -38,16 +39,17 @@ export default function ReversiPage() {
   const handleCreateByLink = useCallback(async () => {
     setCreateError(null);
     setCreating(true);
-    let playerId = typeof window !== "undefined" ? localStorage.getItem("ais_reversi_player_id") : null;
-    if (!playerId) {
-      playerId = crypto.randomUUID();
-      localStorage.setItem("ais_reversi_player_id", playerId);
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user) {
+      setCreating(false);
+      router.push("/login?next=/reversi");
+      return;
     }
     try {
       const res = await fetch("/api/reversi", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ playerId, creatorSide: "random" }),
+        body: JSON.stringify({ creatorSide: "random" }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error((data as { error?: string }).error ?? "Не удалось создать игру");
@@ -188,8 +190,11 @@ export default function ReversiPage() {
         </div>
 
         {winner && (
-          <div className="mb-3 rounded-2xl border border-emerald-200 bg-emerald-50/80 px-4 py-3">
-            <h3 className="text-sm font-semibold text-white">Итог партии</h3>
+          <div
+            className="mb-3 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3"
+            role="status"
+          >
+            <h3 className="text-sm font-semibold text-emerald-200">Итог партии</h3>
             <p className="mt-1 text-sm text-white/70">
               {winner === "draw" ? "Ничья" : `Победили ${winner === "black" ? "чёрные" : "белые"}`}.
               Ниже — итоговая позиция для просмотра.
@@ -216,7 +221,9 @@ export default function ReversiPage() {
                         type="button"
                         onClick={() => handleCellClick(r, c)}
                         disabled={!!winner || !isValid}
-                        className="flex h-11 w-11 items-center justify-center rounded-md bg-green-700 transition hover:bg-green-600 disabled:cursor-default disabled:opacity-100"
+                        className="flex items-center justify-center rounded-md bg-green-700 transition hover:bg-green-600 disabled:cursor-default disabled:opacity-100"
+                        style={{ width: CELL_SIZE, height: CELL_SIZE }}
+                        aria-label={`${COL_LABELS[c]}${r + 1}, ${cell ?? "пусто"}`}
                       >
                         {cell === "black" && (
                           <span className="h-8 w-8 rounded-full shadow-md" style={{ backgroundColor: "#1f2937" }} />
@@ -245,7 +252,10 @@ export default function ReversiPage() {
           </div>
         </div>
 
-        <p className="mt-4 rounded-xl border border-white/10 bg-white/90 px-4 py-3 text-center text-sm text-white/70">
+        <p
+          className="mt-4 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-center text-sm text-white/70"
+          role="status"
+        >
           {statusText}
         </p>
 

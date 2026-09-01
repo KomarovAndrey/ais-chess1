@@ -38,7 +38,6 @@ interface GameRow {
   rematch_game_id?: string | null;
   created_by?: string | null;
   moves?: string[];
-  tournament_id?: string | null;
 }
 
 interface PlayerRow {
@@ -181,26 +180,21 @@ export default function PlayGame({ initialGame }: PlayGameProps) {
     return (active === "w" && player.side === "white") || (active === "b" && player.side === "black");
   }, [player, gameRow.active_color]);
 
-  // Initialize player id: auth user for logged-in, else localStorage guest id
+  // Initialize player id from auth session
   useEffect(() => {
     let cancelled = false;
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (cancelled) return;
       if (session?.user?.id) {
         setPlayerId(session.user.id);
-      } else {
-        let id = window.localStorage.getItem("ais_chess_player_id");
-        if (!id) {
-          id = crypto.randomUUID();
-          window.localStorage.setItem("ais_chess_player_id", id);
-        }
-        setPlayerId(id);
       }
     });
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => {
       if (cancelled) return;
       if (session?.user?.id) {
         setPlayerId(session.user.id);
+      } else {
+        setPlayerId(null);
       }
     });
     return () => {
@@ -221,7 +215,7 @@ export default function PlayGame({ initialGame }: PlayGameProps) {
         const res = await fetch("/api/games/join", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ gameId, playerId })
+          body: JSON.stringify({ gameId })
         });
 
         const data = await res.json().catch(() => ({}));
@@ -1025,21 +1019,12 @@ export default function PlayGame({ initialGame }: PlayGameProps) {
                         : "Реванш"}
                   </button>
                 )}
-                {gameRow.tournament_id ? (
-                  <Link
-                    href={`/tournaments/${gameRow.tournament_id}?autoplay=1`}
-                    className="inline-flex items-center rounded-xl border border-white/15 bg-white/5 px-4 py-2 text-sm font-medium text-white hover:bg-white/10"
-                  >
-                    Следующая в Arena
-                  </Link>
-                ) : (
-                  <Link
-                    href="/?open=play"
-                    className="inline-flex items-center rounded-xl border border-white/15 bg-white/5 px-4 py-2 text-sm font-medium text-white hover:bg-white/10"
-                  >
-                    Искать игру
-                  </Link>
-                )}
+                <Link
+                  href="/?open=play"
+                  className="inline-flex items-center rounded-xl border border-white/15 bg-white/5 px-4 py-2 text-sm font-medium text-white hover:bg-white/10"
+                >
+                  Искать игру
+                </Link>
                 {gameRow.status === "finished" && (
                   <button
                     type="button"

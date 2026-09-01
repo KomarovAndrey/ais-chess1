@@ -11,7 +11,7 @@
     "postinstall": "node scripts/copy-stockfish.js",
     "test": "vitest run",
     "test:watch": "vitest",
-    "import:zadachi": "node scripts/import-lichess-puzzles.cjs",
+    "test:e2e": "playwright test",
     "audit:supabase": "node scripts/audit-supabase.mjs",
     "seed:soft-skills": "node scripts/seed-soft-skills-demo.mjs",
     "seed:soft-skills:clean": "node scripts/seed-soft-skills-demo.mjs --clean"
@@ -31,6 +31,7 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@playwright/test": "^1.51.0",
     "@types/node": "^20.11.0",
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",

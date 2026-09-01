@@ -16,6 +16,7 @@ import type {
   TrendPoint,
 } from "@/lib/softSkillsInsights";
 import type { DisciplineIndexSnapshot } from "@/lib/softSkillsDisciplineIndex";
+import { COMPOSITE_FORMULA_PARTIAL_LABEL } from "@/lib/softSkillsComposite";
 import { SOFT_SKILLS_MODULES, type SoftSkillsModuleId } from "@/lib/softSkillsModules";
 
 export type SoftSkillsPlacesView = {
@@ -101,6 +102,11 @@ export default function SoftSkillsProfileSection({
       ? competencyDashboard?.compositeOverall
       : competencyDashboard?.compositeByModule?.[moduleTab];
 
+  const compositeIsPartial =
+    moduleTab === "overall"
+      ? competencyDashboard?.compositeIsPartial
+      : competencyDashboard?.compositeIsPartialByModule?.[moduleTab];
+
   const disciplineIdx =
     moduleTab === "overall"
       ? competencyDashboard?.disciplineOverall?.overall
@@ -134,6 +140,11 @@ export default function SoftSkillsProfileSection({
       {!loading && composite != null && composite > 0 && (
         <div className="surface-pad">
           <h2 className="font-display text-lg font-semibold text-white">Итоговый балл</h2>
+          {compositeIsPartial && (
+            <p className="mt-1 text-xs text-amber-200/90" title={COMPOSITE_FORMULA_PARTIAL_LABEL}>
+              Частичный расчёт — заполнена только одна часть формулы
+            </p>
+          )}
           <div className="mt-4 grid gap-3 sm:grid-cols-3">
             <div className="rounded-2xl border border-gold/30 bg-gold/10 p-4 text-center">
               <p className="text-xs text-white/45">Итог</p>

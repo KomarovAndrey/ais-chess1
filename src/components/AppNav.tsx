@@ -89,39 +89,6 @@ export default function AppNav({
   }, []);
 
   useEffect(() => {
-    if (initialUser) return;
-    fetch("/api/profile")
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => {
-        if (!data?.id) return;
-        setUser({ id: data.id, email: null });
-        setProfile({
-          username: data.username ?? null,
-          display_name: data.display_name ?? null,
-          rating_blitz: data.rating_blitz ?? data.rating ?? null,
-        });
-      })
-      .catch(() => {});
-  }, [initialUser]);
-
-  useEffect(() => {
-    if (!user) return;
-    if (initialProfile && initialUser?.id === user.id) return;
-    fetch("/api/profile")
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => {
-        if (data) {
-          setProfile({
-            username: data.username ?? null,
-            display_name: data.display_name ?? null,
-            rating_blitz: data.rating_blitz ?? data.rating ?? null,
-          });
-        }
-      })
-      .catch(() => {});
-  }, [user, initialProfile, initialUser?.id]);
-
-  useEffect(() => {
     if (debouncedQuery.length < 2) {
       setSearchResults([]);
       return;

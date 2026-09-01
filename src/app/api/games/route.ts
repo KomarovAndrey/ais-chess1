@@ -1,16 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSupabaseOptionalUser } from "@/lib/apiAuth";
+import { getSupabaseAndUser } from "@/lib/apiAuth";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { getGameWriteClient, SERVICE_ROLE_MISSING } from "@/lib/games/integrity";
 import { createGameSchema } from "@/lib/validations/games";
 
-const UUID_REGEX =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-
 export async function POST(req: NextRequest) {
-  const auth = await getSupabaseOptionalUser();
+  const auth = await getSupabaseAndUser();
   if ("response" in auth) return auth.response;
   const { supabase, user } = auth;
+  const playerId = user.id;
   const writeClient = getGameWriteClient(supabase);
   if (!writeClient) {
     return NextResponse.json(SERVICE_ROLE_MISSING, { status: 503 });
@@ -30,15 +28,7 @@ export async function POST(req: NextRequest) {
       timeControlSeconds,
       incrementSeconds = 0,
       rated: ratedBody = false,
-      playerId: bodyPlayerId,
     } = parsed.data;
-    const playerId = user?.id ?? bodyPlayerId;
-    if (!playerId || (user === null && (!bodyPlayerId || !UUID_REGEX.test(bodyPlayerId)))) {
-      return NextResponse.json(
-        { error: "Для игры без входа укажите playerId (UUID) в теле запроса." },
-        { status: 400 }
-      );
-    }
 
     if (!await checkRateLimit(playerId)) {
       return NextResponse.json(
@@ -47,13 +37,13 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Link games: guests always casual; rated only for logged-in with profile
-    const rated = user ? Boolean(ratedBody) : false;
+    // Rated games require profile
+    const rated = Boolean(ratedBody);
     if (rated) {
       const { data: profile } = await supabase
         .from("profiles")
         .select("id")
-        .eq("id", user!.id)
+        .eq("id", user.id)
         .maybeSingle();
       if (!profile) {
         return NextResponse.json(

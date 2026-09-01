@@ -47,14 +47,14 @@ const TABLES = [
   "game_seeks",
   "game_challenges",
   "friend_requests",
-  "tournaments",
-  "tournament_players",
-  "puzzles",
-  "puzzle_attempts",
   "user_reports",
   "rating_history",
   "reversi_games",
   "rate_limit_buckets",
+  "soft_skills_teams",
+  "soft_skills_team_members",
+  "soft_skills_discipline_entries",
+  "soft_skills_self_ratings",
 ];
 
 const RPCS = [
@@ -77,24 +77,12 @@ const RPCS = [
     "update_game_ratings",
     { p_game_id: "00000000-0000-0000-0000-000000000000", p_winner: "draw" },
   ],
-  [
-    "apply_arena_game_result",
-    { p_game_id: "00000000-0000-0000-0000-000000000000", p_winner: "draw" },
-  ],
-  ["apply_puzzle_result", { p_puzzle_id: "audit", p_success: false }],
-  ["refresh_tournament_status", { p_id: "00000000-0000-0000-0000-000000000000" }],
-  ["arena_enter_pairing", { p_tournament_id: "00000000-0000-0000-0000-000000000000" }],
-  ["arena_leave_pairing", { p_tournament_id: "00000000-0000-0000-0000-000000000000" }],
-  ["pair_arena_ready_players", { p_tournament_id: "00000000-0000-0000-0000-000000000000" }],
   ["resolve_login_email", { identifier: "student1" }],
 ];
 
 const MIGRATION_HINTS = {
   check_rate_limit_bucket: "supabase-migration-trust-phase-g.sql",
   match_or_create_seek: "supabase-migration-lichess-clock-start.sql",
-  arena_enter_pairing: "supabase-migration-tournaments-arena-autopair.sql",
-  arena_leave_pairing: "supabase-migration-tournaments-arena-autopair.sql",
-  pair_arena_ready_players: "supabase-migration-tournaments-arena-autopair.sql",
   resolve_login_email: "supabase-migration-login-email-rpc.sql",
 };
 
@@ -119,9 +107,6 @@ for (const t of TABLES) {
   const r = await probeTable(admin, t);
   if (r.ok) {
     console.log(`  OK  ${t} (${r.rows} rows)`);
-    if (t === "puzzles" && r.rows === 0) {
-      tableIssues.push("puzzles empty → run supabase-seed-zadachi-lichess.sql");
-    }
   } else {
     console.log(`  FAIL ${t}: ${r.error}`);
     tableIssues.push(`missing table ${t}`);

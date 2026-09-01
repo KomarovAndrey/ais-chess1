@@ -1,5 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { unstable_cache } from "next/cache";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { SoftSkillsStarSkillId } from "@/lib/softSkillsDisciplines";
 import {
@@ -104,6 +105,29 @@ async function fetchAllPaginated<T>(
   return all;
 }
 
+async function fetchStudentProfiles(db: SupabaseClient): Promise<ProfileRow[]> {
+  const all: ProfileRow[] = [];
+  let from = 0;
+
+  while (true) {
+    const { data, error } = await db
+      .from("profiles")
+      .select("id, username, display_name, class_name, soft_skills_league_id")
+      .eq("role", "student")
+      .not("username", "is", null)
+      .order("username")
+      .range(from, from + DB_PAGE_SIZE - 1);
+
+    if (error) throw error;
+    if (!data?.length) break;
+    all.push(...(data as ProfileRow[]));
+    if (data.length < DB_PAGE_SIZE) break;
+    from += DB_PAGE_SIZE;
+  }
+
+  return all;
+}
+
 function toLeagueProfiles(profiles: ProfileRow[]): LeagueProfile[] {
   return profiles.map((p) => ({
     id: p.id,
@@ -130,8 +154,8 @@ function toStarRows(full: FullDisciplineEntryRow[]): DisciplineEntryRow[] {
 }
 
 function assignPlaces(rows: Omit<SoftSkillsRatingEntry, "place">[]): SoftSkillsRatingEntry[] {
-  const ranked = rows.filter((r) => r.points > 0);
-  const unranked = rows.filter((r) => r.points <= 0);
+  const ranked = rows.filter((r) => r.points > 0 && !r.isProvisional);
+  const unranked = rows.filter((r) => r.points <= 0 || r.isProvisional);
 
   const sorted = [...ranked].sort((a, b) => {
     if (b.points !== a.points) return b.points - a.points;
@@ -152,20 +176,25 @@ function assignPlaces(rows: Omit<SoftSkillsRatingEntry, "place">[]): SoftSkillsR
 }
 
 export async function loadSoftSkillsRatingContext() {
+  return unstable_cache(
+    loadSoftSkillsRatingContextUncached,
+    ["soft-skills-rating-context"],
+    { revalidate: 60 }
+  )();
+}
+
+async function loadSoftSkillsRatingContextUncached() {
   const db = await getDb();
   if (!db) return null;
 
-  const { data: profiles, error: pErr } = await db
-    .from("profiles")
-    .select("id, username, display_name, class_name, soft_skills_league_id")
-    .eq("role", "student")
-    .not("username", "is", null)
-    .order("username");
-
-  if (pErr) {
-    console.error("soft skills profiles:", pErr);
+  let profiles: ProfileRow[] = [];
+  try {
+    profiles = await fetchStudentProfiles(db);
+  } catch (pErr) {
+    const message = pErr instanceof Error ? pErr.message : String(pErr);
+    console.error("soft skills profiles:", message);
     return {
-      error: pErr.message,
+      error: message,
       profiles: [] as ProfileRow[],
       disciplineEntries: [] as DisciplineEntryRow[],
       fullEntries: [] as FullDisciplineEntryRow[],

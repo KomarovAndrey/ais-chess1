@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { getValidMoves, makeMove, countPieces, type Board } from "@/lib/reversi";
+import { supabase } from "@/lib/supabaseClient";
 
 const BOARD_SIZE = 8;
 const CELL_SIZE = 44;
@@ -66,12 +67,18 @@ export default function ReversiPlayClient({
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
-    let id = typeof window !== "undefined" ? localStorage.getItem("ais_reversi_player_id") : null;
-    if (!id) {
-      id = crypto.randomUUID();
-      localStorage.setItem("ais_reversi_player_id", id);
-    }
-    setPlayerId(id);
+    let cancelled = false;
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!cancelled && session?.user?.id) setPlayerId(session.user.id);
+    });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => {
+      if (session?.user?.id) setPlayerId(session.user.id);
+      else setPlayerId(null);
+    });
+    return () => {
+      cancelled = true;
+      subscription.unsubscribe();
+    };
   }, []);
 
   useEffect(() => {
@@ -94,7 +101,7 @@ export default function ReversiPlayClient({
           const joinRes = await fetch("/api/reversi/join", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ gameId, playerId }),
+            body: JSON.stringify({ gameId }),
           });
           const joinData = await joinRes.json().catch(() => ({}));
           if (cancelled) return;
@@ -157,7 +164,7 @@ export default function ReversiPlayClient({
       const res = await fetch(`/api/reversi/${gameId}/move`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ playerId, row: r, col: c }),
+        body: JSON.stringify({ row: r, col: c }),
       });
       const data = await res.json().catch(() => ({}));
       if (res.ok && data.game) {

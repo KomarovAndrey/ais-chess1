@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { getSupabaseOptionalUser } from "@/lib/apiAuth";
+import { getSupabaseAndUser } from "@/lib/apiAuth";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { getGameWriteClient, SERVICE_ROLE_MISSING, requireAuthForRated } from "@/lib/games/integrity";
 import { joinGameSchema } from "@/lib/validations/games";
@@ -47,9 +47,10 @@ async function getPlayersInfo(
 }
 
 export async function POST(req: NextRequest) {
-  const auth = await getSupabaseOptionalUser();
+  const auth = await getSupabaseAndUser();
   if ("response" in auth) return auth.response;
   const { supabase, user } = auth;
+  const playerId = user.id;
   const writeClient = getGameWriteClient(supabase);
   if (!writeClient) {
     return NextResponse.json(SERVICE_ROLE_MISSING, { status: 503 });
@@ -64,14 +65,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: message }, { status: 400 });
     }
 
-    const { gameId, playerId: bodyPlayerId } = parsed.data;
-    const playerId = user?.id ?? bodyPlayerId;
-    if (!playerId || (user === null && (!bodyPlayerId || !UUID_REGEX.test(bodyPlayerId)))) {
-      return NextResponse.json(
-        { error: "Для игры без входа укажите playerId (UUID) в теле запроса." },
-        { status: 400 }
-      );
-    }
+    const { gameId } = parsed.data;
 
     if (!await checkRateLimit(playerId)) {
       return NextResponse.json(

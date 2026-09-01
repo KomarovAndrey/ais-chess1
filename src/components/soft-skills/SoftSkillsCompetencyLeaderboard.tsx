@@ -127,7 +127,43 @@ export default function SoftSkillsCompetencyLeaderboard({
           </div>
         </div>
       )}
-      <div className="overflow-x-auto">
+      <div className="space-y-2 p-3 md:hidden">
+        {displayRows.length === 0 ? (
+          <p className="px-2 py-4 text-sm text-white/55">{emptyText}</p>
+        ) : (
+          displayRows.map((r, index) => {
+            const profileHref = softSkillsProfileHref(r.username);
+            const label = r.displayName?.trim() || r.username || "Ученик";
+            const rank = sortKey && r.place > 0 ? index + 1 : r.place > 0 ? r.place : "—";
+            return (
+              <div
+                key={r.userId}
+                className={`rounded-xl border border-white/10 bg-white/[0.03] p-3 ${r.isProvisional ? "opacity-60" : ""}`}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs font-semibold text-white/40">#{rank}</span>
+                  <span className="font-display text-lg font-semibold text-gold">
+                    {r.points > 0 ? formatCompetency(r.points) : "—"}
+                    {r.compositeIsPartial && (
+                      <span className="ml-1 text-[10px] text-amber-200">~</span>
+                    )}
+                  </span>
+                </div>
+                <div className="mt-1 text-sm font-medium text-white">
+                  {profileHref ? (
+                    <Link href={profileHref} className="hover:text-gold">
+                      {label}
+                    </Link>
+                  ) : (
+                    label
+                  )}
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+      <div className="hidden overflow-x-auto md:block">
         <table
           className={`w-full table-fixed border-collapse ${
             showCompetencyCols ? "min-w-[900px]" : "min-w-[320px]"
@@ -225,7 +261,21 @@ export default function SoftSkillsCompetencyLeaderboard({
                       {formatCompetency(r.disciplineIndex ?? null)}
                     </td>
                     <td className="px-2 py-2.5 text-right text-sm font-bold tabular-nums text-gold">
-                      {r.points > 0 ? formatCompetency(r.points) : "—"}
+                      {r.points > 0 ? (
+                        <span className="inline-flex items-center justify-end gap-1">
+                          {formatCompetency(r.points)}
+                          {r.compositeIsPartial && (
+                            <span
+                              className="rounded bg-amber-500/20 px-1 text-[9px] font-medium text-amber-200"
+                              title="Частичный расчёт"
+                            >
+                              ~
+                            </span>
+                          )}
+                        </span>
+                      ) : (
+                        "—"
+                      )}
                     </td>
                   </tr>
                 );

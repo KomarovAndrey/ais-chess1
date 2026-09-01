@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseOptionalUser } from "@/lib/apiAuth";
+import { checkPublicReadRateLimit, getRequestIp } from "@/lib/rateLimit";
 import { isStaffRole, resolveUserRole } from "@/lib/roles";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { OptionalAuthResult } from "@/lib/apiAuth";
@@ -86,6 +87,11 @@ export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ username: string }> }
 ) {
+  const ip = getRequestIp(req);
+  if (!(await checkPublicReadRateLimit(ip))) {
+    return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+  }
+
   const auth = await getSupabaseOptionalUser();
   if ("response" in auth) return auth.response;
   const supabase = await resolveProfileDb(auth);
@@ -128,13 +134,13 @@ export async function GET(
     });
   }
 
-  // Получить все игры
+  // Получить последние игры (ограниченная выборка)
   const { data: games, error: gamesError } = await supabase
     .from("games")
     .select("id, status, winner, created_at, started_at")
     .in("id", gameIds)
     .order("created_at", { ascending: false })
-    .limit(50); // Увеличиваем лимит, чтобы потом отфильтровать
+    .limit(50);
 
   if (gamesError) {
     console.error("Games fetch error:", gamesError);
@@ -145,20 +151,37 @@ export async function GET(
     });
   }
 
-  // Получить всех игроков для этих игр
+  const candidateGameIds = (games ?? []).map((g) => g.id);
+  if (candidateGameIds.length === 0) {
+    return NextResponse.json({
+      profile: serializeProfile(profile),
+      stats: { total: 0, wins: 0, losses: 0, draws: 0 },
+      recent_games: [],
+    });
+  }
+
   const { data: allPlayers } = await supabase
     .from("game_players")
     .select("game_id, side, player_id")
-    .in("game_id", gameIds);
+    .in("game_id", candidateGameIds);
 
-  // Получить список всех зарегистрированных пользователей (их ID из profiles)
-  const { data: registeredUserIds } = await supabase
-    .from("profiles")
-    .select("id");
+  const opponentIds = [
+    ...new Set(
+      (allPlayers ?? [])
+        .filter((p) => p.player_id !== userId)
+        .map((p) => p.player_id)
+    ),
+  ];
 
-  const registeredIdsSet = new Set((registeredUserIds ?? []).map((p) => p.id));
+  const registeredIdsSet = new Set<string>([userId]);
+  if (opponentIds.length > 0) {
+    const { data: registered } = await supabase
+      .from("profiles")
+      .select("id")
+      .in("id", opponentIds);
+    for (const p of registered ?? []) registeredIdsSet.add(p.id);
+  }
 
-  // Фильтровать игры: оставить только те, где оба игрока зарегистрированы
   const validGames = (games ?? []).filter((game) => {
     const gamePlayers = (allPlayers ?? []).filter((p) => p.game_id === game.id);
     // Должно быть ровно 2 игрока (белые и чёрные)

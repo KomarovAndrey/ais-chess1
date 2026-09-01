@@ -40,25 +40,33 @@ export async function GET(req: NextRequest) {
   }
 
   const db = auth.admin ?? auth.supabase;
+  const offset = Math.max(0, Number.parseInt(req.nextUrl.searchParams.get("offset") ?? "0", 10) || 0);
+  const limit = Math.min(
+    200,
+    Math.max(1, Number.parseInt(req.nextUrl.searchParams.get("limit") ?? "100", 10) || 100)
+  );
 
-  const { data: studentsRaw, error: studentsErr } = await db
+  let studentsQuery = db
     .from("profiles")
-    .select("id, username, display_name, soft_skills_league_id")
+    .select("id, username, display_name, soft_skills_league_id", { count: "exact" })
     .eq("role", "student")
     .not("username", "is", null)
+    .or(`soft_skills_league_id.is.null,soft_skills_league_id.eq.${leagueId}`)
     .order("display_name", { ascending: true })
-    .limit(200);
+    .range(offset, offset + limit - 1);
+
+  const { data: studentsRaw, error: studentsErr, count: studentsTotal } = await studentsQuery;
 
   if (studentsErr) {
     // Column may be missing before migration — retry without it
     if (studentsErr.message?.includes("soft_skills_league_id")) {
       const retry = await db
         .from("profiles")
-        .select("id, username, display_name")
+        .select("id, username, display_name", { count: "exact" })
         .eq("role", "student")
         .not("username", "is", null)
         .order("display_name", { ascending: true })
-        .limit(200);
+        .range(offset, offset + limit - 1);
       if (retry.error) {
         return NextResponse.json({ error: "Не удалось загрузить детей." }, { status: 500 });
       }
@@ -105,11 +113,7 @@ export async function GET(req: NextRequest) {
   }
 
   const allStudents = (studentsRaw ?? []) as StudentRow[];
-
-  // Pool for this league: unbound or bound to this league
-  const leagueStudents = allStudents.filter(
-    (s) => !s.soft_skills_league_id || s.soft_skills_league_id === leagueId
-  );
+  const leagueStudents = allStudents;
 
   const locked = assignments
     .filter((a) => !(a.league_id === leagueId && a.team_id === teamId))
@@ -139,6 +143,9 @@ export async function GET(req: NextRequest) {
     students,
     memberIds,
     locked,
+    studentsTotal: studentsTotal ?? leagueStudents.length,
+    studentsOffset: offset,
+    studentsHasMore: offset + leagueStudents.length < (studentsTotal ?? leagueStudents.length),
   });
 }
 

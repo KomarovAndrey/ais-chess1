@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import dynamic from "next/dynamic";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
@@ -24,6 +25,13 @@ export default async function PlayPage({ params }: PlayPageProps) {
   const supabase = await createClient();
   if (!supabase) {
     notFound();
+  }
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    redirect(`/login?next=/play/${gameId}`);
   }
 
   const { data: game, error } = await supabase

@@ -2,17 +2,23 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { Menu, X } from "lucide-react";
 import AppNav from "@/components/AppNav";
 import type { HeaderProfile, HeaderUser } from "@/lib/auth/session";
 
 const NAV_LINKS = [
-  { href: "/ratings", label: "Рейтинг" },
-  { href: "/zadachi", label: "Задачи" },
-  { href: "/tournaments", label: "Турниры" },
+  { href: "/ratings", label: "SS рейтинг" },
+  { href: "/chess", label: "Шахматы" },
   { href: "/reversi", label: "Reversi" },
   { href: "/soft-skills", label: "Soft Skills" },
 ] as const;
+
+function navLinkClass(active: boolean) {
+  return active
+    ? "rounded-lg bg-white/10 px-3 py-1.5 text-sm font-medium text-white"
+    : "rounded-lg px-3 py-1.5 text-sm font-medium text-white/65 transition hover:bg-white/5 hover:text-white";
+}
 
 type SiteHeaderProps = {
   initialUser: HeaderUser | null;
@@ -21,6 +27,7 @@ type SiteHeaderProps = {
 
 export default function SiteHeader({ initialUser, initialProfile }: SiteHeaderProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const pathname = usePathname();
 
   return (
     <header className="sticky top-0 z-50 border-b border-white/[0.08] bg-ink-900/80 backdrop-blur-xl">
@@ -40,15 +47,19 @@ export default function SiteHeader({ initialUser, initialProfile }: SiteHeaderPr
             </span>
           </Link>
           <nav className="ml-2 hidden items-center gap-1 md:flex" aria-label="Основное меню">
-            {NAV_LINKS.map((link) => (
+            {NAV_LINKS.map((link) => {
+              const active =
+                pathname === link.href || pathname.startsWith(`${link.href}/`);
+              return (
               <Link
                 key={link.href}
                 href={link.href}
-                className="rounded-lg px-3 py-1.5 text-sm font-medium text-white/65 transition hover:bg-white/5 hover:text-white"
+                className={navLinkClass(active)}
               >
                 {link.label}
               </Link>
-            ))}
+            );
+            })}
           </nav>
         </div>
 
@@ -72,16 +83,22 @@ export default function SiteHeader({ initialUser, initialProfile }: SiteHeaderPr
           aria-label="Мобильное меню"
         >
           <div className="mx-auto flex max-w-6xl flex-col gap-1">
-            {NAV_LINKS.map((link) => (
+            {NAV_LINKS.map((link) => {
+              const active =
+                pathname === link.href || pathname.startsWith(`${link.href}/`);
+              return (
               <Link
                 key={link.href}
                 href={link.href}
                 onClick={() => setMobileOpen(false)}
-                className="rounded-xl px-3 py-3 text-sm font-medium text-white/80 transition hover:bg-white/5 hover:text-white"
+                className={active
+                  ? "rounded-xl bg-white/10 px-3 py-3 text-sm font-medium text-white"
+                  : "rounded-xl px-3 py-3 text-sm font-medium text-white/80 transition hover:bg-white/5 hover:text-white"}
               >
                 {link.label}
               </Link>
-            ))}
+            );
+            })}
           </div>
         </nav>
       )}

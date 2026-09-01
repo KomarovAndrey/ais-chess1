@@ -10,26 +10,13 @@ export async function GET() {
   const { data, error } = await supabase
     .from("profiles")
     .select(
-      "username, display_name, bio, updated_at, rating, rating_bullet, rating_blitz, rating_rapid, rating_puzzle, avatar_url, games_played_bullet, games_played_blitz, games_played_rapid, role"
+      "username, display_name, bio, updated_at, rating, rating_bullet, rating_blitz, rating_rapid, avatar_url, games_played_bullet, games_played_blitz, games_played_rapid, role"
     )
     .eq("id", auth.user.id)
     .single();
 
-  let row = data as Record<string, unknown> | null;
-  if (error && error.message?.includes("rating_puzzle")) {
-    const retry = await supabase
-      .from("profiles")
-      .select(
-        "username, display_name, bio, updated_at, rating, rating_bullet, rating_blitz, rating_rapid, avatar_url, games_played_bullet, games_played_blitz, games_played_rapid"
-      )
-      .eq("id", auth.user.id)
-      .single();
-    if (retry.error && retry.error.code !== "PGRST116") {
-      console.error("Profile GET error:", retry.error);
-      return NextResponse.json({ error: "Failed to load profile" }, { status: 500 });
-    }
-    row = retry.data as Record<string, unknown> | null;
-  } else if (error && error.code !== "PGRST116") {
+  const row = data as Record<string, unknown> | null;
+  if (error && error.code !== "PGRST116") {
     console.error("Profile GET error:", error);
     return NextResponse.json({ error: "Failed to load profile" }, { status: 500 });
   }
@@ -50,7 +37,6 @@ export async function GET() {
     rating_bullet: row?.rating_bullet ?? row?.rating ?? 1500,
     rating_blitz: row?.rating_blitz ?? row?.rating ?? 1500,
     rating_rapid: row?.rating_rapid ?? row?.rating ?? 1500,
-    rating_puzzle: row?.rating_puzzle ?? 1500,
     avatar_url: row?.avatar_url ?? null,
     games_played_bullet: row?.games_played_bullet ?? 0,
     games_played_blitz: row?.games_played_blitz ?? 0,

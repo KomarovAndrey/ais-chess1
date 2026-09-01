@@ -1,24 +1,42 @@
 # AIS Chess (Next.js 15 + Supabase)
 
-Простой внутришкольный сайт для игры в шахматы.
+Школьная платформа: **Soft Skills** (оценки, рейтинги, команды), **шахматы** (CPU + live PvP для авторизованных), **Reversi**.
 
 ## Стек
 
 - Next.js 15 (App Router, `src/app`)
-- React + TypeScript
-- Tailwind CSS
-- Собственный минимальный UI в стиле shadcn (компонент `Button`)
-- Supabase для email/password авторизации
-- `lucide-react` для иконок
-- `chess.js` и `react-chessboard` для логики и отображения доски
-- Stockfish.js (lite WASM) для игры с компьютером и анализа — копируется в `public/engines` при `npm install` / `npm run build` (GPL-3)
+- React + TypeScript + Tailwind CSS
+- Supabase (auth, Postgres, Realtime, RLS)
+- `chess.js`, `react-chessboard`, Stockfish WASM
+- Vitest (unit) + Playwright (smoke e2e)
 
-## Страницы
+## Маршруты
 
-- `/` — лендинг с описанием и кнопкой «Начать»
-- `/login` — страница входа (email/password)
-- `/register` — страница регистрации
-- `/chess` — шахматная доска с выбором цвета и сложности
+| Путь | Описание |
+|------|----------|
+| `/` | Главная, лобби seeks (нужен вход) |
+| `/login`, `/register` | Авторизация |
+| `/soft-skills`, `/soft-skills/[moduleId]` | Модули Soft Skills |
+| `/soft-skills/analytics` | Аналитика (teacher/admin) |
+| `/ratings` | Рейтинги Soft Skills |
+| `/user/[username]` | Публичный профиль |
+| `/chess` | Шахматы vs CPU (локально) |
+| `/play/[gameId]` | Live PvP (только с входом) |
+| `/reversi` | Reversi vs CPU или по ссылке (с входом) |
+| `/admin/reports` | Жалобы (admin) |
+
+## Роли
+
+- **student** — модули, профиль, self-ratings, игра
+- **teacher** — + оценки, редактор команд, аналитика, список учеников
+- **admin** — + жалобы, полный доступ staff API
+
+## Production env
+
+- `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY` (ходы, рейтинг, staff)
+- `USE_DB_RATE_LIMIT=1` (рекомендуется на Vercel)
+- `NEXT_PUBLIC_SITE_URL` (SEO)
 
 ## Быстрый старт
 
@@ -26,6 +44,14 @@
 
 ```bash
 npm install
+```
+
+Тесты:
+
+```bash
+npm test
+npm run test:e2e   # Playwright smoke (нужен build или dev-сервер)
+npm run audit:supabase
 ```
 
 2. **Настройте ключи Supabase в `.env.local`** — без них авторизация (вход, регистрация, профиль) работать не будет. Создайте в корне проекта файл `.env.local` и укажите:
@@ -48,14 +74,27 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=...
      5. `supabase-migration-games-allow-anon.sql` — разрешить игру без регистрации
      6. `supabase-migration-game-integrity.sql` — серверная целостность партий (после настройки `SUPABASE_SERVICE_ROLE_KEY`)
      7. `supabase-migration-matchmaking-phase-a.sql` — лобби (seeks), инкремент часов, rated/casual, abort/rematch
-     8. `supabase-migration-zadachi.sql` — каталог **Задач**, рейтинг задач, попытки
-     9. `supabase-seed-zadachi-lichess.sql` — **12 000** задач из открытой базы Lichess (Wave 2; большой файл, можно гонять чанками)
-     10. `supabase-migration-tournaments-arena.sql` — Arena-турниры (партии через seeks + таблица)
-     11. `supabase-migration-live-protocol-phase-f.sql` — presence (ТВ/зрители и чат убраны из приложения)
-     12. `supabase-migration-trust-phase-g.sql` — provisional Elo, публичная история, rate buckets, жалобы
-     13. `supabase-migration-lichess-clock-start.sql` — часы стартуют после первых ходов (как на Lichess)
-     14. `supabase-migration-wave-3-live-lobby.sql` — публичное лобби seeks + accept_seek, Realtime
-     15. `supabase-migration-tournaments-arena-autopair.sql` — Arena auto-pair idle players + Realtime standings
+     8. `supabase-migration-live-protocol-phase-f.sql` — presence
+     9. `supabase-migration-trust-phase-g.sql` — provisional Elo, публичная история, rate buckets, жалобы
+     10. `supabase-migration-lichess-clock-start.sql` — часы стартуют после первых ходов (как на Lichess)
+     11. `supabase-migration-wave-3-live-lobby.sql` — публичное лобби seeks + accept_seek, Realtime
+
+   **Soft Skills** (выполнить по порядку, если используете модуль оценок):
+     1. `supabase-migration-soft-skills-teams.sql`
+     2. `supabase-migration-soft-skills-league-binding.sql`
+     3. `supabase-migration-soft-skills-ratings.sql`
+     4. `supabase-migration-soft-skills-disciplines.sql` — обязательно
+     5. `supabase-migration-soft-skills-teacher-note.sql`
+     6. `supabase-migration-soft-skills-self-ratings.sql`
+     7. `supabase-migration-profiles-protect-sensitive.sql` — защита role/рейтингов, login RPC
+     8. `supabase-migration-soft-skills-rls-tighten.sql` — ужесточение RLS entries/self-ratings
+
+   Демо-данные для тестов: `npm run seed:soft-skills` (нужен `SUPABASE_SERVICE_ROLE_KEY` в `.env.local`).
+   Проверка рейтингов: `node scripts/verify-soft-skills-ratings.mjs`.
+   Аудит Supabase: `npm run audit:supabase`.
+
+   Если раньше ставили **Задачи** и нужно убрать из БД: `supabase-drop-zadachi.sql`.
+   Если раньше ставили **Турниры**: `supabase-drop-tournaments.sql`.
 
    В production обязателен `SUPABASE_SERVICE_ROLE_KEY` (без него ходы/рейтинг вернут 503).
    Опционально: `USE_DB_RATE_LIMIT=1` — распределённый лимит через таблицу `rate_limit_buckets`.
@@ -221,7 +260,7 @@ git push -u origin main
 ## SEO и технические настройки
 
 - **robots.txt** — генерируется динамически из `src/app/robots.ts`. Правила: разрешена индексация публичных страниц; закрыты от индексации `/api/`, `/auth/`, страницы входа/регистрации/профиля и партий. Ссылка на sitemap подставляется из переменной `NEXT_PUBLIC_SITE_URL` (если не задана — используется заглушка `https://ais-chess.example.com`).
-- **sitemap.xml** — генерируется из `src/app/sitemap.ts`. В карту входят публичные страницы: главная, `/chess`, `/reversi`, `/zadachi`, `/tournaments`, `/ratings`, `/privacy`, `/terms`. Для корректных URL в sitemap задайте `NEXT_PUBLIC_SITE_URL` в `.env.local` (разработка) и в настройках проекта на Vercel (продакшен).
+- **sitemap.xml** — генерируется из `src/app/sitemap.ts`. В карту входят публичные страницы: главная, `/chess`, `/reversi`, `/ratings`, `/privacy`, `/terms`. Для корректных URL в sitemap задайте `NEXT_PUBLIC_SITE_URL` в `.env.local` (разработка) и в настройках проекта на Vercel (продакшен).
 - **Сжатие (gzip):** включено в `next.config.mjs` (`compress: true`). При запуске через `next start` или на Vercel ответы сжимаются. Проверка: откройте сайт в браузере → DevTools → вкладка Network → выберите документ или крупный JS/CSS → во вкладке Headers ответа должно быть поле `Content-Encoding: gzip` (или `br` на части хостингов).
 - **Скорость:** страница рейтингов кэшируется на 60 секунд (`revalidate = 60`). Тяжёлый компонент игры (`play-game`) подгружается динамически при открытии партии, чтобы не увеличивать размер основного бандла.
 

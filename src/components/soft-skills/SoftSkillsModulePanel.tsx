@@ -1,8 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { ChevronDown } from "lucide-react";
+import { useAuth } from "@/components/AuthProvider";
 import SoftSkillsChildScoring from "@/components/soft-skills/SoftSkillsChildScoring";
+import { softSkillsProfileHref } from "@/lib/softSkillsLinks";
 import { disciplinesForLeague } from "@/lib/softSkillsDisciplines";
 import {
   SOFT_SKILLS_LEAGUES,
@@ -31,6 +34,8 @@ function memberLabel(m: Member) {
 }
 
 export default function SoftSkillsModulePanel({ module, isStaff = false }: SoftSkillsModulePanelProps) {
+  const { user, profile } = useAuth();
+  const myProfileHref = softSkillsProfileHref(profile?.username ?? null);
   const [week, setWeek] = useState(1);
   const [openLeagueIds, setOpenLeagueIds] = useState<Set<string>>(() => new Set());
   const [openTeamIds, setOpenTeamIds] = useState<Set<string>>(() => new Set());
@@ -92,6 +97,22 @@ export default function SoftSkillsModulePanel({ module, isStaff = false }: SoftS
 
   return (
     <div className="space-y-6">
+      {!isStaff && user && (
+        <div className="surface-pad">
+          <h2 className="font-display text-lg font-semibold text-white">Мой прогресс</h2>
+          <p className="mt-1 text-sm text-white/50">
+            Оценки, тренды и самооценка — в вашем профиле Soft Skills.
+          </p>
+          {myProfileHref ? (
+            <Link href={myProfileHref} className="btn-secondary mt-3 inline-flex text-sm">
+              Открыть профиль
+            </Link>
+          ) : (
+            <p className="mt-2 text-xs text-white/40">Завершите регистрацию с username.</p>
+          )}
+        </div>
+      )}
+
       <div className="surface-pad">
         <div className="mb-3 flex items-center justify-between gap-3">
           <p className="text-sm font-medium text-white/70">{weekLabel}</p>
@@ -109,7 +130,9 @@ export default function SoftSkillsModulePanel({ module, isStaff = false }: SoftS
         />
         <div className="mt-2 flex justify-between text-[11px] text-white/35">
           {Array.from({ length: maxWeek }, (_, i) => (
-            <span key={i + 1}>{i + 1}</span>
+            <span key={i + 1} className={maxWeek > 10 && (i + 1) % 2 !== 0 ? "hidden sm:inline" : ""}>
+              {i + 1}
+            </span>
           ))}
         </div>
       </div>

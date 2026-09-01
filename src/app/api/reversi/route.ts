@@ -1,13 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAnonSupabase } from "@/lib/supabase/anon-server";
+import { getSupabaseAndUser } from "@/lib/apiAuth";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { createInitialBoard } from "@/lib/reversi";
 import type { Board } from "@/lib/reversi";
 
 type ReversiMove = { row: number; col: number; player: "black" | "white" };
-
-const UUID_REGEX =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 type ReversiGameInsert = {
   status: string;
@@ -24,24 +21,14 @@ type ReversiTableInsert = {
 };
 
 export async function POST(req: NextRequest) {
-  const supabase = getAnonSupabase();
-  if (!supabase) {
-    return NextResponse.json(
-      { error: "Сервис временно недоступен. Настройте Supabase (NEXT_PUBLIC_SUPABASE_*)." },
-      { status: 503 }
-    );
-  }
+  const auth = await getSupabaseAndUser();
+  if ("response" in auth) return auth.response;
+  const { supabase, user } = auth;
 
   try {
     const body = await req.json().catch(() => ({}));
     const creatorSide = body.creatorSide === "white" ? "white" : body.creatorSide === "black" ? "black" : "random";
-    const playerId = body.playerId;
-    if (!playerId || !UUID_REGEX.test(playerId)) {
-      return NextResponse.json(
-        { error: "Укажите playerId (UUID) в теле запроса для игры по ссылке." },
-        { status: 400 }
-      );
-    }
+    const playerId = user.id;
 
     if (!await checkRateLimit(playerId)) {
       return NextResponse.json({ error: "Too many requests" }, { status: 429 });
