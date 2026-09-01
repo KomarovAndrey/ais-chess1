@@ -71,7 +71,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=...
      2. `supabase-migration-profiles-username.sql` — добавление username и функций
      3. `supabase-migration-profiles-add-role.sql` — добавление ролей (student/teacher/admin)
      4. `supabase-schema-games.sql` — таблицы для игр (games, game_players)
-     5. `supabase-migration-games-allow-anon.sql` — разрешить игру без регистрации
+     5. `supabase-migration-games-allow-anon.sql` — legacy (раньше гостевая игра; live PvP сейчас только с входом)
      6. `supabase-migration-game-integrity.sql` — серверная целостность партий (после настройки `SUPABASE_SERVICE_ROLE_KEY`)
      7. `supabase-migration-matchmaking-phase-a.sql` — лобби (seeks), инкремент часов, rated/casual, abort/rematch
      8. `supabase-migration-live-protocol-phase-f.sql` — presence
@@ -97,7 +97,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=...
    Если раньше ставили **Турниры**: `supabase-drop-tournaments.sql`.
 
    В production обязателен `SUPABASE_SERVICE_ROLE_KEY` (без него ходы/рейтинг вернут 503).
-   Опционально: `USE_DB_RATE_LIMIT=1` — распределённый лимит через таблицу `rate_limit_buckets`.
+   Рекомендуется в production: `USE_DB_RATE_LIMIT=1` — распределённый лимит через `rate_limit_buckets`.
    - Для каждого скрипта: скопируйте весь код из файла и вставьте в редактор, затем нажмите **Run** (или Ctrl+Enter).
    - Должно выполниться без ошибок. Схема подхватится автоматически.
    - Если в проекте раньше был Soft Skills: выполните `supabase-drop-soft-skills.sql`, чтобы удалить таблицы `children` / ratings.
@@ -178,7 +178,7 @@ Supabase ограничивает число писем (регистрация,
 
 ### Шаг 1. Установить Git
 
-- Скачайте установщик: [git-scm.com/download/win](.https://git-scm.com/download/win)
+- Скачайте установщик: [git-scm.com/download/win](https://git-scm.com/download/win)
 - Установите, на шаге **PATH** выберите **"Git from the command line and also from 3rd-party software"**.
 - Закройте и снова откройте терминал (или Cursor).
 
