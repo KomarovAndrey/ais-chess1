@@ -1,10 +1,19 @@
+"use client";
+
+import { useMemo, useState } from "react";
 import Link from "next/link";
+import { ArrowDown, ArrowUp, ArrowUpDown, Info } from "lucide-react";
 import {
   SOFT_SKILLS_STAR_SKILLS,
   formatCompetency,
 } from "@/lib/softSkillsCompetencies";
+import { COMPOSITE_FORMULA_LABEL } from "@/lib/softSkillsComposite";
+import type { SoftSkillsStarSkillId } from "@/lib/softSkillsDisciplines";
 import type { SoftSkillsRatingEntry } from "@/lib/softSkillsRatings";
 import { softSkillsProfileHref } from "@/lib/softSkillsLinks";
+
+type SortKey = SoftSkillsStarSkillId | "competency" | "discipline" | "composite";
+type SortDir = "desc" | "asc";
 
 type Props = {
   title?: string;
@@ -14,6 +23,69 @@ type Props = {
   showTeam?: boolean;
 };
 
+function sortValue(row: SoftSkillsRatingEntry, key: SortKey, dir: SortDir): number {
+  let raw: number | null | undefined;
+  if (key === "composite") raw = row.points;
+  else if (key === "competency") raw = row.competencyOverall;
+  else if (key === "discipline") raw = row.disciplineIndex;
+  else raw = row.competencies?.[key];
+  if (raw == null || raw <= 0) return dir === "desc" ? -Infinity : Infinity;
+  return raw;
+}
+
+function compareRows(a: SoftSkillsRatingEntry, b: SoftSkillsRatingEntry, key: SortKey, dir: SortDir) {
+  const av = sortValue(a, key, dir);
+  const bv = sortValue(b, key, dir);
+  if (av !== bv) return dir === "desc" ? bv - av : av - bv;
+  return (a.displayName || a.username || "").localeCompare(b.displayName || b.username || "", "ru");
+}
+
+function SortIcon({ active, dir }: { active: boolean; dir: SortDir }) {
+  if (!active) return <ArrowUpDown className="ml-1 inline h-3 w-3 opacity-40" />;
+  return dir === "desc" ? (
+    <ArrowDown className="ml-1 inline h-3 w-3 text-gold" />
+  ) : (
+    <ArrowUp className="ml-1 inline h-3 w-3 text-gold" />
+  );
+}
+
+function SortableHeader({
+  label,
+  sortKey,
+  activeKey,
+  dir,
+  onSort,
+  align = "center",
+  title,
+}: {
+  label: string;
+  sortKey: SortKey;
+  activeKey: SortKey | null;
+  dir: SortDir;
+  onSort: (key: SortKey) => void;
+  align?: "left" | "center" | "right";
+  title?: string;
+}) {
+  const alignClass =
+    align === "left" ? "text-left" : align === "right" ? "text-right" : "text-center";
+
+  return (
+    <th className={`px-1.5 py-3 font-semibold ${alignClass}`}>
+      <button
+        type="button"
+        onClick={() => onSort(sortKey)}
+        className={`inline-flex max-w-full items-center leading-snug whitespace-normal transition hover:text-white ${
+          activeKey === sortKey ? "text-gold" : ""
+        } ${align === "right" ? "ml-auto" : align === "center" ? "mx-auto" : ""}`}
+        title={title ?? "Сортировать"}
+      >
+        <span>{label}</span>
+        <SortIcon active={activeKey === sortKey} dir={dir} />
+      </button>
+    </th>
+  );
+}
+
 export default function SoftSkillsCompetencyLeaderboard({
   title,
   rows,
@@ -21,44 +93,109 @@ export default function SoftSkillsCompetencyLeaderboard({
   showClass = false,
   showTeam = false,
 }: Props) {
+  const [sortKey, setSortKey] = useState<SortKey | null>("composite");
+  const [sortDir, setSortDir] = useState<SortDir>("desc");
+
+  function handleSort(key: SortKey) {
+    if (sortKey === key) {
+      setSortDir((d) => (d === "desc" ? "asc" : "desc"));
+    } else {
+      setSortKey(key);
+      setSortDir("desc");
+    }
+  }
+
+  const displayRows = useMemo(() => {
+    if (!sortKey) return rows;
+    return [...rows].sort((a, b) => compareRows(a, b, sortKey, sortDir));
+  }, [rows, sortKey, sortDir]);
+
   return (
     <div className="surface overflow-hidden">
       {title && (
         <div className="border-b border-white/10 bg-white/[0.03] px-4 py-3">
           <h2 className="font-display text-base font-semibold text-white">{title}</h2>
-          <p className="mt-0.5 text-xs text-white/40">
-            Средний балл по 5 компетенциям (шкала 0–5)
+          <p className="mt-0.5 flex items-start gap-1.5 text-xs text-white/40">
+            <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+            <span>{COMPOSITE_FORMULA_LABEL}. Нажмите заголовок колонки для сортировки.</span>
           </p>
         </div>
       )}
       <div className="overflow-x-auto">
-        <div className="min-w-[720px]">
-          <div className="grid grid-cols-[40px_minmax(140px,1fr)_repeat(5,64px)_56px] gap-1 border-b border-white/10 bg-white/[0.02] px-3 py-3 text-[10px] font-semibold uppercase tracking-wider text-white/45">
-            <div>#</div>
-            <div>Участник</div>
+        <table className="w-full min-w-[900px] table-fixed border-collapse">
+          <colgroup>
+            <col className="w-10" />
+            <col className="w-[18%]" />
             {SOFT_SKILLS_STAR_SKILLS.map((s) => (
-              <div key={s.id} className="text-center leading-tight">
-                {s.label.split(" ")[0]}
-              </div>
+              <col key={s.id} className="w-[10%]" />
             ))}
-            <div className="text-right">Средн.</div>
-          </div>
-          {rows.length === 0 ? (
-            <div className="px-4 py-6 text-sm text-white/55">{emptyText}</div>
-          ) : (
-            <ul className="divide-y divide-white/5">
-              {rows.map((r) => {
+            <col className="w-12" />
+            <col className="w-12" />
+            <col className="w-12" />
+          </colgroup>
+          <thead>
+            <tr className="border-b border-white/10 bg-white/[0.02] text-[10px] font-semibold uppercase tracking-wide text-white/45">
+              <th className="px-2 py-3 text-left font-semibold">#</th>
+              <th className="px-2 py-3 text-left font-semibold">Участник</th>
+              {SOFT_SKILLS_STAR_SKILLS.map((s) => (
+                <SortableHeader
+                  key={s.id}
+                  label={s.label}
+                  sortKey={s.id}
+                  activeKey={sortKey}
+                  dir={sortDir}
+                  onSort={handleSort}
+                />
+              ))}
+              <SortableHeader
+                label="Компет."
+                sortKey="competency"
+                activeKey={sortKey}
+                dir={sortDir}
+                onSort={handleSort}
+                title="Среднее по компетенциям"
+              />
+              <SortableHeader
+                label="Дисцип."
+                sortKey="discipline"
+                activeKey={sortKey}
+                dir={sortDir}
+                onSort={handleSort}
+                title="Индекс дисциплин"
+              />
+              <SortableHeader
+                label="Итог"
+                sortKey="composite"
+                activeKey={sortKey}
+                dir={sortDir}
+                onSort={handleSort}
+                align="right"
+                title="Композитный балл"
+              />
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-white/5">
+            {displayRows.length === 0 ? (
+              <tr>
+                <td colSpan={9} className="px-4 py-6 text-sm text-white/55">
+                  {emptyText}
+                </td>
+              </tr>
+            ) : (
+              displayRows.map((r, index) => {
                 const profileHref = softSkillsProfileHref(r.username);
                 const label = r.displayName?.trim() || r.username || "Ученик";
                 const comps = r.competencies;
+                const rank =
+                  sortKey && r.place > 0 ? index + 1 : r.place > 0 ? r.place : "—";
 
                 return (
-                  <li
+                  <tr
                     key={r.userId}
-                    className="grid grid-cols-[40px_minmax(140px,1fr)_repeat(5,64px)_56px] items-center gap-1 px-3 py-2.5 transition hover:bg-white/[0.04]"
+                    className={`transition hover:bg-white/[0.04] ${r.isProvisional ? "opacity-60" : ""}`}
                   >
-                    <div className="text-sm font-semibold text-white/40">{r.place}</div>
-                    <div className="min-w-0">
+                    <td className="px-2 py-2.5 text-sm font-semibold text-white/40">{rank}</td>
+                    <td className="px-2 py-2.5">
                       <div className="truncate text-sm font-semibold text-white">
                         {profileHref ? (
                           <Link href={profileHref} className="hover:text-gold">
@@ -67,27 +204,39 @@ export default function SoftSkillsCompetencyLeaderboard({
                         ) : (
                           label
                         )}
+                        {r.isProvisional && (
+                          <span className="ml-1 text-[10px] text-amber-400/80">мало данных</span>
+                        )}
                       </div>
                       {(showClass && r.className) || (showTeam && r.teamLabel) ? (
                         <div className="truncate text-[10px] text-white/40">
                           {showClass ? r.className : r.teamLabel}
                         </div>
                       ) : null}
-                    </div>
+                    </td>
                     {SOFT_SKILLS_STAR_SKILLS.map((s) => (
-                      <div key={s.id} className="text-center text-xs font-medium text-white/70">
+                      <td
+                        key={s.id}
+                        className="px-1 py-2.5 text-center text-xs font-medium tabular-nums text-white/70"
+                      >
                         {formatCompetency(comps?.[s.id] ?? null)}
-                      </div>
+                      </td>
                     ))}
-                    <div className="text-right text-sm font-bold text-gold">
+                    <td className="px-1 py-2.5 text-center text-xs tabular-nums text-white/60">
+                      {formatCompetency(r.competencyOverall ?? null)}
+                    </td>
+                    <td className="px-1 py-2.5 text-center text-xs tabular-nums text-white/60">
+                      {formatCompetency(r.disciplineIndex ?? null)}
+                    </td>
+                    <td className="px-2 py-2.5 text-right text-sm font-bold tabular-nums text-gold">
                       {r.points > 0 ? formatCompetency(r.points) : "—"}
-                    </div>
-                  </li>
+                    </td>
+                  </tr>
                 );
-              })}
-            </ul>
-          )}
-        </div>
+              })
+            )}
+          </tbody>
+        </table>
       </div>
     </div>
   );

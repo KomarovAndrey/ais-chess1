@@ -44,7 +44,7 @@ export default async function SoftSkillsRatingsSection({
 
   return (
     <main className="page-bg min-h-screen">
-      <div className="page-shell max-w-4xl">
+      <div className="page-shell max-w-6xl">
         <div className="mb-6 flex items-end justify-between gap-4">
           <div>
             <h1 className="page-title">Рейтинги</h1>
@@ -91,8 +91,12 @@ export default async function SoftSkillsRatingsSection({
 
         {view === "overall" && (
           <SoftSkillsCompetencyLeaderboard
-            title="Общий рейтинг за год · среднее по 5 компетенциям"
-            rows={ctx ? buildOverallBoard(ctx.profiles, ctx.disciplineEntries) : []}
+            title="Общий рейтинг за год · композитный балл"
+            rows={
+              ctx
+                ? buildOverallBoard(ctx.profiles, ctx.disciplineEntries, ctx.fullEntries)
+                : []
+            }
             emptyText="Пока нет оценок. Данные появятся после внесения результатов на неделе."
             showClass
           />
@@ -131,6 +135,7 @@ export default async function SoftSkillsRatingsSection({
                   ? buildModuleLeagueBoard(
                       ctx.profiles,
                       ctx.disciplineEntries,
+                      ctx.fullEntries,
                       moduleId,
                       leagueId
                     )
@@ -144,14 +149,28 @@ export default async function SoftSkillsRatingsSection({
 
         {view === "teams" && (
           <div className="space-y-4">
-            {(ctx ? buildTeamBoard(ctx.profiles, ctx.disciplineEntries, ctx.teams) : []).length ===
-            0 ? (
+            {(ctx
+              ? buildTeamBoard(
+                  ctx.profiles,
+                  ctx.disciplineEntries,
+                  ctx.fullEntries,
+                  ctx.teams
+                )
+              : []
+            ).length === 0 ? (
               <div className="surface-pad text-sm text-white/55">
                 Пока нет команд с участниками.
               </div>
             ) : (
-              (ctx ? buildTeamBoard(ctx.profiles, ctx.disciplineEntries, ctx.teams) : []).map(
-                (team) => (
+              (ctx
+                ? buildTeamBoard(
+                    ctx.profiles,
+                    ctx.disciplineEntries,
+                    ctx.fullEntries,
+                    ctx.teams
+                  )
+                : []
+              ).map((team) => (
                   <SoftSkillsCompetencyLeaderboard
                     key={`${team.leagueId}:${team.teamId}`}
                     title={`Команда «${team.teamLabel}» · Лига ${team.leagueId}`}
@@ -166,12 +185,18 @@ export default async function SoftSkillsRatingsSection({
 
         {view === "classes" && (
           <div className="space-y-4">
-            {(ctx ? buildClassBoard(ctx.profiles, ctx.disciplineEntries) : []).length === 0 ? (
+            {(ctx
+              ? buildClassBoard(ctx.profiles, ctx.disciplineEntries, ctx.fullEntries)
+              : []
+            ).length === 0 ? (
               <div className="surface-pad text-sm text-white/55">
                 Пока нет классов. Добавьте детям поле «Класс» при создании аккаунтов.
               </div>
             ) : (
-              (ctx ? buildClassBoard(ctx.profiles, ctx.disciplineEntries) : []).map((cls) => (
+              (ctx
+                ? buildClassBoard(ctx.profiles, ctx.disciplineEntries, ctx.fullEntries)
+                : []
+              ).map((cls) => (
                 <SoftSkillsCompetencyLeaderboard
                   key={cls.className}
                   title={`Класс ${cls.className}`}

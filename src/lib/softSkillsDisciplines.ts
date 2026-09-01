@@ -53,7 +53,7 @@ export const EMPTY_DISCIPLINE_ENTRY: Omit<SoftSkillsDisciplineEntry, "discipline
 };
 
 export function disciplinesForLeague(leagueId: string): SoftSkillsDisciplineId[] {
-  if (leagueId === "1" || leagueId === "2" || leagueId === "3") {
+  if (leagueId === "1" || leagueId === "2" || leagueId === "3" || leagueId === "4") {
     return ["lumo", "robo", "sport", "3d"];
   }
   return [];

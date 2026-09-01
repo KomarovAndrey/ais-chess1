@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Users } from "lucide-react";
+import { Users, BarChart3 } from "lucide-react";
 import SoftSkillsTeamEditor from "@/components/soft-skills/SoftSkillsTeamEditor";
 import { SOFT_SKILLS_MODULES } from "@/lib/softSkillsModules";
 
@@ -22,14 +22,20 @@ export default function SoftSkillsHub({ isStaff }: SoftSkillsHubProps) {
             <p className="page-subtitle">Выберите модуль</p>
           </div>
           {isStaff && (
-            <button
-              type="button"
-              onClick={() => setEditorOpen(true)}
-              className="btn-secondary gap-2"
-            >
-              <Users className="h-4 w-4" />
-              Редактор команд
-            </button>
+            <div className="flex flex-wrap gap-2">
+              <Link href="/soft-skills/analytics" className="btn-secondary gap-2">
+                <BarChart3 className="h-4 w-4" />
+                Аналитика
+              </Link>
+              <button
+                type="button"
+                onClick={() => setEditorOpen(true)}
+                className="btn-secondary gap-2"
+              >
+                <Users className="h-4 w-4" />
+                Редактор команд
+              </button>
+            </div>
           )}
         </div>
 

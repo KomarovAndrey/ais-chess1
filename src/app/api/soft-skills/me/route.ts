@@ -14,5 +14,6 @@ export async function GET() {
   return NextResponse.json({
     ...places,
     leagueLabel,
+    dashboard: places.dashboard,
   });
 }

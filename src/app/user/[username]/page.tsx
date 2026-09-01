@@ -8,6 +8,7 @@ import SoftSkillsProfileSection, {
   type SoftSkillsDashboardView,
   type SoftSkillsPlacesView,
 } from "@/components/soft-skills/SoftSkillsProfileSection";
+import { mapSoftSkillsApiResponse } from "@/lib/softSkillsProfileApi";
 
 type ProfileInfo = {
   id: string;
@@ -78,20 +79,9 @@ export default function PublicProfilePage() {
       .then(async (res) => {
         const data = await res.json().catch(() => ({}));
         if (!res.ok || cancelled) return;
-        setSoftPlaces({
-          leaguePlace: data.leaguePlace ?? null,
-          classPlace: data.classPlace ?? null,
-          teamPlace: data.teamPlace ?? null,
-          overallPlace: data.overallPlace ?? null,
-          overallPoints: data.overallPoints ?? 0,
-          leagueLabel: data.leagueLabel ?? null,
-          className: data.className ?? null,
-          teamLabel: data.teamLabel ?? null,
-        });
-        setCompetencyDashboard({
-          overall: data.competenciesOverall,
-          byModule: data.competenciesByModule ?? {},
-        });
+        const mapped = mapSoftSkillsApiResponse(data);
+        setSoftPlaces(mapped.softPlaces);
+        setCompetencyDashboard(mapped.competencyDashboard);
       })
       .catch(() => {
         if (!cancelled) setSoftPlaces(null);

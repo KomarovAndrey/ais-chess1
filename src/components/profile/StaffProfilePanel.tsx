@@ -26,6 +26,7 @@ export default function StaffProfilePanel({ profile }: { profile: StaffProfile }
   const [students, setStudents] = useState<StudentRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [savingClassId, setSavingClassId] = useState<string | null>(null);
 
   useEffect(() => {
     setDisplayName(profile.display_name ?? "");
@@ -58,6 +59,28 @@ export default function StaffProfilePanel({ profile }: { profile: StaffProfile }
       cancelled = true;
     };
   }, [query]);
+
+  async function saveClassName(studentId: string, className: string) {
+    setSavingClassId(studentId);
+    try {
+      const res = await fetch(`/api/profile/students/${studentId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ class_name: className }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error ?? "Не удалось сохранить класс");
+      setStudents((prev) =>
+        prev.map((s) =>
+          s.id === studentId ? { ...s, class_name: data.student?.class_name ?? className } : s
+        )
+      );
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Ошибка сохранения класса");
+    } finally {
+      setSavingClassId(null);
+    }
+  }
 
   async function handleSaveName(e: React.FormEvent) {
     e.preventDefault();
@@ -168,24 +191,44 @@ export default function StaffProfilePanel({ profile }: { profile: StaffProfile }
               {students.map((s) => {
                 const profileHref = softSkillsProfileHref(s.username);
                 return (
-                <li key={s.id}>
-                  <Link
-                    href={profileHref ?? "#"}
-                    className="flex items-center justify-between gap-3 px-4 py-3 transition hover:bg-white/[0.04]"
-                  >
-                    <div className="min-w-0">
+                <li key={s.id} className="px-4 py-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <Link
+                      href={profileHref ?? "#"}
+                      className="min-w-0 flex-1 transition hover:text-gold"
+                    >
                       <div className="truncate text-sm font-medium text-white">
                         {s.display_name?.trim() || s.username || "Ученик"}
                       </div>
                       {s.username && (
-                        <div className="truncate text-xs text-white/45">
-                          @{s.username}
-                          {s.class_name ? ` · ${s.class_name}` : ""}
-                        </div>
+                        <div className="truncate text-xs text-white/45">@{s.username}</div>
                       )}
-                    </div>
-                    <span className="shrink-0 text-xs text-gold">Открыть →</span>
-                  </Link>
+                    </Link>
+                    <Link
+                      href={profileHref ?? "#"}
+                      className="shrink-0 text-xs text-gold"
+                    >
+                      Открыть →
+                    </Link>
+                  </div>
+                  <div className="mt-2 flex items-center gap-2">
+                    <label className="text-xs text-white/45">Класс</label>
+                    <input
+                      type="text"
+                      defaultValue={s.class_name ?? ""}
+                      maxLength={32}
+                      placeholder="5А"
+                      onBlur={(e) => {
+                        const v = e.target.value.trim();
+                        if (v !== (s.class_name ?? "").trim()) saveClassName(s.id, v);
+                      }}
+                      disabled={savingClassId === s.id}
+                      className="w-24 rounded-lg border border-white/10 bg-white/5 px-2 py-1 text-xs text-white outline-none focus:border-gold/50"
+                    />
+                    {savingClassId === s.id && (
+                      <span className="text-xs text-white/40">…</span>
+                    )}
+                  </div>
                 </li>
                 );
               })}
